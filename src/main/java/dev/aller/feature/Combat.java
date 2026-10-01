@@ -1,5 +1,6 @@
 package dev.aller.feature;
 
+import dev.aller.module.Modules;
 import dev.aller.platform.Game;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.minecraft.world.InteractionResult;
@@ -39,6 +40,7 @@ public final class Combat {
         double y = Math.clamp(eye.y, box.minY, box.maxY);
         double z = Math.clamp(eye.z, box.minZ, box.maxZ);
         lastReach = eye.distanceTo(new Vec3(x, y, z));
+        if (Modules.HIT_PARTICLES.enabled()) Modules.HIT_PARTICLES.spawn(target);
         if (target instanceof LivingEntity living) {
             pending = living;
             pendingAge = 0;

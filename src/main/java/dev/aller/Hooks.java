@@ -1,6 +1,10 @@
 package dev.aller;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import dev.aller.feature.View;
+import dev.aller.platform.Game;
+import dev.aller.platform.Mc;
+import net.minecraft.world.entity.Entity;
 import dev.aller.module.Modules;
 import dev.aller.module.mods.ChatMods;
 import net.minecraft.network.chat.Component;
@@ -76,6 +80,16 @@ public final class Hooks {
     /** @return true if the scroll was consumed (zoom adjustment) and must not change the hotbar slot */
     public static boolean scroll(double amount) {
         return Modules.ZOOM.scroll(amount);
+    }
+
+    /** Applied to the pose of the first-person hand and held item. */
+    public static void viewmodel(PoseStack pose, boolean mainHand) {
+        if (Modules.VIEWMODEL.enabled()) Modules.VIEWMODEL.apply(pose, mainHand);
+    }
+
+    public static boolean showOwnName(Entity entity) {
+        return Modules.OWN_NAMETAG.enabled() && entity == Game.player() && !Mc.hudHidden()
+                && !Mc.mc().options.getCameraType().isFirstPerson();
     }
 
     public static int blockOutlineColor(int original) {

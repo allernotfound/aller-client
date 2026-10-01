@@ -106,6 +106,11 @@ public final class Canvas {
         g.disableScissor();
     }
 
+    /** Starts a new layer: everything drawn after this is composited above everything drawn before. */
+    public void layer() {
+        g.nextStratum();
+    }
+
     /** Blurs everything drawn so far this frame (the world and HUD); may be called once per frame. */
     public void blurBehind() {
         g.blurBeforeThisStratum();

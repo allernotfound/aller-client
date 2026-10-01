@@ -28,12 +28,13 @@ import java.util.function.BooleanSupplier;
  */
 public final class DevHarness {
     /** Waits for {@code ready}, then {@code delay} seconds, then captures and/or runs the action. */
-    private record Step(BooleanSupplier ready, float delay, String shot, Runnable action) {}
+    private record Step(BooleanSupplier ready, float delay, String shot, Runnable action, float timeout) {}
 
     private static Path dir;
     private static final List<Step> steps = new ArrayList<>();
     private static final Map<Module, Boolean> savedState = new HashMap<>();
     private static float mark = -1;
+    private static float waitingSince = -1;
     private static int next;
     private static int pending;
 
@@ -44,6 +45,8 @@ public final class DevHarness {
         if (out == null) return;
         dir = Path.of(out);
 
+        until(Mc::loadingOverlay);
+        shot(0.7f, "splash");
         until(() -> Mc.current() instanceof MainMenuScreen && !Mc.loadingOverlay());
         shot(1.0f, "menu-intro");
         shot(3.5f, "menu");
@@ -74,7 +77,10 @@ public final class DevHarness {
 
         if (canEnterWorld()) {
             run(0.1f, DevHarness::enterWorld);
-            until(() -> Mc.mc().player != null && Mc.mc().level != null && !Mc.loadingOverlay() && Mc.screen() == null);
+            until(() -> dev.aller.platform.LoadingInfo.of(Mc.screen()) != null, 10);
+            shot(0.5f, "loading");
+            // Gives up (and just exits) if the world cannot be opened, e.g. another instance has it locked.
+            until(() -> Mc.mc().player != null && Mc.mc().level != null && !Mc.loadingOverlay() && Mc.screen() == null, 90);
             shot(6.0f, "hud");
             run(0.1f, () -> {
                 for (Module m : AllerClient.modules().all()) {
@@ -83,6 +89,9 @@ public final class DevHarness {
                 }
             });
             shot(2.5f, "hud-all");
+            run(0.1f, () -> Mc.mc().options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK));
+            shot(1.0f, "third-person");
+            run(0.1f, () -> Mc.mc().options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
             run(0.1f, () -> Mc.open(new HudEditorScreen(null)));
             shot(1.0f, "hud-editor");
             run(0.1f, () -> key(GLFW.GLFW_KEY_E));
@@ -109,15 +118,20 @@ public final class DevHarness {
     }
 
     private static void until(BooleanSupplier ready) {
-        steps.add(new Step(ready, 0, null, null));
+        until(ready, Float.MAX_VALUE);
+    }
+
+    /** Waits for a condition; if it has not happened after {@code timeout} seconds, the run ends early. */
+    private static void until(BooleanSupplier ready, float timeout) {
+        steps.add(new Step(ready, 0, null, null, timeout));
     }
 
     private static void shot(float delay, String name) {
-        steps.add(new Step(null, delay, name, null));
+        steps.add(new Step(null, delay, name, null, 0));
     }
 
     private static void run(float delay, Runnable action) {
-        steps.add(new Step(null, delay, null, action));
+        steps.add(new Step(null, delay, null, action, 0));
     }
 
     private static void type(String text) {
@@ -138,7 +152,7 @@ public final class DevHarness {
     private static void enterWorld() {
         var mc = Mc.mc();
         mc.options.pauseOnLostFocus = false;
-        String id = "aller-dev";
+        String id = System.getProperty("aller.dev.world", "aller-dev");
         if (mc.getLevelSource().levelExists(id)) {
             mc.createWorldOpenFlows().openWorld(id, () -> {});
             return;
@@ -161,7 +175,17 @@ public final class DevHarness {
     public static void frameEnd() {
         if (dir == null || next >= steps.size()) return;
         Step s = steps.get(next);
-        if (s.ready != null && !s.ready.getAsBoolean()) return;
+        if (s.ready != null && !s.ready.getAsBoolean()) {
+            if (waitingSince < 0) waitingSince = Motion.time();
+            if (Motion.time() - waitingSince > s.timeout) {
+                AllerClient.LOG.warn("Dev harness gave up waiting at step {}; exiting", next);
+                next = steps.size();
+                savedState.forEach(Module::setEnabled);
+                AllerClient.defer(() -> Mc.mc().stop());
+            }
+            return;
+        }
+        waitingSince = -1;
         if (mark < 0) mark = Motion.time();
         if (Motion.time() - mark < s.delay) return;
         if (s.action != null && pending > 0) return; // let captures land before moving on

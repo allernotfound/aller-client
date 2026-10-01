@@ -2,6 +2,7 @@ package dev.aller.mixin;
 
 import dev.aller.Frame;
 import dev.aller.Hooks;
+import dev.aller.platform.Pipelines;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.GameRenderer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -23,6 +24,11 @@ public abstract class GameRendererMixin {
     @Inject(method = "render", at = @At("TAIL"))
     private void aller$frameEnd(DeltaTracker delta, boolean advance, CallbackInfo ci) {
         Frame.end();
+    }
+
+    @Inject(method = "preloadUiShader", at = @At("TAIL"))
+    private void aller$preloadShaders(CallbackInfo ci) {
+        Pipelines.preload();
     }
 
     @Inject(method = "bobHurt", at = @At("HEAD"), cancellable = true)

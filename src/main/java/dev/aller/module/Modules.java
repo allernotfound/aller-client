@@ -6,6 +6,7 @@ import dev.aller.hud.elements.Keystrokes;
 import dev.aller.hud.elements.StatusHuds;
 import dev.aller.hud.elements.WideHuds;
 import dev.aller.module.mods.ChatMods;
+import dev.aller.module.mods.CosmeticMods;
 import dev.aller.module.mods.UtilityMods;
 import dev.aller.module.mods.VisualMods;
 import dev.aller.module.mods.WorldMods;
@@ -30,6 +31,10 @@ public final class Modules {
     public static final WorldMods.WaypointsMod WAYPOINTS = new WorldMods.WaypointsMod();
     public static final ChatMods.Timestamps CHAT_TIMESTAMPS = new ChatMods.Timestamps();
     public static final WideHuds.PlayerList PLAYER_LIST = new WideHuds.PlayerList();
+    public static final CosmeticMods.Cape CAPE = new CosmeticMods.Cape();
+    public static final CosmeticMods.OwnNametag OWN_NAMETAG = new CosmeticMods.OwnNametag();
+    public static final CosmeticMods.HitParticles HIT_PARTICLES = new CosmeticMods.HitParticles();
+    public static final CosmeticMods.Viewmodel VIEWMODEL = new CosmeticMods.Viewmodel();
 
     public static void registerAll(ModuleManager m) {
         // HUD
@@ -79,5 +84,11 @@ public final class Modules {
 
         // Chat
         m.register(CHAT_TIMESTAMPS);
+
+        // Cosmetic
+        m.register(CAPE);
+        m.register(VIEWMODEL);
+        m.register(HIT_PARTICLES);
+        m.register(OWN_NAMETAG);
     }
 }

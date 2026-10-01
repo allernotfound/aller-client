@@ -24,11 +24,17 @@ One source tree builds for several Minecraft versions through Stonecutter. Curre
 
 ### Self-test harness
 
-`./gradlew :26.2:runClient -Paller.shots=<dir>` (or `:1.21.8:`) launches the game, walks the main
-menu, palette pages, a creative test world (`aller-dev`), the HUD editor and the pause menu, writes a
-PNG of each to `<dir>` and exits. Use it to verify UI or mixin changes, then read the PNGs and grep
-the log for `ERROR|Mixin apply|Exception`. The script is `dev/DevHarness.java`; add a step when you
-add a screen. It opens a real game window for about a minute.
+`./gradlew :26.2:runClient -Paller.shots=<dir>` (or `:1.21.8:`) launches the game, captures the
+splash, walks the main menu, palette pages, a creative test world (`aller-dev`), the HUD editor and
+the pause menu, writes a PNG of each to `<dir>` and exits. Use it to verify UI or mixin changes,
+then read the PNGs and grep the log for `ERROR|Mixin apply|Exception`. The script is
+`dev/DevHarness.java`; add a step when you add a screen. It opens a real game window for about a
+minute.
+
+- `-Paller.compat` also loads Sodium and Iris (versions in `versions/<mc>/gradle.properties`).
+- `-Paller.world=<name>` uses a different test world. Needed when the user has the game open in
+  `aller-dev` themselves: the world is then locked and the harness gives up after the menus.
+- `-Paller.noWorld` skips the world entirely.
 
 A mixin that compiles can still fail at class load, so run the harness on **both** versions after
 touching anything in `mixin/`.
@@ -70,7 +76,8 @@ module/            Module, ModuleManager, Modules (the catalogue), mods/*
 hud/               HudModule (anchored, scalable), TextHud, elements/*
 feature/           Session, Waypoints, Replay, AutoProfiles, Combat, Clicks, View
 screen/            MainMenuScreen, PaletteScreen (+ palette/* pages), HudEditorScreen,
-                   PauseMenuScreen, Screens (which vanilla screens get replaced)
+                   PauseMenuScreen, Screens (which vanilla screens get replaced),
+                   Splash (startup overlay), LoadingSkin (paints over vanilla loading screens)
 config/            client.json (options + extras) and profiles/<name>.json (modules + HUD layout)
 ```
 
@@ -84,7 +91,9 @@ working on the Vulkan backend and alongside Sodium and Iris.
 
 - Shape parameters are packed into the ENTITY vertex format (UV0 local px, UV1 half size, UV2 radius
   and param, Normal.x mode). There are no custom uniforms.
-- Shaders are written as `#version 150`; the build rewrites that to 330 for 26.2.
+- Shaders are written as `#version 150` with `#moj_import` lines; the build rewrites the version
+  to 330 for 26.2 and inlines the two uniform blocks, so the pipelines can be compiled at startup
+  (`Pipelines.preload`) and the splash can already draw with them. Do not add other imports.
 - Only glyphs in `SdfAtlas.CHARSET` render (ASCII, Latin-1 and a few arrows and symbols); anything
   else shows as `?`. Add to the charset before using a new symbol.
 - Blur is vanilla's whole-screen `blurBeforeThisStratum()`, once per frame, for modal screens. HUD
@@ -127,10 +136,15 @@ integrated server, so guard with `instanceof ClientLevel` / `LocalPlayer`.
 
 ## Status
 
-Done and verified on both versions: main menu, palette (search, category dock, pages for module
-settings, client settings, profiles and auto-switch rules, waypoints, session stats), HUD editor,
-pause menu, 24 HUD elements, visual and utility mods with their mixins, waypoints, session tracking,
-instant replay, auto profiles.
+Built, and checked with the harness on both versions (also with Sodium + Iris loaded): startup
+splash, main menu, palette (search, category dock, pages for module settings, client settings,
+profiles and auto-switch rules, waypoints, session stats), HUD editor, pause menu, restyled
+loading/connecting screens, 24 HUD elements, visual and utility mods with their mixins, cosmetics
+(cape, held item view, hit particles, own nametag), waypoints, session tracking, instant replay,
+auto profiles.
 
-Not built yet: custom loading/connecting screens and startup overlay, cosmetic extras (capes,
-nametags), Sodium + Iris compatibility pass, README.
+The harness only proves things load and draw. Not yet exercised by a person: anything that needs
+held keys or a server (zoom, freelook, toggle sprint, replay saving, the connecting screen, ping,
+tab list with many players, auto-profile rules), and Iris with a shader pack actually enabled.
+
+Not built yet: README, more novel features (quick wheel, notes).
