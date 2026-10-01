@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "${id}",
+  "version": "${version}",
+  "name": "${name}",
+  "description": "A sleek, fair-play custom client: polished UI kit, HUD editor, command palette and a suite of toggleable mods.",
+  "authors": ["Aller"],
+  "license": "MIT",
+  "icon": "assets/aller/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.aller.AllerClient"],
+    "modmenu": ["dev.aller.compat.ModMenuCompat"]
+  },
+  "mixins": ["aller.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": "${mc_dep}",
+    "java": ">=${java}",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "modmenu": "*",
+    "sodium": "*"
+  }
+}

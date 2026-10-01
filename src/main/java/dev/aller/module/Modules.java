@@ -1,0 +1,83 @@
+package dev.aller.module;
+
+import dev.aller.hud.elements.Coordinates;
+import dev.aller.hud.elements.InfoHuds;
+import dev.aller.hud.elements.Keystrokes;
+import dev.aller.hud.elements.StatusHuds;
+import dev.aller.hud.elements.WideHuds;
+import dev.aller.module.mods.ChatMods;
+import dev.aller.module.mods.UtilityMods;
+import dev.aller.module.mods.VisualMods;
+import dev.aller.module.mods.WorldMods;
+
+/** The module catalogue. Order here is the order shown in the UI. */
+public final class Modules {
+    private Modules() {}
+
+    // Modules that hooks or other features need to reach directly.
+    public static final VisualMods.Zoom ZOOM = new VisualMods.Zoom();
+    public static final VisualMods.Fullbright FULLBRIGHT = new VisualMods.Fullbright();
+    public static final VisualMods.NoHurtCam NO_HURT_CAM = new VisualMods.NoHurtCam();
+    public static final VisualMods.LowFire LOW_FIRE = new VisualMods.LowFire();
+    public static final VisualMods.TimeChanger TIME_CHANGER = new VisualMods.TimeChanger();
+    public static final VisualMods.WeatherChanger WEATHER_CHANGER = new VisualMods.WeatherChanger();
+    public static final VisualMods.Crosshair CROSSHAIR = new VisualMods.Crosshair();
+    public static final VisualMods.BlockOutline BLOCK_OUTLINE = new VisualMods.BlockOutline();
+    public static final VisualMods.Scoreboard SCOREBOARD = new VisualMods.Scoreboard();
+    public static final UtilityMods.ToggleSprint TOGGLE_SPRINT = new UtilityMods.ToggleSprint();
+    public static final UtilityMods.Freelook FREELOOK = new UtilityMods.Freelook();
+    public static final UtilityMods.ReplayMod REPLAY = new UtilityMods.ReplayMod();
+    public static final WorldMods.WaypointsMod WAYPOINTS = new WorldMods.WaypointsMod();
+    public static final ChatMods.Timestamps CHAT_TIMESTAMPS = new ChatMods.Timestamps();
+    public static final WideHuds.PlayerList PLAYER_LIST = new WideHuds.PlayerList();
+
+    public static void registerAll(ModuleManager m) {
+        // HUD
+        m.register(new InfoHuds.Fps());
+        m.register(new Coordinates());
+        m.register(new InfoHuds.Cps());
+        m.register(new InfoHuds.Ping());
+        m.register(new Keystrokes());
+        m.register(new StatusHuds.Armor());
+        m.register(new StatusHuds.Potions());
+        m.register(new WideHuds.Compass());
+        m.register(PLAYER_LIST);
+        m.register(new StatusHuds.Target());
+        m.register(new WideHuds.LiveGraph());
+        m.register(new InfoHuds.Clock());
+        m.register(new InfoHuds.Direction());
+        m.register(new InfoHuds.Speed());
+        m.register(new InfoHuds.Day());
+        m.register(new InfoHuds.Biome());
+        m.register(new InfoHuds.Light());
+        m.register(new InfoHuds.Memory());
+        m.register(new InfoHuds.Server());
+        m.register(new InfoHuds.SessionTime());
+        m.register(new InfoHuds.ItemCount());
+        m.register(new InfoHuds.Saturation());
+        m.register(new InfoHuds.Combo());
+        m.register(new InfoHuds.Reach());
+
+        // Visual
+        m.register(ZOOM);
+        m.register(CROSSHAIR);
+        m.register(FULLBRIGHT);
+        m.register(BLOCK_OUTLINE);
+        m.register(NO_HURT_CAM);
+        m.register(LOW_FIRE);
+        m.register(TIME_CHANGER);
+        m.register(WEATHER_CHANGER);
+        m.register(SCOREBOARD);
+
+        // Utility
+        m.register(TOGGLE_SPRINT);
+        m.register(FREELOOK);
+        m.register(REPLAY);
+
+        // World
+        m.register(WAYPOINTS);
+
+        // Chat
+        m.register(CHAT_TIMESTAMPS);
+    }
+}

@@ -1,0 +1,23 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.aller.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "CameraMixin",
+    "ChatComponentMixin",
+    "ClientTimeMixin",
+    "EntityMixin",
+    "GameRendererMixin",
+    "HudMixin",
+    "LevelMixin",
+    "LevelRendererMixin",
+    "LightmapMixin",
+    "MouseHandlerMixin",
+    "ScreenEffectRendererMixin",
+    "SetScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
