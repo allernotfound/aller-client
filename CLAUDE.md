@@ -532,8 +532,7 @@ limit, search, log, copy, name colours, stack repeats, filters, unread marker, s
 The harness only proves things load and draw. Not yet exercised by a person: anything that needs
 held keys or a server (zoom, freelook, toggle sprint, replay saving, the connecting screen, ping,
 tab list with many players, auto-profile rules), and Iris with a shader pack actually enabled.
-Menu restyling is off by default and marked experimental, and stays so until a person has been through
-it. It is checked with `-Paller.skin` on both versions (26.2 with Sodium 0.9, Iris and Essential,
+Menu restyling is on by default and no longer marked experimental (the user's call). It is checked with `-Paller.skin` on both versions (26.2 with Sodium 0.9, Iris and Essential,
 1.21.8 with Sodium 0.7 and Iris), in the pixel look and the smooth one: stills, plus the hand-over
 caught part way. The harness has no pointer, so untried by hand: hover and press on buttons, the
 keyboard focus ring, dragging a slider, typing in fields, tooltips, Realms, a non-Latin language,

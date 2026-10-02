@@ -3,7 +3,6 @@ package dev.aller;
 import dev.aller.setting.Configurable;
 import dev.aller.setting.Setting;
 import dev.aller.setting.Settings;
-import dev.aller.ui.Toasts;
 import dev.aller.ui.anim.Motion;
 import org.lwjgl.glfw.GLFW;
 
@@ -69,10 +68,10 @@ public final class ClientOptions extends Configurable {
     public final Settings.Num hudSnap = num("hud_snap", "HUD editor snap distance", 6f, 0f, 16f, 1f)
             .format(v -> v <= 0 ? "Off" : Math.round(v) + "px");
 
-    { section("Minecraft menus (experimental)"); }
-    // A new id here too, so the switch starts off for everyone: it was on by default before it was ready.
-    public final Settings.Bool restyleMenus = bool("skin_menus", "Restyle Minecraft's menus", false)
-            .describe("Experimental. Aller Client's backdrop, panels, buttons and type on the menus chosen below");
+    { section("Minecraft menus"); }
+    // A new id again, so the switch starts on for everyone: the old one was saved as off while it was experimental.
+    public final Settings.Bool restyleMenus = bool("restyle_menus", "Restyle Minecraft's menus", true)
+            .describe("Aller Client's backdrop, panels, buttons and type on the menus chosen below");
     public final Settings.Bool restyleOptions = menu("restyle_options", "Options");
     public final Settings.Bool restyleVideo = menu("restyle_video", "Video settings")
             .describe("Sodium's video settings too, when it is installed");
@@ -108,9 +107,6 @@ public final class ClientOptions extends Configurable {
             .describe("Warn once per session when enabling a mod some servers restrict");
     public final Settings.Bool autoProfiles = bool("auto_profiles", "Switch profiles automatically by rule", true);
 
-    /** Set once the saved options have been read, so loading them does not count as the player changing them. */
-    private boolean loaded;
-
     /** The interface settings: look, sizes, motion and which screens Aller draws. */
     public List<Setting<?>> ui() {
         return settings().subList(0, uiCount);
@@ -133,14 +129,10 @@ public final class ClientOptions extends Configurable {
     public ClientOptions() {
         animationSpeed.onChange(v -> applyMotion());
         reduceMotion.onChange(v -> applyMotion());
-        restyleMenus.onChange(on -> {
-            if (on && loaded) Toasts.warn("Menu restyling is experimental", "It does not work well yet. Switch it off if a menu looks wrong.");
-        });
     }
 
     /** Called once the saved options are in, and again whenever a motion setting changes. */
     public void applyMotion() {
-        loaded = true;
         Motion.configure(animationSpeed.get(), reduceMotion.get());
     }
 }
