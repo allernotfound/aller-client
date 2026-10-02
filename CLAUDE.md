@@ -660,7 +660,7 @@ keys, clicking the card, a vanilla toast in the same corner (it covers the card)
 wheel in the viewer, double click, search, a rename actually committed, hundreds of screenshots,
 non-Windows systems, and Essential's own key with a signed-in account.
 
-Not built yet: README, more novel features (quick wheel, notes).
+Not built yet: more novel features (quick wheel, notes).
 
 ### Git
 Commit to git when you are done something, if you have to bundle in other unrelated work it is fine. It's mostly just as a backup, and later to be pushed to github so people can see the source code.
