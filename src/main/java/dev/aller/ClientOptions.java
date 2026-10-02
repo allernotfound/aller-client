@@ -10,6 +10,8 @@ public final class ClientOptions extends Configurable {
     public final Settings.Color accent = add(new Settings.Color("accent", "Accent colour", 0xFF8B5CF6, false));
     public final Settings.Key menuKey = key("menu_key", "Open palette", GLFW.GLFW_KEY_RIGHT_SHIFT);
     public final Settings.Key hudEditorKey = key("hud_editor_key", "Open HUD editor", Settings.Key.NONE);
+    public final Settings.Num uiScale = num("ui_scale", "Menu and palette size", 1f, 0.7f, 1.5f, 0.05f).suffix("x");
+    public final Settings.Num hudScale = num("hud_scale", "HUD size", 1f, 0.5f, 2f, 0.05f).suffix("x");
     public final Settings.Num animationSpeed = num("animation_speed", "Animation speed", 1f, 0.5f, 2f, 0.1f).suffix("x");
     public final Settings.Bool reduceMotion = bool("reduce_motion", "Reduce motion", false);
     public final Settings.Bool blur = bool("blur", "Blur behind menus", true);
@@ -21,6 +23,7 @@ public final class ClientOptions extends Configurable {
     public final Settings.Bool autoProfiles = bool("auto_profiles", "Switch profiles automatically by rule", true);
     public final Settings.Bool toasts = bool("toasts", "Toggle notifications", true);
     public final Settings.Bool fairPlayWarnings = bool("fair_play_warnings", "Fair-play warnings", true);
+    public final Settings.Bool gridView = bool("grid_view", "Show mods as a grid", false);
     public final Settings.Num hudSnap = num("hud_snap", "HUD editor snap distance", 6f, 0f, 16f, 1f).suffix("px");
 
     public ClientOptions() {

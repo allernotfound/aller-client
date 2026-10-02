@@ -103,7 +103,7 @@ public final class WideHuds {
         public final Settings.Num width = num("width", "Width", 110f, 70f, 240f, 10f).suffix("px");
 
         public LiveGraph() {
-            super("graph", "Live graph", "A rolling graph of FPS, ping or CPS over the last minutes", AnchorH.RIGHT, AnchorV.TOP, 6, 44);
+            super("graph", "Live graph", "A rolling graph of FPS, ping or CPS over the last minutes", AnchorH.RIGHT, AnchorV.TOP, 6, 46);
             keywords("chart", "stats", "performance", "history", "frametime");
         }
 

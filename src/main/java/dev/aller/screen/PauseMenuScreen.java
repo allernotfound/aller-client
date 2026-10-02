@@ -11,24 +11,28 @@ import dev.aller.platform.Skins;
 import dev.aller.screen.palette.StatsPage;
 import dev.aller.ui.AllerScreen;
 import dev.aller.ui.Colors;
+import dev.aller.ui.Icons;
 import dev.aller.ui.Theme;
 import dev.aller.ui.Toasts;
 import dev.aller.ui.anim.Easing;
 import dev.aller.ui.anim.Tween;
 import dev.aller.ui.font.Fonts;
 import dev.aller.ui.widget.Button;
+import dev.aller.ui.widget.IconButton;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * The in-game pause menu: the same left column as the main menu, over the blurred world, with a
- * card summarising the session so far.
+ * card summarising the session so far. Less common entries sit in a strip of icon buttons beside
+ * the column.
  */
 public final class PauseMenuScreen extends AllerScreen {
-    private static final float COLUMN = 232, CARD_H = 74, ROW = 26, BUTTON_H = 22;
+    private static final float COLUMN = 232, CARD_H = 74, ROW = 26, BUTTON_H = 22, ICON = 20, ICON_GAP = 5, STRIP = 28;
 
     private final List<Button> buttons = new ArrayList<>();
+    private final List<IconButton> icons = new ArrayList<>();
     private final List<Tween> buttonIn = new ArrayList<>();
     private final Tween cardIn = new Tween(0.45f, Easing.OUT_EXPO);
     private float leftX, topY, colW, k = 1;
@@ -36,15 +40,20 @@ public final class PauseMenuScreen extends AllerScreen {
     public PauseMenuScreen() {
         boolean local = Mc.mc().isLocalServer();
         add("Back to game", this::close).style(Button.Style.PRIMARY).hint("esc");
-        add("Aller settings", () -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen()))))
+        add("Mods", () -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen()))))
                 .hint(Mc.keyName(AllerClient.options().menuKey.get()));
-        add("Edit HUD layout", () -> Mc.setScreen(new ScreenHost(new HudEditorScreen(Mc.screen()))));
-        add("Advancements", () -> Nav.advancements(Mc.screen()));
+        add("HUD", () -> Mc.setScreen(new ScreenHost(new HudEditorScreen(Mc.screen())))).hint("edit layout");
         add("Statistics", () -> Nav.statistics(Mc.screen()));
         add("Options", () -> Nav.options(Mc.screen()));
-        if (Nav.hasModMenu()) add("Mods", () -> Nav.mods(Mc.screen())).hint(Nav.countMods() + " loaded");
-        add("More", Nav::vanillaPause).hint(local ? "LAN, feedback" : "reporting, feedback");
         add(local ? "Save and quit to title" : "Disconnect", Nav::disconnect).style(Button.Style.DANGER);
+
+        icons.add(new IconButton(Icons.ADVANCEMENTS, "Advancements", () -> Nav.advancements(Mc.screen())));
+        if (Nav.canOpenLan()) icons.add(new IconButton(Icons.LAN, "Open to LAN", () -> Nav.lan(Mc.screen())));
+        if (!local) icons.add(new IconButton(Icons.REPORT, "Player reporting", () -> Nav.playerReporting(Mc.screen())));
+        if (Nav.hasModMenu()) icons.add(new IconButton(Icons.MODS, "Installed mods", () -> Nav.mods(Mc.screen())));
+        icons.add(new IconButton(Icons.FEEDBACK, "Give feedback", () -> Nav.feedback(Mc.screen())));
+        icons.add(new IconButton(Icons.BUG, "Report a bug", () -> Nav.reportBug(Mc.screen())));
+
         for (int i = 0; i < buttons.size(); i++) {
             buttonIn.add(new Tween(0.4f, Easing.OUT_EXPO).delay(0.05f + i * 0.035f));
         }
@@ -60,10 +69,10 @@ public final class PauseMenuScreen extends AllerScreen {
     @Override
     protected void layout() {
         float columnH = 30 + CARD_H + 10 + buttons.size() * ROW;
-        k = Math.clamp(Math.min(height / (columnH + 30), width / 330f), 0.5f, 1f);
+        k = Math.clamp(Math.min(height / (columnH + 30), width / 360f), 0.5f, 1f);
         float vw = width / k, vh = height / k;
-        colW = Math.min(COLUMN, vw - 40);
-        leftX = Math.max(20, Math.min(vw * 0.085f, (vw - colW) / 2));
+        colW = Math.min(COLUMN, vw - 40 - STRIP);
+        leftX = Math.max(20 + STRIP, Math.min(vw * 0.085f + STRIP, (vw - colW) / 2));
         topY = Math.max(10, (vh - columnH) / 2);
     }
 
@@ -101,6 +110,7 @@ public final class PauseMenuScreen extends AllerScreen {
         c.popAlpha();
         y += CARD_H + 10;
 
+        float buttonsTop = y;
         for (int i = 0; i < buttons.size(); i++) {
             float t = buttonIn.get(i).update();
             Button b = buttons.get(i);
@@ -110,6 +120,19 @@ public final class PauseMenuScreen extends AllerScreen {
             c.popAlpha();
             y += ROW;
         }
+
+        // Icon strip, centred against the button stack.
+        float stripH = icons.size() * ICON + (icons.size() - 1) * ICON_GAP;
+        float iy = buttonsTop + (buttons.size() * ROW - (ROW - BUTTON_H) - stripH) / 2;
+        for (int i = 0; i < icons.size(); i++) {
+            float t = buttonIn.get(Math.min(i, buttonIn.size() - 1)).get();
+            IconButton b = icons.get(i);
+            b.bounds(leftX - STRIP - (1 - t) * 14, iy + i * (ICON + ICON_GAP), ICON, ICON);
+            c.pushAlpha(t);
+            b.draw(c, mx, my);
+            c.popAlpha();
+        }
+        for (IconButton b : icons) b.drawTip(c, true);
         c.pop();
         c.popAlpha();
         c.pop();
@@ -151,12 +174,15 @@ public final class PauseMenuScreen extends AllerScreen {
     public boolean mouseDown(float x, float y, int button) {
         if (isClosing()) return false;
         for (Button b : buttons) if (b.mouseDown(x / k, y / k, button)) return true;
+        for (IconButton b : icons) if (b.mouseDown(x / k, y / k, button)) return true;
         return false;
     }
 
     @Override
     public boolean mouseUp(float x, float y, int button) {
-        for (Button b : buttons) if (b.mouseUp(x / k, y / k, button)) return true;
-        return false;
+        boolean used = false;
+        for (Button b : buttons) used |= b.mouseUp(x / k, y / k, button);
+        for (IconButton b : icons) used |= b.mouseUp(x / k, y / k, button);
+        return used;
     }
 }

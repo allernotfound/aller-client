@@ -78,12 +78,21 @@ public abstract class HudModule extends Module {
 
     /** Moves the element so its top-left is at (x, y), re-anchoring to the nearest third of the screen. */
     public void place(float x, float y, float screenW, float screenH) {
+        place(x, y, screenW, screenH, null, null);
+    }
+
+    /**
+     * @param h the edge to stay attached to, or null to choose by position. An element whose
+     *          left edge was lined up with others must anchor left, or it would drift out of line
+     *          whenever its width changes.
+     */
+    public void place(float x, float y, float screenW, float screenH, AnchorH h, AnchorV v) {
         float sw = scaledW(), sh = scaledH();
         x = Math.clamp(x, 0, Math.max(0, screenW - sw));
         y = Math.clamp(y, 0, Math.max(0, screenH - sh));
         float cx = x + sw / 2, cy = y + sh / 2;
-        anchorH = cx < screenW / 3 ? AnchorH.LEFT : cx > screenW * 2 / 3 ? AnchorH.RIGHT : AnchorH.CENTER;
-        anchorV = cy < screenH / 3 ? AnchorV.TOP : cy > screenH * 2 / 3 ? AnchorV.BOTTOM : AnchorV.MIDDLE;
+        anchorH = h != null ? h : cx < screenW / 3 ? AnchorH.LEFT : cx > screenW * 2 / 3 ? AnchorH.RIGHT : AnchorH.CENTER;
+        anchorV = v != null ? v : cy < screenH / 3 ? AnchorV.TOP : cy > screenH * 2 / 3 ? AnchorV.BOTTOM : AnchorV.MIDDLE;
         offX = switch (anchorH) {
             case LEFT -> x;
             case CENTER -> cx - screenW / 2;

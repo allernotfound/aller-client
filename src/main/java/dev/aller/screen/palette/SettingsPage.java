@@ -3,6 +3,7 @@ package dev.aller.screen.palette;
 import dev.aller.AllerClient;
 import dev.aller.hud.HudModule;
 import dev.aller.module.Module;
+import dev.aller.module.mods.VisualMods;
 import dev.aller.platform.Canvas;
 import dev.aller.platform.Game;
 import dev.aller.platform.Mc;
@@ -101,7 +102,9 @@ public final class SettingsPage extends Page {
         List<String> note = module != null && module.fairPlayNote != null
                 ? Fonts.REGULAR.wrap(module.fairPlayNote + " Aller never blocks it; the choice is yours.", 7.5f, cw - 30)
                 : List.of();
-        float descH = lines.size() * 11f + 6;
+        boolean preview = module instanceof VisualMods.Crosshair;
+        float previewH = preview ? 58 : 0;
+        float descH = lines.size() * 11f + 6 + previewH;
         float noteH = note.isEmpty() ? 0 : note.size() * 10f + 12 + 8;
         float buttonsH = 30;
         float content = 8 + descH + noteH + view.height() + buttonsH + 6;
@@ -113,6 +116,21 @@ public final class SettingsPage extends Page {
             cy += 11f;
         }
         cy += 6;
+        if (preview) {
+            // The crosshair over a bright and a dark scene, so both cases can be judged at once.
+            float ph = previewH - 8, half = cw / 2;
+            c.gradientV(x + pad, cy, cw, ph, Theme.R_MD, 0xFF8FB4E8, 0xFFBFD6F2);
+            c.clip(x + pad + half, cy, half, ph);
+            c.gradientV(x + pad, cy, cw, ph, Theme.R_MD, 0xFF1C2B1A, 0xFF0E150D);
+            c.unclip();
+            c.stroke(x + pad, cy, cw, ph, Theme.R_MD, 1, Theme.BORDER);
+            c.clip(x + pad, cy, cw, ph);
+            VisualMods.Crosshair cross = (VisualMods.Crosshair) module;
+            cross.drawAt(c, x + pad + half / 2, cy + ph / 2, 0, 0);
+            cross.drawAt(c, x + pad + half * 1.5f, cy + ph / 2, 0, 0);
+            c.unclip();
+            cy += previewH;
+        }
         if (!note.isEmpty()) {
             float nh = noteH - 8;
             c.rect(x + pad, cy, cw, nh, Theme.R_MD, Colors.withAlpha(Theme.WARN, 0.10f));

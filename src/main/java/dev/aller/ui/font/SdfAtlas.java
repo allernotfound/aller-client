@@ -55,7 +55,7 @@ public final class SdfAtlas {
         StringBuilder sb = new StringBuilder();
         for (char c = 32; c < 127; c++) sb.append(c);
         for (char c = 161; c < 256; c++) sb.append(c);
-        sb.append("–—‘’“”‹›•…←↑→↓✓✕⇧⌘⏎★▶●");
+        sb.append("–—‘’“”‹›•…←↑→↓✓⇧⌘⏎★▶●");
         return sb.toString();
     }
 

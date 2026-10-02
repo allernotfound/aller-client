@@ -52,6 +52,12 @@ providers.gradleProperty("aller.shots").orNull?.let { dir ->
 providers.gradleProperty("aller.world").orNull?.let { name ->
     loom.runs.named("client") { vmArg("-Daller.dev.world=$name") }
 }
+if (providers.gradleProperty("aller.bench").isPresent) {
+    loom.runs.named("client") {
+        vmArg("-Daller.dev.bench=true")
+        if (providers.gradleProperty("aller.bench").get() == "each") vmArg("-Daller.dev.benchEach=true")
+    }
+}
 if (providers.gradleProperty("aller.noWorld").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.noWorld=true") }
 }

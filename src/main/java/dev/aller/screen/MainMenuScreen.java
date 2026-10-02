@@ -10,6 +10,7 @@ import dev.aller.platform.Sounds;
 import dev.aller.ui.AllerScreen;
 import dev.aller.ui.Colors;
 import dev.aller.ui.Theme;
+import dev.aller.ui.Icons;
 import dev.aller.ui.Toasts;
 import dev.aller.ui.anim.Easing;
 import dev.aller.ui.anim.Motion;
@@ -17,6 +18,7 @@ import dev.aller.ui.anim.Spring;
 import dev.aller.ui.anim.Tween;
 import dev.aller.ui.font.Fonts;
 import dev.aller.ui.widget.Button;
+import dev.aller.ui.widget.IconButton;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +35,9 @@ public final class MainMenuScreen extends AllerScreen {
     private static final float COLUMN = 232, CARD_H = 74, ROW = 27, BUTTON_H = 23;
     private static boolean introPlayed;
 
+    private static final float ICON = 20, ICON_GAP = 5, STRIP = 28;
     private final List<Button> buttons = new ArrayList<>();
+    private final List<IconButton> icons = new ArrayList<>();
     private final List<Tween> buttonIn = new ArrayList<>();
     private final boolean intro;
     private final Tween backdropIn;
@@ -62,12 +66,18 @@ public final class MainMenuScreen extends AllerScreen {
 
         worlds = add("Singleplayer", () -> go(() -> Nav.singleplayer(Mc.screen()))).style(Button.Style.PRIMARY);
         servers = add("Multiplayer", () -> go(() -> Nav.multiplayer(Mc.screen())));
-        add("Realms", () -> go(() -> Nav.realms(Mc.screen())));
-        if (Nav.hasModMenu()) add("Mods", () -> go(() -> Nav.mods(Mc.screen()))).hint(Nav.countMods() + " loaded");
-        add("Aller settings", () -> go(() -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen())))))
+        // The palette opens over the menu (which stays visible, blurred), so no fade-out here.
+        add("Mods", () -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen()))))
                 .hint(Mc.keyName(AllerClient.options().menuKey.get()) + " in game");
         add("Options", () -> go(() -> Nav.options(Mc.screen())));
-        add("Quit", Nav::quit).style(Button.Style.GHOST);
+
+        icons.add(new IconButton(Icons.REALMS, "Realms", () -> go(() -> Nav.realms(Mc.screen()))));
+        if (Nav.hasModMenu()) {
+            icons.add(new IconButton(Icons.MODS, "Installed mods (" + Nav.countMods() + ")", () -> go(() -> Nav.mods(Mc.screen()))));
+        }
+        IconButton quit = new IconButton(Icons.QUIT, "Quit game", Nav::quit);
+        quit.danger = true;
+        icons.add(quit);
 
         // Counting worlds and servers reads from disk, so fill those details in when they arrive.
         CompletableFuture.supplyAsync(Nav::countWorlds).thenAccept(n -> worlds.hint = plural(n, "world"));
@@ -108,11 +118,11 @@ public final class MainMenuScreen extends AllerScreen {
     @Override
     protected void layout() {
         float columnH = 34 + CARD_H + 10 + buttons.size() * ROW;
-        k = Math.clamp(Math.min(height / (columnH + 56), width / 330f), 0.5f, 1f);
+        k = Math.clamp(Math.min(height / (columnH + 56), width / 360f), 0.5f, 1f);
         vw = width / k;
         vh = height / k;
-        colW = Math.min(COLUMN, vw - 40);
-        leftX = Math.max(20, Math.min(vw * 0.085f, (vw - colW) / 2));
+        colW = Math.min(COLUMN, vw - 40 - STRIP);
+        leftX = Math.max(20 + STRIP, Math.min(vw * 0.085f + STRIP, (vw - colW) / 2));
         topY = Math.max(14, (vh - columnH) / 2 - 10);
     }
 
@@ -168,6 +178,7 @@ public final class MainMenuScreen extends AllerScreen {
         y += CARD_H + 10;
 
         // Buttons slide in from the left one after another.
+        float buttonsTop = y;
         for (int i = 0; i < buttons.size(); i++) {
             float t = buttonIn.get(i).update();
             Button b = buttons.get(i);
@@ -177,6 +188,18 @@ public final class MainMenuScreen extends AllerScreen {
             c.popAlpha();
             y += ROW;
         }
+        // Secondary destinations: a strip of icon buttons centred against the stack.
+        float stripH = icons.size() * ICON + (icons.size() - 1) * ICON_GAP;
+        float iy = buttonsTop + (buttons.size() * ROW - (ROW - BUTTON_H) - stripH) / 2;
+        for (int i = 0; i < icons.size(); i++) {
+            float t = buttonIn.get(Math.min(i, buttonIn.size() - 1)).get();
+            IconButton b = icons.get(i);
+            b.bounds(leftX - STRIP - (1 - t) * 14, iy + i * (ICON + ICON_GAP), ICON, ICON);
+            c.pushAlpha(t);
+            b.draw(c, mx, my);
+            c.popAlpha();
+        }
+        for (IconButton b : icons) b.drawTip(c, true);
         c.pop();
         c.popAlpha();
 
@@ -275,6 +298,7 @@ public final class MainMenuScreen extends AllerScreen {
         x /= k;
         y /= k;
         for (Button b : buttons) if (b.mouseDown(x, y, button)) return true;
+        for (IconButton b : icons) if (b.mouseDown(x, y, button)) return true;
         if (button == 0) {
             float sy = topY + 34 + CARD_H - 13;
             for (int i = 0; i < ACCENTS.length; i++) {
@@ -291,7 +315,9 @@ public final class MainMenuScreen extends AllerScreen {
 
     @Override
     public boolean mouseUp(float x, float y, int button) {
-        for (Button b : buttons) if (b.mouseUp(x / k, y / k, button)) return true;
-        return false;
+        boolean used = false;
+        for (Button b : buttons) used |= b.mouseUp(x / k, y / k, button);
+        for (IconButton b : icons) used |= b.mouseUp(x / k, y / k, button);
+        return used;
     }
 }

@@ -10,6 +10,7 @@ import dev.aller.module.Modules;
 import dev.aller.platform.Canvas;
 import dev.aller.platform.Game;
 import dev.aller.platform.Mc;
+import dev.aller.platform.ScreenHost;
 import dev.aller.platform.Sounds;
 import dev.aller.screen.palette.Page;
 import dev.aller.screen.palette.ProfilesPage;
@@ -19,12 +20,14 @@ import dev.aller.screen.palette.WaypointsPage;
 import dev.aller.setting.Settings;
 import dev.aller.ui.AllerScreen;
 import dev.aller.ui.Colors;
+import dev.aller.ui.Icons;
 import dev.aller.ui.Theme;
 import dev.aller.ui.Toasts;
 import dev.aller.ui.anim.Easing;
 import dev.aller.ui.anim.Spring;
 import dev.aller.ui.anim.Tween;
 import dev.aller.ui.font.Fonts;
+import dev.aller.ui.widget.IconButton;
 import dev.aller.ui.widget.Scroll;
 import dev.aller.ui.widget.TextField;
 import dev.aller.ui.widget.Toggle;
@@ -43,7 +46,7 @@ import java.util.function.BooleanSupplier;
  * deeper views (settings, profiles, waypoints, stats) slide in as pages inside the same panel.
  */
 public final class PaletteScreen extends AllerScreen {
-    private static final float HEADER = 36, DOCK = 27, FOOTER = 22, ROW_H = 30, SECTION_H = 21;
+    private static final float HEADER = 36, DOCK = 27, FOOTER = 22, ROW_H = 30, SECTION_H = 21, CARD_H = 58, CARD_GAP = 5;
 
     private record Action(String name, String detail, String keywords, BooleanSupplier available, Runnable run) {}
 
@@ -54,7 +57,8 @@ public final class PaletteScreen extends AllerScreen {
         Action action;
         boolean[] hits;
         float score;
-        float y, h;
+        /** Position inside the scrolling list, set by {@link #arrange()}. */
+        float x, y, w, h;
 
         boolean selectable() {
             return section == null;
@@ -78,6 +82,9 @@ public final class PaletteScreen extends AllerScreen {
     private final Map<Object, RowAnim> anims = new IdentityHashMap<>();
     private final Scroll scroll = new Scroll();
     private final Spring selY = new Spring(0, 620f, 42f), selH = new Spring(ROW_H, 620f, 42f);
+    private final Spring selX = new Spring(0, 620f, 42f), selW = new Spring(0, 620f, 42f);
+    private final IconButton rowsView = new IconButton(Icons.ROWS, "List", () -> setGrid(false));
+    private final IconButton gridView = new IconButton(Icons.GRID, "Grid", () -> setGrid(true));
     private final Spring dockX = new Spring(0, 520f, 38f), dockW = new Spring(0, 520f, 38f);
     private final Spring pageT = Spring.snappy(0);
     private final Spring backHover = Spring.snappy(0);
@@ -168,6 +175,12 @@ public final class PaletteScreen extends AllerScreen {
         intro.restart();
     }
 
+    /** Opened from a menu, the palette floats over it: the menu keeps drawing underneath, blurred. */
+    @Override
+    public AllerScreen underlay() {
+        return parent instanceof ScreenHost host ? host.screen : null;
+    }
+
     @Override
     public void close() {
         close(() -> Mc.setScreen(parent));
@@ -232,18 +245,59 @@ public final class PaletteScreen extends AllerScreen {
         }
 
         // Keep the highlighted item when only the grouping changed; a new query starts at the best match.
-        float y = 2;
         int first = -1, kept = -1;
         for (int i = 0; i < rows.size(); i++) {
             Row r = rows.get(i);
-            r.y = y;
-            r.h = r.section != null ? SECTION_H : ROW_H;
-            y += r.h;
             if (!r.selectable()) continue;
             if (first < 0) first = i;
             if (keep != null && r.key() == keep) kept = i;
         }
         selected = q.isEmpty() && kept >= 0 ? kept : first;
+        arrange();
+    }
+
+    private boolean grid() {
+        return AllerClient.options().gridView.get();
+    }
+
+    private void setGrid(boolean on) {
+        if (grid() == on) return;
+        AllerClient.options().gridView.set(on);
+        AllerClient.config().markDirty();
+        selPrimed = false;
+    }
+
+    /** Positions every row: full-width lines, or (in grid view) mods as cards flowing into columns. */
+    private void arrange() {
+        boolean grid = grid();
+        float full = Math.max(120, pw - 12);
+        int cols = Math.max(2, (int) (full / 128));
+        float cardW = (full - CARD_GAP * (cols - 1)) / cols;
+        float y = 2;
+        int col = 0;
+        for (Row r : rows) {
+            if (grid && r.module != null) {
+                r.x = col * (cardW + CARD_GAP);
+                r.w = cardW;
+                r.y = y;
+                r.h = CARD_H;
+                if (++col == cols) {
+                    col = 0;
+                    y += CARD_H + CARD_GAP;
+                }
+            } else {
+                if (col != 0) {
+                    col = 0;
+                    y += CARD_H + CARD_GAP;
+                }
+                r.x = 0;
+                r.w = full;
+                r.y = y;
+                r.h = r.section != null ? SECTION_H : ROW_H;
+                y += r.h;
+            }
+        }
+        if (col != 0) y += CARD_H + CARD_GAP;
         contentH = y + 4;
     }
 
@@ -323,6 +377,31 @@ public final class PaletteScreen extends AllerScreen {
         }
     }
 
+    /** Up/down in grid view: the nearest card in the next line, keeping the column where possible. */
+    private void moveLine(int direction) {
+        if (!grid() || selected < 0 || selected >= rows.size()) {
+            move(direction);
+            return;
+        }
+        Row from = rows.get(selected);
+        int best = -1;
+        float bestLine = Float.MAX_VALUE, bestDx = Float.MAX_VALUE;
+        for (int i = 0; i < rows.size(); i++) {
+            Row r = rows.get(i);
+            if (!r.selectable()) continue;
+            float dy = (r.y - from.y) * direction;
+            if (dy <= 0.5f) continue;
+            float dx = Math.abs(r.x - from.x);
+            if (dy < bestLine - 0.5f || Math.abs(dy - bestLine) <= 0.5f && dx < bestDx) {
+                bestLine = dy;
+                bestDx = dx;
+                best = i;
+            }
+        }
+        if (best >= 0) select(best, true);
+        else move(direction);
+    }
+
     private void cycleFilter(int direction) {
         int count = categories.size() + 1;
         int current = filter == null ? 0 : categories.indexOf(filter) + 1;
@@ -363,8 +442,8 @@ public final class PaletteScreen extends AllerScreen {
     protected void draw(Canvas c, float mx, float my) {
         float open = openness(), fade = fade();
         boolean inWorld = Mc.mc().level != null;
-        if (!inWorld) Theme.scene(c, width, height);
-        c.rect(0, 0, width, height, 0, Colors.withAlpha(0xFF050409, (inWorld ? 0.42f : 0.5f) * fade));
+        if (!inWorld && underlay() == null) Theme.scene(c, width, height);
+        c.rect(0, 0, width, height, 0, Colors.withAlpha(0xFF050409, 0.42f * fade));
 
         c.pushAlpha(fade);
         c.push();
@@ -470,11 +549,19 @@ public final class PaletteScreen extends AllerScreen {
             int col = i == active ? Theme.onAccent() : over ? Theme.TEXT : Theme.TEXT_DIM;
             c.textMiddle(Fonts.MEDIUM, labels[i], dockPos[i] + 8, dy, dh, 7.8f, col);
         }
-        if (filter != null) {
-            c.textRight(Fonts.REGULAR, filter.blurb, px + pw - 14, dy + (dh - Fonts.REGULAR.height(7.5f)) / 2, 7.5f, Theme.TEXT_MUTED);
+        float viewX = px + pw - 12 - 16 * 2 - 3;
+        rowsView.active = !grid();
+        gridView.active = grid();
+        rowsView.bounds(viewX, dy, 16, 16);
+        gridView.bounds(viewX + 19, dy, 16, 16);
+        rowsView.draw(c, interactive ? mx : -999, my);
+        gridView.draw(c, interactive ? mx : -999, my);
+        if (filter != null && cx + Fonts.REGULAR.width(filter.blurb, 7.5f) + 16 < viewX) {
+            c.textRight(Fonts.REGULAR, filter.blurb, viewX - 8, dy + (dh - Fonts.REGULAR.height(7.5f)) / 2, 7.5f, Theme.TEXT_MUTED);
         }
 
         // Results.
+        arrange();
         listY = y + DOCK;
         listH = h - DOCK;
         float off = scroll.update(contentH, listH);
@@ -482,8 +569,8 @@ public final class PaletteScreen extends AllerScreen {
         if (inList && (mx != lastMx || my != lastMy)) {
             for (int i = 0; i < rows.size(); i++) {
                 Row r = rows.get(i);
-                float ry = listY + r.y - off;
-                if (my >= ry && my < ry + r.h) select(i, false);
+                float ry = listY + r.y - off, rxx = px + 6 + r.x;
+                if (my >= ry && my < ry + r.h && mx >= rxx && mx < rxx + r.w) select(i, false);
             }
         }
 
@@ -498,12 +585,18 @@ public final class PaletteScreen extends AllerScreen {
             Row s = rows.get(selected);
             if (!selPrimed) {
                 selY.snap(s.y);
+                selX.snap(s.x);
+                selW.snap(s.w);
+                selH.snap(s.h);
                 selPrimed = true;
             }
             float sy = listY + selY.target(s.y).update() - off, sh = selH.target(s.h).update();
-            c.rect(rx, sy + 1, rw, sh - 2, Theme.R_MD, Colors.withAlpha(Theme.accent(), 0.13f));
-            c.stroke(rx, sy + 1, rw, sh - 2, Theme.R_MD, 1, Colors.withAlpha(Theme.accent(), 0.30f));
-            c.rect(rx, sy + 8, 2, sh - 16, 1, Theme.accent());
+            float sx = rx + selX.target(s.x).update(), sw = selW.target(s.w).update();
+            boolean card = grid() && s.module != null;
+            float inset = card ? 0 : 1;
+            c.rect(sx, sy + inset, sw, sh - inset * 2, Theme.R_MD, Colors.withAlpha(Theme.accent(), 0.13f));
+            c.stroke(sx, sy + inset, sw, sh - inset * 2, Theme.R_MD, 1, Colors.withAlpha(Theme.accent(), card ? 0.55f : 0.30f));
+            if (!card) c.rect(sx, sy + 8, 2, sh - 16, 1, Theme.accent());
         }
         float in = intro.update();
         int visibleIndex = 0;
@@ -518,6 +611,7 @@ public final class PaletteScreen extends AllerScreen {
             c.push();
             c.translate(0, (1 - a) * 7);
             if (r.section != null) drawSection(c, r, rx, ry, rw);
+            else if (grid() && r.module != null) drawCard(c, r, i == selected, rx + r.x, ry, r.w, inList ? mx : -999, my);
             else drawRow(c, r, i == selected, rx, ry, rw, inList ? mx : -999, my);
             c.pop();
             c.popAlpha();
@@ -594,6 +688,48 @@ public final class PaletteScreen extends AllerScreen {
         c.text(Fonts.REGULAR, Fonts.REGULAR.truncate(detail, 7.2f, right - textX - 6), nx, y + 17f, 7.2f, Theme.TEXT_MUTED);
     }
 
+    /** Grid view: one mod as a compact card. */
+    private void drawCard(Canvas c, Row r, boolean isSelected, float x, float y, float w, float mx, float my) {
+        Module m = r.module;
+        RowAnim anim = anims.computeIfAbsent(m, k -> new RowAnim());
+        float hv = anim.hover.target(isSelected ? 1 : 0).update();
+        boolean on = m.enabled();
+        c.rect(x, y, w, CARD_H, Theme.R_MD, on ? Colors.withAlpha(Theme.accent(), 0.07f) : 0x0AFFFFFF);
+        c.stroke(x, y, w, CARD_H, Theme.R_MD, 1, Theme.BORDER);
+
+        float cx = x + 11, cy = y + 12;
+        if (on) {
+            c.shadow(cx - 3, cy - 3, 6, 6, 3, 6, Colors.withAlpha(Theme.accent(), 0.7f));
+            c.circle(cx, cy, 3, Theme.accent());
+        } else {
+            c.ring(cx, cy, 3, 1.1f, 0x55FFFFFF);
+        }
+        boolean overChevron = mx >= x + w - 18 && mx < x + w && my >= y && my < y + 20;
+        c.textMiddle(Fonts.MEDIUM, "›", x + w - 12, y + 1, 20, 11f,
+                overChevron ? Theme.TEXT : Colors.fade(Theme.TEXT_MUTED, 0.45f + 0.55f * hv));
+
+        int base = Colors.mix(Theme.TEXT_DIM, Theme.TEXT, on ? 1f : 0.35f + 0.65f * hv);
+        String name = Fonts.SEMIBOLD.truncate(m.name, 8.5f, w - 38);
+        boolean[] hits = r.hits != null && name.equals(m.name) ? r.hits : null;
+        drawName(c, name, hits, x + 20, y + 6.5f, 8.5f, base);
+
+        List<String> lines = Fonts.REGULAR.wrap(m.description, 6.6f, w - 18);
+        for (int i = 0; i < Math.min(2, lines.size()); i++) {
+            String line = i == 1 && lines.size() > 2 ? Fonts.REGULAR.truncate(lines.get(1) + " …", 6.6f, w - 18) : lines.get(i);
+            c.text(Fonts.REGULAR, line, x + 10, y + 20.5f + i * 8.5f, 6.6f, Theme.TEXT_MUTED);
+        }
+
+        anim.toggle.draw(c, x + w - 9 - Toggle.W, y + CARD_H - 7 - Toggle.H, on, isSelected && !overChevron);
+        int key = m.keybind.get();
+        if (key != Settings.Key.NONE) {
+            Theme.keycap(c, Mc.keyName(key), x + 9, y + CARD_H - 19, 12);
+        } else if (m.fairPlayNote != null) {
+            float bw = Fonts.SEMIBOLD.width("CHECK RULES", 5.4f) + 8;
+            c.rect(x + 9, y + CARD_H - 17, bw, 9, 4.5f, Colors.withAlpha(Theme.WARN, 0.14f));
+            c.textMiddle(Fonts.SEMIBOLD, "CHECK RULES", x + 13, y + CARD_H - 17, 9, 5.4f, Theme.WARN);
+        }
+    }
+
     /** Draws a name with the characters that matched the query picked out in the accent colour. */
     private float drawName(Canvas c, String name, boolean[] hits, float x, float y, float size, int color) {
         if (hits == null) return x + c.text(Fonts.SEMIBOLD, name, x, y, size, color);
@@ -619,6 +755,8 @@ public final class PaletteScreen extends AllerScreen {
         boolean onModule = selected >= 0 && selected < rows.size() && rows.get(selected).module != null;
         String[][] hints = t > 0.5f
                 ? new String[][] {{"esc", "back"}}
+                : grid()
+                ? new String[][] {{"←↑↓→", "move"}, {"⏎", onModule ? "toggle" : "open"}, {"⇧⏎", "settings"}, {"tab", "category"}}
                 : new String[][] {{"↑↓", "move"}, {"⏎", onModule ? "toggle" : "open"}, {"→", "settings"}, {"tab", "category"}};
         float x = px + 10, limit = px + pw - 24 - statusW;
         for (String[] hint : hints) {
@@ -655,6 +793,13 @@ public final class PaletteScreen extends AllerScreen {
         }
         if (!inBody(y)) return true;
         if (y < listY) {
+            if (button == 0 && rowsView.hit(x, y)) {
+                Sounds.click();
+                setGrid(false);
+            } else if (button == 0 && gridView.hit(x, y)) {
+                Sounds.click();
+                setGrid(true);
+            }
             int count = categories.size() + 1;
             for (int i = 0; i < count; i++) {
                 if (x >= dockPos[i] && x < dockPos[i + 1] - 2) setFilter(i == 0 ? null : categories.get(i - 1));
@@ -664,10 +809,11 @@ public final class PaletteScreen extends AllerScreen {
         float off = scroll.get();
         for (int i = 0; i < rows.size(); i++) {
             Row r = rows.get(i);
-            float ry = listY + r.y - off;
-            if (!r.selectable() || y < ry || y >= ry + r.h) continue;
+            float ry = listY + r.y - off, rx = px + 6 + r.x;
+            if (!r.selectable() || y < ry || y >= ry + r.h || x < rx || x >= rx + r.w) continue;
             select(i, false);
-            boolean chevron = r.module != null && x >= px + pw - 6 - 24;
+            boolean card = grid() && r.module != null;
+            boolean chevron = r.module != null && (card ? x >= rx + r.w - 18 && y < ry + 20 : x >= px + pw - 6 - 24);
             if (button == 0 || button == 1) activate(r, chevron || button == 1);
             return true;
         }
@@ -711,12 +857,18 @@ public final class PaletteScreen extends AllerScreen {
                 return true;
             }
             case GLFW.GLFW_KEY_DOWN -> {
-                move(1);
+                moveLine(1);
                 return true;
             }
             case GLFW.GLFW_KEY_UP -> {
-                move(-1);
+                moveLine(-1);
                 return true;
+            }
+            case GLFW.GLFW_KEY_LEFT -> {
+                if (grid() && search.text.isEmpty()) {
+                    move(-1);
+                    return true;
+                }
             }
             case GLFW.GLFW_KEY_PAGE_DOWN -> {
                 for (int i = 0; i < 6; i++) move(1);
@@ -735,6 +887,10 @@ public final class PaletteScreen extends AllerScreen {
                 return true;
             }
             case GLFW.GLFW_KEY_RIGHT -> {
+                if (grid() && search.text.isEmpty()) {
+                    move(1);
+                    return true;
+                }
                 if (search.caretAtEnd() && selected >= 0 && selected < rows.size() && rows.get(selected).module != null) {
                     activate(rows.get(selected), true);
                     return true;

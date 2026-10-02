@@ -4,11 +4,13 @@ import com.mojang.realmsclient.RealmsMainScreen;
 import dev.aller.compat.ModMenuCompat;
 import net.fabricmc.loader.api.FabricLoader;
 import dev.aller.screen.Screens;
+import net.minecraft.client.gui.screens.ConfirmLinkScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.achievement.StatsScreen;
 import net.minecraft.client.gui.screens.advancements.AdvancementsScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.util.CommonLinks;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
@@ -45,6 +47,37 @@ public final class Nav {
     public static void statistics(Screen parent) {
         var player = Mc.mc().player;
         if (player != null) Mc.setScreen(new StatsScreen(parent, player.getStats()));
+    }
+
+    /** Whether "Open to LAN" applies: a singleplayer world that is not shared yet. */
+    public static boolean canOpenLan() {
+        var mc = Mc.mc();
+        //? if <26.1 {
+        /*return mc.hasSingleplayerServer() && !mc.getSingleplayerServer().isPublished();
+        *///?} else {
+        return mc.hasSingleplayerServer();
+        //?}
+    }
+
+    public static void lan(Screen parent) {
+        //? if <26.1 {
+        /*Mc.setScreen(new net.minecraft.client.gui.screens.ShareToLanScreen(parent));
+        *///?} else {
+        Mc.setScreen(new net.minecraft.client.gui.screens.MultiplayerOptionsScreen(parent));
+        //?}
+    }
+
+    public static void playerReporting(Screen parent) {
+        Mc.setScreen(new net.minecraft.client.gui.screens.social.SocialInteractionsScreen(parent));
+    }
+
+    public static void feedback(Screen parent) {
+        boolean stable = net.minecraft.SharedConstants.getCurrentVersion().stable();
+        ConfirmLinkScreen.confirmLinkNow(parent, stable ? CommonLinks.RELEASE_FEEDBACK : CommonLinks.SNAPSHOT_FEEDBACK);
+    }
+
+    public static void reportBug(Screen parent) {
+        ConfirmLinkScreen.confirmLinkNow(parent, CommonLinks.SNAPSHOT_BUGS_FEEDBACK);
     }
 
     /** Vanilla's own pause menu, which has the less common entries (LAN, reporting, feedback). */

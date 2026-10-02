@@ -179,7 +179,11 @@ public final class VisualMods {
             lastCombo = combo;
             float h = hit.target(0).update();
 
-            float cx = c.width() / 2, cy = c.height() / 2;
+            drawAt(c, c.width() / 2, c.height() / 2, sp, h);
+        }
+
+        /** Draws the crosshair centred on a point, e.g. for the preview in its settings. */
+        public void drawAt(Canvas c, float cx, float cy, float sp, float h) {
             float len = size.get(), g = gap.get() + sp + h * 1.5f, t = thickness.get();
             int col = Colors.mix(color.get(), hitColor.get(), Math.clamp(h * 1.4f, 0f, 1f));
             int dark = Colors.withAlpha(Colors.BLACK, 0.55f * Colors.alpha(col) / 255f);

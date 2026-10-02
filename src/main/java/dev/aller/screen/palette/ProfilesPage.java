@@ -6,6 +6,7 @@ import dev.aller.feature.AutoProfiles;
 import dev.aller.platform.Canvas;
 import dev.aller.platform.Sounds;
 import dev.aller.ui.Colors;
+import dev.aller.ui.Icons;
 import dev.aller.ui.Theme;
 import dev.aller.ui.Toasts;
 import dev.aller.ui.anim.Spring;
@@ -125,8 +126,7 @@ public final class ProfilesPage extends Page {
                 c.textRight(Fonts.SEMIBOLD, "ACTIVE", x + pad + cw - 10, cy + (ROW - Fonts.SEMIBOLD.height(6.5f)) / 2, 6.5f, Theme.accent());
             } else if (!name.equals(Config.DEFAULT_PROFILE)) {
                 boolean overX = over && mx >= x + pad + cw - 22;
-                c.textRight(Fonts.MEDIUM, "✕", x + pad + cw - 9, cy + (ROW - Fonts.MEDIUM.height(8f)) / 2, 8f,
-                        Colors.fade(overX ? Theme.DANGER : Theme.TEXT_MUTED, hv));
+                Icons.CLOSE.draw(c, x + pad + cw - 12, cy + ROW / 2, 9, Colors.fade(overX ? Theme.DANGER : Theme.TEXT_MUTED, hv));
             }
             cy += ROW;
         }
@@ -173,7 +173,7 @@ public final class ProfilesPage extends Page {
             row.profile.draw(c, mx, my);
             rx += profW + 4;
             boolean overX = mx >= rx && mx < rx + 18 && my >= cy && my < cy + ROW;
-            c.textMiddle(Fonts.MEDIUM, "✕", rx + 5, cy, ROW, 8f, overX ? Theme.DANGER : Theme.TEXT_MUTED);
+            Icons.CLOSE.draw(c, rx + 9, cy + ROW / 2, 9, overX ? Theme.DANGER : Theme.TEXT_MUTED);
             cy += ROW;
         }
         cy += 6;

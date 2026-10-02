@@ -30,7 +30,7 @@ import java.util.Map;
  * and removes elements.
  */
 public final class HudEditorScreen extends AllerScreen {
-    private static final float MARGIN = 4, DRAWER_W = 168, ROW = 22;
+    private static final float MARGIN = 6, GAP = 2, DRAWER_W = 168, ROW = 22;
 
     private static final class Anim {
         final Spring focus = Spring.snappy(0);
@@ -73,6 +73,12 @@ public final class HudEditorScreen extends AllerScreen {
     @Override
     public boolean blurBehind() {
         return false;
+    }
+
+    /** The editor works in HUD units so elements sit exactly where they will in game. */
+    @Override
+    public float scale() {
+        return AllerClient.options().hudScale.get();
     }
 
     private Anim anim(HudModule h) {
@@ -127,8 +133,9 @@ public final class HudEditorScreen extends AllerScreen {
             dragX = Math.clamp(snapped[0], 0, Math.max(0, width - dragging.scaledW()));
             dragY = Math.clamp(snapped[1], 0, Math.max(0, height - dragging.scaledH()));
             float gx = guideXAlpha.update(), gy = guideYAlpha.update();
-            if (gx > 0.02f) c.rect(guideX - 0.5f, 0, 1, height, 0, Colors.withAlpha(Theme.accent(), 0.8f * gx));
-            if (gy > 0.02f) c.rect(0, guideY - 0.5f, width, 1, 0, Colors.withAlpha(Theme.accent(), 0.8f * gy));
+            // Guides span just the things being lined up, so it is clear what the element snapped to.
+            if (gx > 0.02f) c.rect(guideX - 0.5f, guideFromY - 4, 1, guideToY - guideFromY + 8, 0, Colors.withAlpha(Theme.accent(), 0.9f * gx));
+            if (gy > 0.02f) c.rect(guideFromX - 4, guideY - 0.5f, guideToX - guideFromX + 8, 1, 0, Colors.withAlpha(Theme.accent(), 0.9f * gy));
             float l = lift.get();
             c.shadow(dragX, dragY + 4 * l, dragging.scaledW(), dragging.scaledH(), 6, 14, Colors.withAlpha(Colors.BLACK, 0.45f * l));
             Hud.drawOne(c, dragging, dragX, dragY, 1f, true);
@@ -187,50 +194,82 @@ public final class HudEditorScreen extends AllerScreen {
         }
     }
 
-    /** Snaps the dragged element's edges and centre to the screen and to its neighbours. */
+    /**
+     * Snapping. Each axis considers a short list of targets and takes the nearest one in range:
+     * the screen margin and centre, the matching edge of every other element (left to left, right
+     * to right, top to top, bottom to bottom), and sitting directly beside or below a neighbour
+     * with the standard gap. Unlike edges are never matched, which is what made columns hard to
+     * line up before.
+     */
     private float[] snap(HudModule h, float x, float y) {
         float dist = Mc.shiftDown() ? 0 : AllerClient.options().hudSnap.get();
         float w = h.scaledW(), ht = h.scaledH();
-        List<Float> xs = new ArrayList<>(List.of(MARGIN, width / 2, width - MARGIN));
-        List<Float> ys = new ArrayList<>(List.of(MARGIN, height / 2, height - MARGIN));
+        bestX = bestY = dist;
+        outX = x;
+        outY = y;
+        snapH = null;
+        snapV = null;
+        boolean gx = false, gy = false;
+
+        gx |= tryX(x, MARGIN, 0, 0, height, HudModule.AnchorH.LEFT);
+        gx |= tryX(x, width - MARGIN, w, 0, height, HudModule.AnchorH.RIGHT);
+        gx |= tryX(x, width / 2, w / 2, 0, height, HudModule.AnchorH.CENTER);
+        gy |= tryY(y, MARGIN, 0, 0, width, HudModule.AnchorV.TOP);
+        gy |= tryY(y, height - MARGIN, ht, 0, width, HudModule.AnchorV.BOTTOM);
+        gy |= tryY(y, height / 2, ht / 2, 0, width, HudModule.AnchorV.MIDDLE);
+
         for (HudModule o : Hud.modules()) {
             if (o == h || !o.enabled() || !o.shown) continue;
-            float ox = o.x(width), oy = o.y(height);
-            xs.add(ox);
-            xs.add(ox + o.scaledW() / 2);
-            xs.add(ox + o.scaledW());
-            ys.add(oy);
-            ys.add(oy + o.scaledH() / 2);
-            ys.add(oy + o.scaledH());
-        }
-        float bestX = dist, bestY = dist, outX = x, outY = y;
-        boolean gx = false, gy = false;
-        float[] offX = {0, w / 2, w}, offY = {0, ht / 2, ht};
-        for (float target : xs) {
-            for (float off : offX) {
-                float d = Math.abs(x + off - target);
-                if (d < bestX) {
-                    bestX = d;
-                    outX = target - off;
-                    guideX = target;
-                    gx = true;
-                }
+            float ox = o.x(width), oy = o.y(height), ow = o.scaledW(), oh = o.scaledH();
+            float top = Math.min(y, oy), bottom = Math.max(y + ht, oy + oh);
+            float left = Math.min(x, ox), right = Math.max(x + w, ox + ow);
+            gx |= tryX(x, ox, 0, top, bottom, HudModule.AnchorH.LEFT);
+            gx |= tryX(x, ox + ow, w, top, bottom, HudModule.AnchorH.RIGHT);
+            gy |= tryY(y, oy, 0, left, right, null);
+            gy |= tryY(y, oy + oh, ht, left, right, null);
+            // Stacking and sitting side by side only make sense next to an element that overlaps on the other axis.
+            if (x < ox + ow && x + w > ox) {
+                gy |= tryY(y, oy + oh + GAP, 0, left, right, null);
+                gy |= tryY(y, oy - GAP, ht, left, right, null);
             }
-        }
-        for (float target : ys) {
-            for (float off : offY) {
-                float d = Math.abs(y + off - target);
-                if (d < bestY) {
-                    bestY = d;
-                    outY = target - off;
-                    guideY = target;
-                    gy = true;
-                }
+            if (y < oy + oh && y + ht > oy) {
+                gx |= tryX(x, ox + ow + GAP, 0, top, bottom, null);
+                gx |= tryX(x, ox - GAP, w, top, bottom, null);
             }
         }
         guideXAlpha.target(gx ? 1 : 0);
         guideYAlpha.target(gy ? 1 : 0);
         return new float[] {outX, outY};
+    }
+
+    private float bestX, bestY, outX, outY;
+    private float guideFromX, guideToX, guideFromY, guideToY;
+    private HudModule.AnchorH snapH;
+    private HudModule.AnchorV snapV;
+
+    /** @param off where on the dragged element the target applies (0 = its left edge, w = its right edge) */
+    private boolean tryX(float x, float target, float off, float from, float to, HudModule.AnchorH anchor) {
+        float d = Math.abs(x + off - target);
+        if (d >= bestX) return false;
+        bestX = d;
+        outX = target - off;
+        guideX = target;
+        guideFromY = from;
+        guideToY = to;
+        snapH = anchor;
+        return true;
+    }
+
+    private boolean tryY(float y, float target, float off, float from, float to, HudModule.AnchorV anchor) {
+        float d = Math.abs(y + off - target);
+        if (d >= bestY) return false;
+        bestY = d;
+        outY = target - off;
+        guideY = target;
+        guideFromX = from;
+        guideToX = to;
+        snapV = anchor;
+        return true;
     }
 
     private void drawDrawer(Canvas c, float mx, float my, float dr) {
@@ -305,7 +344,7 @@ public final class HudEditorScreen extends AllerScreen {
         for (Button b : bar) used |= b.mouseUp(x, y, button);
         if (button == 0 && dragging != null) {
             if (moved) {
-                dragging.place(dragX, dragY, width, height);
+                dragging.place(dragX, dragY, width, height, snapH, snapV);
                 AllerClient.config().markDirty();
             }
             dragging = null;

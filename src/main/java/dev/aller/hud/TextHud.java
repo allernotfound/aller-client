@@ -21,6 +21,9 @@ public abstract class TextHud extends HudModule {
     public final Settings.Bool accentLabel = bool("accent_label", "Accent-coloured label", true);
 
     private final Spring width = new Spring(0, 380f, 34f);
+    private String sampled;
+    private float sampledAt = -1;
+    private boolean sampledEditing;
     private String label = "";
     private String value = "";
 
@@ -36,7 +39,13 @@ public abstract class TextHud extends HudModule {
 
     @Override
     protected boolean measure(boolean editing) {
-        String v = value(editing);
+        float now = dev.aller.ui.anim.Motion.time();
+        if (now - sampledAt > 0.05f || now < sampledAt || editing != sampledEditing) {
+            sampled = value(editing);
+            sampledAt = now;
+            sampledEditing = editing;
+        }
+        String v = sampled;
         if (v == null) return false;
         value = v;
         String l = showLabel.get() ? label() : null;

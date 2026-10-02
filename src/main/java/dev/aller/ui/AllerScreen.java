@@ -59,6 +59,29 @@ public abstract class AllerScreen {
 
     protected abstract void draw(Canvas c, float mouseX, float mouseY);
 
+    /** True while a screen is being drawn as the blurred layer beneath another one. */
+    public static boolean drawingUnderlay;
+
+    /** A screen to keep showing, blurred, behind this one (the menu a panel was opened from), or null. */
+    public AllerScreen underlay() {
+        return null;
+    }
+
+    /** Draws this screen as a passive backdrop: no hover, no input, no close handling. */
+    public final void drawUnder(Canvas c) {
+        drawingUnderlay = true;
+        try {
+            draw(c, -10000, -10000);
+        } finally {
+            drawingUnderlay = false;
+        }
+    }
+
+    /** Size multiplier for this screen; layout happens in scaled units. */
+    public float scale() {
+        return dev.aller.AllerClient.options().uiScale.get();
+    }
+
     /** 0 when fully closed, 1 when fully open; may overshoot slightly. */
     protected float openness() {
         return open.get();

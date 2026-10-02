@@ -57,7 +57,7 @@ public final class InfoHuds {
 
     public static final class Ping extends TextHud {
         public Ping() {
-            super("ping", "Ping", "Latency to the server", AnchorH.LEFT, AnchorV.TOP, 6, 90);
+            super("ping", "Ping", "Latency to the server", AnchorH.LEFT, AnchorV.TOP, 6, 92);
             keywords("latency", "ms", "lag");
         }
 
@@ -100,7 +100,7 @@ public final class InfoHuds {
         private static final String[] NAMES = {"S", "SW", "W", "NW", "N", "NE", "E", "SE"};
 
         public Direction() {
-            super("direction", "Direction", "Which way you are facing", AnchorH.LEFT, AnchorV.TOP, 6, 108);
+            super("direction", "Direction", "Which way you are facing", AnchorH.LEFT, AnchorV.TOP, 6, 112);
             keywords("facing", "compass", "yaw");
         }
 
@@ -125,7 +125,7 @@ public final class InfoHuds {
         private double lastX, lastY, lastZ, shown;
 
         public Speed() {
-            super("speed", "Speed", "How fast you are moving", AnchorH.LEFT, AnchorV.TOP, 6, 126);
+            super("speed", "Speed", "How fast you are moving", AnchorH.LEFT, AnchorV.TOP, 6, 132);
             keywords("velocity", "bps");
         }
 
@@ -158,7 +158,7 @@ public final class InfoHuds {
         public final Settings.Bool percent = bool("percent", "Show as percentage", false);
 
         public Memory() {
-            super("memory", "Memory", "Java heap in use", AnchorH.RIGHT, AnchorV.TOP, 6, 100);
+            super("memory", "Memory", "Java heap in use", AnchorH.RIGHT, AnchorV.TOP, 6, 96);
             keywords("ram", "heap");
         }
 
@@ -179,7 +179,7 @@ public final class InfoHuds {
         public final Settings.Bool gameClock = bool("game_clock", "Show in-game time", true);
 
         public Day() {
-            super("day", "Day counter", "In-game day and time of day", AnchorH.RIGHT, AnchorV.TOP, 6, 118);
+            super("day", "Day counter", "In-game day and time of day", AnchorH.RIGHT, AnchorV.TOP, 6, 116);
             keywords("time", "night");
         }
 
@@ -201,7 +201,7 @@ public final class InfoHuds {
 
     public static final class Biome extends TextHud {
         public Biome() {
-            super("biome", "Biome", "The biome you are standing in", AnchorH.LEFT, AnchorV.TOP, 6, 144);
+            super("biome", "Biome", "The biome you are standing in", AnchorH.LEFT, AnchorV.TOP, 6, 152);
         }
 
         @Override
@@ -236,7 +236,7 @@ public final class InfoHuds {
 
     public static final class SessionTime extends TextHud {
         public SessionTime() {
-            super("session_time", "Session timer", "How long you have been playing this session", AnchorH.RIGHT, AnchorV.TOP, 6, 24);
+            super("session_time", "Session timer", "How long you have been playing this session", AnchorH.RIGHT, AnchorV.TOP, 6, 26);
             keywords("playtime", "stopwatch");
         }
 
@@ -254,7 +254,7 @@ public final class InfoHuds {
 
     public static final class Light extends TextHud {
         public Light() {
-            super("light", "Light level", "Block light where you stand (mobs spawn at 0)", AnchorH.LEFT, AnchorV.TOP, 6, 162);
+            super("light", "Light level", "Block light where you stand (mobs spawn at 0)", AnchorH.LEFT, AnchorV.TOP, 6, 172);
             keywords("brightness", "spawn");
         }
 

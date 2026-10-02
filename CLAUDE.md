@@ -35,6 +35,10 @@ minute.
 - `-Paller.world=<name>` uses a different test world. Needed when the user has the game open in
   `aller-dev` themselves: the world is then locked and the harness gives up after the menus.
 - `-Paller.noWorld` skips the world entirely.
+- `-Paller.bench` measures average FPS in the test world with Aller idle, at defaults and with
+  heavier module sets, and logs `BENCH` lines (`-Paller.bench=each` also times every non-HUD mod
+  alone). It runs windowed: a fullscreen window that loses focus is minimised and vanilla then caps
+  it at 10 fps. Numbers are only comparable within one run, and noisy if another game is open.
 
 A mixin that compiles can still fail at class load, so run the harness on **both** versions after
 touching anything in `mixin/`.
@@ -95,7 +99,10 @@ working on the Vulkan backend and alongside Sodium and Iris.
   to 330 for 26.2 and inlines the two uniform blocks, so the pipelines can be compiled at startup
   (`Pipelines.preload`) and the splash can already draw with them. Do not add other imports.
 - Only glyphs in `SdfAtlas.CHARSET` render (ASCII, Latin-1 and a few arrows and symbols); anything
-  else shows as `?`. Add to the charset before using a new symbol.
+  else shows as `?`, and so does a charset entry Inter has no glyph for. For pictograms use
+  `ui/Icons` (drawn from Canvas primitives) rather than hunting for a Unicode symbol.
+- Besides rounded boxes the shape shader draws regular polygons and a star (`Canvas.polygon`,
+  `Canvas.star`); the kind travels in `Normal.y`.
 - Blur is vanilla's whole-screen `blurBeforeThisStratum()`, once per frame, for modal screens. HUD
   chips use a translucent tint instead.
 - The Write tool turns `\uXXXX` escapes into the real character in Java sources.
@@ -111,6 +118,12 @@ working on the Vulkan backend and alongside Sodium and Iris.
 - Colours, radii and surfaces come from `Theme`. The accent is user-changeable: use
   `Theme.accent()`, never a hard-coded violet.
 - Widgets are immediate-style: the owner sets bounds each frame, then forwards draw and input.
+- Screens lay out in scaled units: `ScreenHost` applies `AllerScreen.scale()` (the "Menu and
+  palette size" option; the HUD editor uses the HUD size instead) and divides mouse coordinates,
+  so screen code never multiplies by a scale itself. Use `c.width()`, not the raw GUI width.
+- A panel opened from another Aller screen returns that screen from `underlay()`; the host keeps
+  drawing it underneath and blurs it. Do not fade the parent out and cut to the panel.
+- Main actions are big buttons; secondary destinations go in the `IconButton` strip beside them.
 - Aller screens call `Toasts.draw(c)` last so toasts sit above the blur.
 
 ### Adding a mod

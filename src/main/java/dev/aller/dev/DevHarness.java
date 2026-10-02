@@ -33,6 +33,7 @@ public final class DevHarness {
     private static Path dir;
     private static final List<Step> steps = new ArrayList<>();
     private static final Map<Module, Boolean> savedState = new HashMap<>();
+    private static final List<dev.aller.feature.Waypoints.Waypoint> harnessWaypoints = new ArrayList<>();
     private static float mark = -1;
     private static float waitingSince = -1;
     private static int next;
@@ -44,6 +45,10 @@ public final class DevHarness {
         String out = System.getProperty("aller.dev.shots");
         if (out == null) return;
         dir = Path.of(out);
+        if (Boolean.getBoolean("aller.dev.bench")) {
+            bench();
+            return;
+        }
 
         until(Mc::loadingOverlay);
         shot(0.7f, "splash");
@@ -74,6 +79,21 @@ public final class DevHarness {
             key(GLFW.GLFW_KEY_ENTER);
         });
         shot(0.9f, "palette-profiles");
+        run(0.1f, () -> {
+            key(GLFW.GLFW_KEY_ESCAPE);
+            key(GLFW.GLFW_KEY_ESCAPE);
+            AllerClient.options().gridView.set(true);
+            key(GLFW.GLFW_KEY_TAB);
+        });
+        shot(0.9f, "palette-grid");
+        run(0.1f, () -> {
+            AllerClient.options().gridView.set(false);
+            // Tab back round to "All" so later searches are not filtered.
+            for (int i = 0; i < dev.aller.module.Category.values().length; i++) {
+                if (AllerClient.modules().in(dev.aller.module.Category.values()[i]).isEmpty()) continue;
+                key(GLFW.GLFW_KEY_TAB);
+            }
+        });
 
         if (canEnterWorld()) {
             run(0.1f, DevHarness::enterWorld);
@@ -92,7 +112,42 @@ public final class DevHarness {
             run(0.1f, () -> Mc.mc().options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK));
             shot(1.0f, "third-person");
             run(0.1f, () -> Mc.mc().options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
-            run(0.1f, () -> Mc.open(new HudEditorScreen(null)));
+            run(0.1f, () -> {
+                // One waypoint ahead, one behind to the right and one to the left, to check the edge pointers.
+                var p = Mc.mc().player;
+                double x = p.getX(), y = p.getY(), z = p.getZ();
+                String[] shapes = {"STAR", "TRIANGLE", "DIAMOND"};
+                double[][] at = {{0, 2, 14}, {-16, 0, -12}, {22, 3, 2}};
+                for (int i = 0; i < 3; i++) {
+                    var w = dev.aller.feature.Waypoints.addHere("Harness " + (i + 1), dev.aller.feature.Waypoints.PALETTE[i + 1]);
+                    w.x = x + at[i][0];
+                    w.y = y + at[i][1];
+                    w.z = z + at[i][2];
+                    w.icon = shapes[i];
+                    harnessWaypoints.add(w);
+                }
+            });
+            shot(1.0f, "waypoints-hud");
+            run(0.1f, () -> Mc.open(new PaletteScreen()));
+            run(0.3f, () -> {
+                type("marker location");
+                key(GLFW.GLFW_KEY_ENTER);
+            });
+            run(0.6f, () -> {
+                // Click the first waypoint row to open its editor.
+                AllerScreen s = Mc.current();
+                if (s == null) return;
+                float scale = s.scale();
+                float w = Mc.mc().getWindow().getGuiScaledWidth() / scale, h = Mc.mc().getWindow().getGuiScaledHeight() / scale;
+                float py = (h - Math.min(330, h - 24)) / 2;
+                s.mouseDown(w / 2 - 60, py + 36 + 8 + 26 + 14, 0);
+            });
+            shot(1.0f, "palette-waypoints");
+            run(0.1f, () -> {
+                harnessWaypoints.forEach(dev.aller.feature.Waypoints::remove);
+                Mc.setScreen(null);
+            });
+            run(0.3f, () -> Mc.open(new HudEditorScreen(null)));
             shot(1.0f, "hud-editor");
             run(0.1f, () -> key(GLFW.GLFW_KEY_E));
             shot(0.8f, "hud-editor-drawer");
@@ -115,6 +170,65 @@ public final class DevHarness {
         }
         run(0.5f, () -> Mc.mc().stop());
         AllerClient.LOG.info("Dev harness active, writing captures to {}", dir);
+    }
+
+    /**
+     * Frame-rate comparison ({@code -Paller.bench}): the same view of the test world with Aller idle,
+     * with its defaults, and with heavier sets of modules, uncapped. Results go to the log.
+     */
+    private static void bench() {
+        until(() -> Mc.current() instanceof MainMenuScreen && !Mc.loadingOverlay());
+        run(1f, DevHarness::enterWorld);
+        until(() -> Mc.mc().player != null && Mc.mc().level != null && !Mc.loadingOverlay() && Mc.screen() == null, 90);
+        run(10f, () -> {
+            var o = Mc.mc().options;
+            o.enableVsync().set(false);
+            o.framerateLimit().set(260);
+            // Vanilla throttles to 10 fps when minimised or when no input has arrived for a while.
+            o.inactivityFpsLimit().set(net.minecraft.client.InactivityFpsLimit.MINIMIZED);
+            Mc.mc().getFramerateLimitTracker().setFramerateLimit(260);
+            // A fullscreen window is minimised as soon as it loses focus, so measure windowed.
+            if (Mc.mc().getWindow().isFullscreen()) {
+                benchWasFullscreen = true;
+                Mc.mc().getWindow().toggleFullScreen();
+            }
+            GLFW.glfwRestoreWindow(Mc.window());
+            for (Module m : AllerClient.modules().all()) savedState.put(m, m.enabled());
+        });
+        measure("idle (every module off)", m -> false);
+        measure("defaults", m -> m.enabledByDefault);
+        measure("all HUD elements", m -> m instanceof dev.aller.hud.HudModule);
+        measure("everything except replay", m -> !m.id.equals("replay"));
+        measure("replay only", m -> m.id.equals("replay"));
+        measure("idle again", m -> false);
+        if (Boolean.getBoolean("aller.dev.benchEach")) {
+            for (Module each : AllerClient.modules().all()) {
+                if (!(each instanceof dev.aller.hud.HudModule)) measure("only " + each.id, m -> m == each);
+            }
+            measure("idle last", m -> false);
+        }
+        run(0.2f, () -> {
+            savedState.forEach(Module::setEnabled);
+            AllerClient.config().save();
+            if (benchWasFullscreen) Mc.mc().getWindow().toggleFullScreen();
+        });
+        run(0.5f, () -> Mc.mc().stop());
+    }
+
+    private static boolean benchWasFullscreen;
+    private static long benchStart;
+    private static int benchFrames;
+
+    private static void measure(String name, java.util.function.Predicate<Module> enabled) {
+        run(0.2f, () -> {
+            for (Module m : AllerClient.modules().all()) m.setEnabled(enabled.test(m));
+        });
+        run(2f, () -> {
+            benchFrames = 0;
+            benchStart = System.nanoTime();
+        });
+        run(5f, () -> AllerClient.LOG.info("BENCH {}: {} fps", name,
+                Math.round(benchFrames / ((System.nanoTime() - benchStart) / 1e9))));
     }
 
     private static void until(BooleanSupplier ready) {
@@ -173,6 +287,7 @@ public final class DevHarness {
     }
 
     public static void frameEnd() {
+        benchFrames++;
         if (dir == null || next >= steps.size()) return;
         Step s = steps.get(next);
         if (s.ready != null && !s.ready.getAsBoolean()) {

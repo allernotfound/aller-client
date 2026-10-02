@@ -24,9 +24,48 @@ public final class ScreenHost extends Screen {
         this.screen = screen;
     }
 
+    private float scale = 1f;
+
+    /** Picks up a changed UI scale, but never mid-drag: the slider being dragged would move under the cursor. */
+    private void syncScale() {
+        float wanted = screen.scale();
+        if (wanted != scale && org.lwjgl.glfw.GLFW.glfwGetMouseButton(Mc.window(), 0) != org.lwjgl.glfw.GLFW.GLFW_PRESS) {
+            scale = wanted;
+            layout();
+        }
+    }
+
+    private void layout() {
+        screen.resize(width / scale, height / scale);
+        AllerScreen under = screen.underlay();
+        if (under != null) under.resize(width / under.scale(), height / under.scale());
+    }
+
+    private void background(Canvas c) {
+        AllerScreen under = screen.underlay();
+        if (under != null) {
+            c.beginScale(under.scale());
+            under.drawUnder(c);
+            c.endScale();
+            c.layer();
+        }
+        boolean something = under != null || minecraft.level != null;
+        if (something && screen.blurBehind() && AllerClient.options().blur.get() && minecraft.options.getMenuBackgroundBlurriness() >= 1) {
+            c.blurBehind();
+        }
+    }
+
+    private void foreground(Canvas c) {
+        syncScale();
+        c.beginScale(scale);
+        screen.frame(c, Mc.mouseX() / scale, Mc.mouseY() / scale);
+        c.endScale();
+    }
+
     @Override
     protected void init() {
-        screen.resize(width, height);
+        scale = screen.scale();
+        layout();
         if (!opened) {
             opened = true;
             screen.opened();
@@ -58,36 +97,31 @@ public final class ScreenHost extends Screen {
         return screen.pausesGame();
     }
 
-    private boolean wantsBlur() {
-        return screen.blurBehind() && AllerClient.options().blur.get() && minecraft.level != null
-                && minecraft.options.getMenuBackgroundBlurriness() >= 1;
-    }
-
     //? if <26.1 {
     /*@Override
     public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
         if (screen.vanillaBackground()) super.renderBackground(g, mouseX, mouseY, delta);
-        else if (wantsBlur()) g.blurBeforeThisStratum();
+        else background(new Canvas(g));
     }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
-        screen.frame(new Canvas(g), Mc.mouseX(), Mc.mouseY());
+        foreground(new Canvas(g));
     }
 
     @Override
     public boolean mouseClicked(double x, double y, int button) {
-        return screen.mouseDown((float) x, (float) y, button);
+        return screen.mouseDown((float) x / scale, (float) y / scale, button);
     }
 
     @Override
     public boolean mouseReleased(double x, double y, int button) {
-        return screen.mouseUp((float) x, (float) y, button);
+        return screen.mouseUp((float) x / scale, (float) y / scale, button);
     }
 
     @Override
     public boolean mouseScrolled(double x, double y, double dx, double dy) {
-        return screen.mouseScroll((float) x, (float) y, (float) dy);
+        return screen.mouseScroll((float) x / scale, (float) y / scale, (float) dy);
     }
 
     @Override
@@ -103,27 +137,27 @@ public final class ScreenHost extends Screen {
     @Override
     public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         if (screen.vanillaBackground()) super.extractBackground(g, mouseX, mouseY, delta);
-        else if (wantsBlur()) g.blurBeforeThisStratum();
+        else background(new Canvas(g));
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
-        screen.frame(new Canvas(g), Mc.mouseX(), Mc.mouseY());
+        foreground(new Canvas(g));
     }
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        return screen.mouseDown((float) event.x(), (float) event.y(), event.button());
+        return screen.mouseDown((float) event.x() / scale, (float) event.y() / scale, event.button());
     }
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        return screen.mouseUp((float) event.x(), (float) event.y(), event.button());
+        return screen.mouseUp((float) event.x() / scale, (float) event.y() / scale, event.button());
     }
 
     @Override
     public boolean mouseScrolled(double x, double y, double dx, double dy) {
-        return screen.mouseScroll((float) x, (float) y, (float) dy);
+        return screen.mouseScroll((float) x / scale, (float) y / scale, (float) dy);
     }
 
     @Override

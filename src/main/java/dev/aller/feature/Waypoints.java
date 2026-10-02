@@ -25,7 +25,20 @@ import java.util.List;
 public final class Waypoints {
     public static final int[] PALETTE = {0xFF8B5CF6, 0xFF38BDF8, 0xFF34D399, 0xFFFB7185, 0xFFF59E0B, 0xFFE2E8F0};
 
+    public enum Shape { CIRCLE, DIAMOND, TRIANGLE, SQUARE, HEXAGON, STAR }
+
     public static final class Waypoint {
+        /** Marker shape, stored by name so unknown values from newer versions fall back to a circle. */
+        public String icon = "CIRCLE";
+
+        public Shape shape() {
+            try {
+                return icon == null ? Shape.CIRCLE : Shape.valueOf(icon);
+            } catch (IllegalArgumentException e) {
+                return Shape.CIRCLE;
+            }
+        }
+
         public String name = "Waypoint";
         public double x, y, z;
         public String dimension = "overworld";
@@ -118,12 +131,30 @@ public final class Waypoints {
         return d >= 1000 ? String.format("%.1fkm", d / 1000) : Math.round(d) + "m";
     }
 
+    /** Draws a marker shape centred on (cx, cy); {@code halo} adds a dark rim so it reads over any scene. */
+    public static void drawShape(Canvas c, Shape shape, float cx, float cy, float r, int color, boolean halo) {
+        if (halo) paint(c, shape, cx, cy, r + 1f, Colors.withAlpha(Colors.BLACK, 0.5f));
+        paint(c, shape, cx, cy, r, color);
+    }
+
+    private static void paint(Canvas c, Shape shape, float cx, float cy, float r, int color) {
+        switch (shape) {
+            case CIRCLE -> c.circle(cx, cy, r, color);
+            case DIAMOND -> c.polygon(cx, cy, r * 1.2f, 4, r * 0.18f, color);
+            case TRIANGLE -> c.polygon(cx, cy + r * 0.15f, r * 1.3f, 3, r * 0.2f, color);
+            case SQUARE -> c.rect(cx - r * 0.9f, cy - r * 0.9f, r * 1.8f, r * 1.8f, r * 0.3f, color);
+            case HEXAGON -> c.polygon(cx, cy, r * 1.12f, 6, r * 0.18f, color);
+            case STAR -> c.star(cx, cy + r * 0.05f, r * 1.35f, color);
+        }
+    }
+
     /** Draws a marker for each visible waypoint in the current dimension. */
     public static void draw(Canvas c) {
         var mod = Modules.WAYPOINTS;
         String dim = Game.dimensionId();
         float sw = c.width(), sh = c.height();
         float max = mod.maxDistance.get();
+        float s = mod.markerScale.get();
         for (Waypoint w : all()) {
             if (!w.visible || !w.dimension.equals(dim)) continue;
             double dist = distance(w);
@@ -131,40 +162,42 @@ public final class Waypoints {
             float[] p = View.project(w.x, w.y + 1.2, w.z, sw, sh);
             boolean front = p[2] > 0.05f;
             float x = p[0], y = p[1];
-            float margin = 14;
+            float margin = 16;
             boolean onScreen = front && x > margin && x < sw - margin && y > margin && y < sh - margin;
             if (!onScreen) {
                 if (!mod.edgeMarkers.get()) continue;
-                // Behind the camera the projection is mirrored; flip it, then pin to the nearest edge.
+                // The projection divides by the absolute depth, so a point behind and to the right
+                // already lands to the right: follow that direction out to the screen edge.
                 float dx = x - sw / 2, dy = y - sh / 2;
-                if (!front) {
-                    dx = -dx;
-                    dy = -dy;
-                }
+                if (Math.abs(dx) < 0.001f && Math.abs(dy) < 0.001f) dy = 1;
                 float k = Math.min((sw / 2 - margin) / Math.max(Math.abs(dx), 0.001f), (sh / 2 - margin) / Math.max(Math.abs(dy), 0.001f));
-                if (front) k = Math.min(k, 1f);
                 x = sw / 2 + dx * k;
                 y = sh / 2 + dy * k;
-                c.circle(x, y, 3.2f, Colors.withAlpha(Colors.BLACK, 0.45f));
-                c.circle(x, y, 2.4f, Colors.withAlpha(w.color, 0.8f));
+                float len = (float) Math.hypot(dx, dy);
+                float ux = dx / len, uy = dy / len;
+                // The shape sits just inside the edge with an arrowhead beyond it, pointing at the waypoint.
+                drawShape(c, w.shape(), x - ux * 7 * s, y - uy * 7 * s, 3.2f * s, w.color, true);
+                c.push();
+                c.rotate((float) (Math.atan2(uy, ux) + Math.PI / 2), x, y);
+                c.polygon(x, y, 3.6f * s, 3, 0.7f, Colors.withAlpha(Colors.BLACK, 0.5f));
+                c.polygon(x, y, 2.8f * s, 3, 0.6f, w.color);
+                c.pop();
                 continue;
             }
-            // Markers near the crosshair expand to show their label; the rest stay as quiet dots.
+            // Markers near the crosshair expand to show their label; the rest stay quiet.
             float off = (float) Math.hypot(x - sw / 2, y - sh / 2);
             float focus = 1f - Math.clamp((off - 20) / 70f, 0f, 1f);
-            float s = mod.markerScale.get();
-            float r = (3f + 1.5f * focus) * s;
+            float r = (3.2f + 1.5f * focus) * s;
             c.shadow(x - r, y - r, r * 2, r * 2, r, 6, Colors.withAlpha(w.color, 0.5f));
-            c.circle(x, y, r + 1f, Colors.withAlpha(Colors.BLACK, 0.5f));
-            c.circle(x, y, r, w.color);
+            drawShape(c, w.shape(), x, y, r, w.color, true);
             float labelAlpha = mod.alwaysLabel.get() ? Math.max(0.6f, focus) : focus;
             if (labelAlpha > 0.02f) {
                 String label = w.name + "  " + distanceText(dist);
                 float size = 7.5f * s;
                 float tw = Fonts.MEDIUM.width(label, size);
                 c.pushAlpha(labelAlpha);
-                c.rect(x - tw / 2 - 5, y + r + 3, tw + 10, size + 6, (size + 6) / 2, Theme.GLASS_HUD);
-                c.textCentered(Fonts.MEDIUM, label, x, y + r + 3 + (size + 6 - Fonts.MEDIUM.height(size)) / 2, size, Theme.TEXT);
+                c.rect(x - tw / 2 - 5, y + r + 4, tw + 10, size + 6, (size + 6) / 2, Theme.GLASS_HUD);
+                c.textCentered(Fonts.MEDIUM, label, x, y + r + 4 + (size + 6 - Fonts.MEDIUM.height(size)) / 2, size, Theme.TEXT);
                 c.popAlpha();
             }
         }

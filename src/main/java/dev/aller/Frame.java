@@ -34,7 +34,9 @@ public final class Frame {
         if (!editing) {
             if (Modules.WAYPOINTS.enabled()) Waypoints.draw(c);
             if (Modules.CROSSHAIR.enabled() && Mc.screen() == null) Modules.CROSSHAIR.draw(c);
+            c.beginScale(AllerClient.options().hudScale.get());
             Hud.draw(c, false, null);
+            c.endScale();
         }
         // Aller screens draw toasts themselves so they appear above the blur.
         if (Mc.current() == null) Toasts.draw(c);

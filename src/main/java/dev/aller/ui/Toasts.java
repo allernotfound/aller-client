@@ -53,6 +53,7 @@ public final class Toasts {
     }
 
     public static void draw(Canvas c) {
+        if (dev.aller.ui.AllerScreen.drawingUnderlay) return;
         float slot = 8;
         for (Iterator<Toast> it = toasts.iterator(); it.hasNext(); ) {
             Toast t = it.next();

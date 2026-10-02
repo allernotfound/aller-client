@@ -21,7 +21,7 @@ public final class Coordinates extends HudModule {
     private int lines;
 
     public Coordinates() {
-        super("coordinates", "Coordinates", "Your position in the world", AnchorH.LEFT, AnchorV.TOP, 6, 24);
+        super("coordinates", "Coordinates", "Your position in the world", AnchorH.LEFT, AnchorV.TOP, 6, 26);
         keywords("xyz", "position", "coords", "location");
         onByDefault();
     }
