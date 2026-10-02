@@ -96,9 +96,12 @@ public final class VanillaText {
 
     /** @return true if the line was drawn here and vanilla must not draw it */
     public static boolean redraw(GuiRenderState target, GuiTextRenderState state) {
-        if (passThrough || !MenuSkin.drawing() || Fonts.vanilla()) return false;
+        if (passThrough) return false;
+        float fade = dev.aller.screen.Entrance.alpha();
+        boolean skinned = MenuSkin.drawing();
+        if (!skinned && fade >= 1) return false;
         GuiTextRenderStateAccessor in = (GuiTextRenderStateAccessor) (Object) state;
-        if (in.aller$backgroundColor() != 0) return false;
+        if (!skinned || Fonts.vanilla() || in.aller$backgroundColor() != 0) return recolour(target, state, in, skinned, fade);
 
         count = 0;
         in.aller$text().accept((index, style, codepoint) -> {
@@ -115,7 +118,7 @@ public final class VanillaText {
         Matrix3x2fc pose = state.pose;
         ScreenRectangle scissor = state.scissor;
         Font font = in.aller$font();
-        int base = in.aller$color();
+        int base = dev.aller.ui.Colors.fade(in.aller$color(), fade);
         float x = in.aller$x(), y = in.aller$y();
 
         // The screen's own title is set larger and bolder, re-centred on where it was measured to sit.
@@ -149,11 +152,14 @@ public final class VanillaText {
             // Close a pending vanilla run when the style changes or Inter takes over again.
             if (run != null && (!vanilla || !style.equals(runStyle))) {
                 FormattedCharSequence piece = FormattedCharSequence.forward(run.toString(), runStyle);
-                passThrough = true;
-                try {
-                    submit(target, text(font, piece, pose, Math.round(x + pen), (int) y, base, scissor));
-                } finally {
-                    passThrough = false;
+                // Vanilla draws a colour that is all but transparent as a solid one, so those are left out.
+                if (base >>> 24 >= 4) {
+                    passThrough = true;
+                    try {
+                        submit(target, text(font, piece, pose, Math.round(x + pen), (int) y, base, scissor));
+                    } finally {
+                        passThrough = false;
+                    }
                 }
                 pen += font.getSplitter().stringWidth(piece);
                 run = null;
@@ -190,6 +196,30 @@ public final class VanillaText {
 
         flush(target, Fonts.REGULAR, REGULAR, scissor);
         flush(target, Fonts.BOLD, BOLD, scissor);
+        return true;
+    }
+
+    /**
+     * A line that stays in Minecraft's font: only its colour changes, to the theme's on a restyled
+     * menu and fainter while the screen eases in.
+     */
+    private static boolean recolour(GuiRenderState target, GuiTextRenderState state, GuiTextRenderStateAccessor in, boolean skinned, float fade) {
+        int color = in.aller$color();
+        int wanted = dev.aller.ui.Colors.fade(skinned ? MenuSkin.textColor(color) : color, fade);
+        if (wanted == color) return false;
+        if (wanted >>> 24 < 4) return true;
+        passThrough = true;
+        try {
+            //? if <26.1 {
+            /*submit(target, new GuiTextRenderState(in.aller$font(), in.aller$text(), state.pose, in.aller$x(), in.aller$y(), wanted,
+                    in.aller$backgroundColor(), in.aller$dropShadow(), state.scissor));
+            *///?} else {
+            submit(target, new GuiTextRenderState(in.aller$font(), in.aller$text(), state.pose, in.aller$x(), in.aller$y(), wanted,
+                    in.aller$backgroundColor(), in.aller$dropShadow(), in.aller$includeEmpty(), state.scissor));
+            //?}
+        } finally {
+            passThrough = false;
+        }
         return true;
     }
 

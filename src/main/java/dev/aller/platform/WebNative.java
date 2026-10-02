@@ -48,7 +48,7 @@ public final class WebNative {
         if (!supported()) return false;
         try (InputStream in = WebNative.class.getResourceAsStream(RESOURCE)) {
             if (in == null) {
-                problem = "This build of Aller was made without the browser's native library.";
+                problem = "This build of Aller Client was made without the browser's native library.";
                 return false;
             }
             byte[] bytes = in.readAllBytes();

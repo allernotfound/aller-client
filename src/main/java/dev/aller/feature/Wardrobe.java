@@ -81,7 +81,7 @@ public final class Wardrobe {
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
             .followRedirects(HttpClient.Redirect.NORMAL).build();
     private static final ExecutorService POOL = Executors.newFixedThreadPool(4, r -> {
-        Thread t = new Thread(r, "Aller wardrobe");
+        Thread t = new Thread(r, "Aller Client wardrobe");
         t.setDaemon(true);
         return t;
     });

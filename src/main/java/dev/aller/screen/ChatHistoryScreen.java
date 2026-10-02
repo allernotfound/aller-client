@@ -11,6 +11,7 @@ import dev.aller.platform.ScreenHost;
 import dev.aller.platform.Sounds;
 import dev.aller.ui.AllerScreen;
 import dev.aller.ui.Colors;
+import dev.aller.ui.Icons;
 import dev.aller.ui.Theme;
 import dev.aller.ui.Toasts;
 import dev.aller.ui.anim.Motion;
@@ -118,7 +119,7 @@ public final class ChatHistoryScreen extends AllerScreen {
     private final Scroll scroll = new Scroll();
     private final ArrayDeque<Block> blocks = new ArrayDeque<>();
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "Aller chat history");
+        Thread t = new Thread(r, "Aller Client chat history");
         t.setDaemon(true);
         return t;
     });
@@ -329,8 +330,7 @@ public final class ChatHistoryScreen extends AllerScreen {
         // Search bar.
         float cx = px + 17, cy = py + HEADER / 2;
         int icon = error != null ? Theme.DANGER : Colors.mix(Theme.TEXT_MUTED, Theme.accent(), search.text.isEmpty() ? 0 : 1);
-        c.ring(cx - 1, cy - 1, 4.2f, 1.3f, icon);
-        c.line(cx + 2.2f, cy + 2.2f, cx + 5.2f, cy + 5.2f, 1.4f, icon);
+        Icons.SEARCH.draw(c, cx + 0.5f, cy + 0.5f, 11f, icon);
         search.bounds(px + 31, py, pw - 31 - 44, HEADER);
         search.draw(c, 0, 0);
         float kw = Fonts.SEMIBOLD.width("esc", 12 * 0.56f) + 12 * 0.6f;

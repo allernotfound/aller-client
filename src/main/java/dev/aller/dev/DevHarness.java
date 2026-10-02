@@ -2,6 +2,7 @@ package dev.aller.dev;
 
 import dev.aller.AllerClient;
 import dev.aller.module.Module;
+import dev.aller.module.Modules;
 import dev.aller.platform.Mc;
 import dev.aller.platform.ScreenHost;
 import dev.aller.screen.HudEditorScreen;
@@ -52,6 +53,10 @@ public final class DevHarness {
         }
         if (System.getProperty("aller.dev.pocket") != null) {
             pocket();
+            return;
+        }
+        if (Boolean.getBoolean("aller.dev.skin")) {
+            skin();
             return;
         }
 
@@ -201,6 +206,33 @@ public final class DevHarness {
             // Gives up (and just exits) if the world cannot be opened, e.g. another instance has it locked.
             until(() -> Mc.mc().player != null && Mc.mc().level != null && !Mc.loadingOverlay() && Mc.screen() == null, 90);
             shot(6.0f, "hud");
+            // The effect mods on their own, each visible in one picture, then off again.
+            Module[] effects = {Modules.DEPTH_OF_FIELD, Modules.COLOUR_GRADING, Modules.ATMOSPHERE, Modules.MOTION_BLUR};
+            // In daylight, and looking up a little so there is sky and distance to work on.
+            run(0.1f, () -> {
+                Modules.TIME_CHANGER.setEnabled(true);
+                Mc.mc().player.setXRot(-8f);
+            });
+            shot(1.5f, "effects-off");
+            run(0.1f, () -> {
+                Modules.ATMOSPHERE.skyTinted.set(true);
+                for (Module m : effects) m.setEnabled(true);
+            });
+            shot(2.0f, "effects");
+            for (Module each : effects) {
+                run(0.1f, () -> {
+                    for (Module m : effects) m.setEnabled(m == each);
+                    // Motion blur shows only while the camera moves: turn steadily for its picture.
+                    spin = each == Modules.MOTION_BLUR;
+                });
+                shot(1.0f, "effect-" + each.id);
+            }
+            run(0.1f, () -> {
+                spin = false;
+                Modules.ATMOSPHERE.skyTinted.set(false);
+                for (Module m : effects) m.setEnabled(false);
+                Modules.TIME_CHANGER.setEnabled(false);
+            });
             run(0.1f, () -> {
                 for (Module m : AllerClient.modules().all()) {
                     savedState.put(m, m.enabled());
@@ -380,6 +412,7 @@ public final class DevHarness {
         measure("all HUD elements", m -> m instanceof dev.aller.hud.HudModule);
         measure("everything except replay", m -> !m.id.equals("replay"));
         measure("replay only", m -> m.id.equals("replay"));
+        measure("effects (focus, grading, motion blur)", m -> m.getClass().getEnclosingClass() == dev.aller.module.mods.EffectMods.class);
         measure("idle again", m -> false);
         if (Boolean.getBoolean("aller.dev.benchEach")) {
             for (Module each : AllerClient.modules().all()) {
@@ -445,6 +478,133 @@ public final class DevHarness {
         run(1.5f, () -> Mc.mc().stop());
     }
 
+    /**
+     * The restyled menus ({@code -Paller.skin}): switches the restyling on for the run, leaves the main
+     * menu and the pause menu for the options with captures part way through the hand-over, then
+     * walks the menus that are skinned.
+     */
+    private static void skin() {
+        var o = AllerClient.options();
+        var mc = Mc.mc();
+        boolean[] was = new boolean[1];
+        until(() -> Mc.current() instanceof MainMenuScreen && !Mc.loadingOverlay());
+        run(3.5f, () -> {
+            was[0] = o.restyleMenus.get();
+            o.restyleMenus.set(true);
+            home = Mc.screen();
+            if (Mc.current() instanceof MainMenuScreen menu) menu.go(() -> dev.aller.platform.Nav.options(Mc.screen()));
+        });
+        shot(0.1f, "skin-handover-1");
+        shot(0.1f, "skin-handover-2");
+        shot(0.12f, "skin-handover-3");
+        shot(1.0f, "skin-options");
+        // Into a sub-screen from a focused button and back, as a click does.
+        run(0.1f, () -> {
+            var options = Mc.screen();
+            for (var child : options.children()) {
+                if (child instanceof net.minecraft.client.gui.components.AbstractWidget w && w.getMessage().getString().contains("Music")) options.setFocused(w);
+            }
+            Mc.setScreen(new net.minecraft.client.gui.screens.options.SoundOptionsScreen(options, mc.options));
+        });
+        shot(0.12f, "skin-sub-entering");
+        shot(1.0f, "skin-sound");
+        run(0.1f, () -> Mc.screen().onClose());
+        shot(1.0f, "skin-options-back");
+        skinShot("skin-video", parent -> Mc.setScreen(new net.minecraft.client.gui.screens.options.VideoSettingsScreen(parent, mc, mc.options)));
+        skinShot("skin-controls", dev.aller.platform.Nav::controls);
+        skinShot("skin-keys", dev.aller.platform.Nav::keyBinds);
+        skinShot("skin-language", dev.aller.platform.Nav::language);
+        skinShot("skin-chat", dev.aller.platform.Nav::chatSettings);
+        skinShot("skin-accessibility", dev.aller.platform.Nav::accessibility);
+        skinShot("skin-skin", dev.aller.platform.Nav::skin);
+        skinShot("skin-packs", dev.aller.platform.Nav::resourcePacks);
+        skinShot("skin-worlds", dev.aller.platform.Nav::singleplayer);
+        skinShot("skin-multiplayer", dev.aller.platform.Nav::multiplayer);
+        var loader = net.fabricmc.loader.api.FabricLoader.getInstance();
+        if (loader.isModLoaded("sodium")) {
+            skinShot("skin-sodium", parent -> openStatic(parent, "createScreen",
+                    "net.caffeinemc.mods.sodium.client.gui.VideoSettingsScreen", "net.caffeinemc.mods.sodium.client.gui.SodiumOptionsGUI"));
+        }
+        if (loader.isModLoaded("iris")) skinShot("skin-iris", parent -> openStatic(parent, null, "net.irisshaders.iris.gui.screen.ShaderPackScreen"));
+        if (dev.aller.platform.Nav.hasModMenu()) skinShot("skin-modmenu", dev.aller.platform.Nav::mods);
+        run(0.1f, () -> Mc.setScreen(home));
+        shot(1.2f, "skin-menu");
+        // Essential's destinations, each pressed from the main menu.
+        // The smooth look (Inter, round corners), whatever the player has chosen: menu, options, sliders, Sodium.
+        var face = o.typeface.get();
+        var corners = o.pixelate.get();
+        run(0.1f, () -> {
+            o.typeface.set(dev.aller.ClientOptions.Typeface.values()[0]);
+            o.pixelate.set(dev.aller.ClientOptions.Pixelate.OFF);
+        });
+        shot(0.8f, "smooth-menu");
+        skinShot("smooth-options", dev.aller.platform.Nav::options);
+        skinShot("smooth-sound", dev.aller.platform.Nav::sound);
+        skinShot("smooth-video", parent -> Mc.setScreen(new net.minecraft.client.gui.screens.options.VideoSettingsScreen(parent, mc, mc.options)));
+        if (loader.isModLoaded("sodium")) {
+            skinShot("smooth-sodium", parent -> openStatic(parent, "createScreen",
+                    "net.caffeinemc.mods.sodium.client.gui.VideoSettingsScreen", "net.caffeinemc.mods.sodium.client.gui.SodiumOptionsGUI"));
+        }
+        run(0.1f, () -> Mc.setScreen(new ScreenHost(new PaletteScreen(home))));
+        shot(1.0f, "smooth-palette");
+        run(0.1f, () -> {
+            o.typeface.set(face);
+            o.pixelate.set(corners);
+            Mc.setScreen(home);
+        });
+        List<dev.aller.ui.widget.IconButton> essential = new ArrayList<>();
+        run(0.1f, () -> essential.addAll(dev.aller.compat.EssentialCompat.buttons(true, Runnable::run)));
+        if (dev.aller.compat.EssentialCompat.present()) {
+            for (int i = 0; i < 6; i++) {
+                int index = i;
+                run(0.1f, () -> {
+                    if (index >= essential.size()) return;
+                    AllerClient.LOG.info("ESSENTIAL pressing '{}'", essential.get(index).label);
+                    essential.get(index).press();
+                });
+                shot(1.5f, "essential-" + i);
+                run(0.1f, () -> {
+                    if (index >= essential.size()) return;
+                    AllerClient.LOG.info("ESSENTIAL '{}' gave {}", essential.get(index).label, Mc.screen() == null ? null : Mc.screen().getClass().getName());
+                    Mc.setScreen(home);
+                });
+            }
+        }
+
+        if (canEnterWorld()) {
+            run(0.1f, DevHarness::enterWorld);
+            until(() -> mc.player != null && mc.level != null && !Mc.loadingOverlay() && Mc.screen() == null, 90);
+            run(4f, () -> mc.pauseGame(false));
+            shot(1.2f, "skin-pause");
+            run(0.1f, () -> {
+                home = Mc.screen();
+                if (Mc.current() instanceof dev.aller.screen.PauseMenuScreen menu) menu.go(() -> dev.aller.platform.Nav.options(Mc.screen()));
+            });
+            shot(0.1f, "skin-world-handover-1");
+            shot(0.1f, "skin-world-handover-2");
+            shot(0.12f, "skin-world-handover-3");
+            shot(1.0f, "skin-world-options");
+            skinShot("skin-world-sound", dev.aller.platform.Nav::sound);
+            if (loader.isModLoaded("sodium")) {
+                skinShot("skin-world-sodium", parent -> openStatic(parent, "createScreen",
+                        "net.caffeinemc.mods.sodium.client.gui.VideoSettingsScreen", "net.caffeinemc.mods.sodium.client.gui.SodiumOptionsGUI"));
+            }
+            run(0.1f, () -> Mc.setScreen(home));
+            shot(1.0f, "skin-pause-back");
+        }
+        run(0.2f, () -> {
+            o.restyleMenus.set(was[0]);
+            AllerClient.config().save();
+        });
+        run(0.5f, () -> mc.stop());
+    }
+
+    /** Opens a menu over the one the script left from and captures it once it has settled. */
+    private static void skinShot(String name, java.util.function.Consumer<net.minecraft.client.gui.screens.Screen> open) {
+        run(0.1f, () -> open.accept(home));
+        shot(1.0f, name);
+    }
+
     private static void pocketLog(String at) {
         var mc = Mc.mc();
         var server = mc.getSingleplayerServer();
@@ -456,6 +616,7 @@ public final class DevHarness {
                 mc.gameMode == null ? null : mc.gameMode.getPlayerMode());
     }
 
+    private static boolean spin;
     private static boolean benchWasFullscreen;
     private static long benchStart;
     private static int benchFrames;
@@ -557,6 +718,7 @@ public final class DevHarness {
 
     public static void frameEnd() {
         benchFrames++;
+        if (spin && Mc.mc().player != null) Mc.mc().player.setYRot(Mc.mc().player.getYRot() + 3f);
         if (dir == null || next >= steps.size()) return;
         Step s = steps.get(next);
         if (s.ready != null && !s.ready.getAsBoolean()) {

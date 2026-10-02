@@ -66,6 +66,10 @@ providers.gradleProperty("aller.skinUuid").orNull?.let { id ->
 if (providers.gradleProperty("aller.pocket").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.pocket=true") }
 }
+// Runs the harness's restyled-menu script: every skinned menu, and the hand-over into them part way through.
+if (providers.gradleProperty("aller.skin").isPresent) {
+    loom.runs.named("client") { vmArg("-Daller.dev.skin=true") }
+}
 if (providers.gradleProperty("aller.noWorld").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.noWorld=true") }
 }

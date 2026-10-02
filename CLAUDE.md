@@ -43,6 +43,11 @@ minute.
 - `-Paller.pocket` runs the pocket dimension script instead (in, chat and a pocket command, out by
   the door, in again, out by key; `POCKET` lines in the log). It also lets the pocket open from the
   singleplayer test world, which then stands in for a server.
+- `-Paller.skin` runs the restyled-menu script instead: it switches the restyling on for the run, leaves
+  the main menu and the pause menu for the options with captures part way through the hand-over
+  (`skin-handover-*`), walks every skinned menu (`skin-*`), repeats a few in the smooth look
+  (`smooth-*`: Inter, round corners) whatever the player has chosen, and presses each Essential
+  button (`essential-*`, `ESSENTIAL` lines in the log) when Essential is loaded.
 - `-Paller.bench` measures average FPS in the test world with Aller idle, at defaults and with
   heavier module sets, and logs `BENCH` lines (`-Paller.bench=each` also times every non-HUD mod
   alone). It runs windowed: a fullscreen window that loses focus is minimised and vanilla then caps
@@ -88,7 +93,7 @@ module/            Module, ModuleManager, Modules (the catalogue), mods/*
 hud/               HudModule (anchored, scalable), TextHud, elements/*
 feature/           Session, Waypoints, Replay, AutoProfiles, Combat, Clicks, View,
                    Chat (+ ChatText, ChatFormats, ChatLog, ChatArchive), Wardrobe, Browser,
-                   Pocket (+ PocketRoom)
+                   Pocket (+ PocketRoom), Effects
 command/           the launcher's model: Command, Step (Num/Text/Pick), Commands (the catalogue),
                    Launcher (shortcut polling), History (recent, pinned, use counts), CustomActions,
                    Calc, Search
@@ -114,7 +119,13 @@ working on the Vulkan backend and alongside Sodium and Iris.
   (`Pipelines.preload`) and the splash can already draw with them. Do not add other imports.
 - Only glyphs in `SdfAtlas.CHARSET` render (ASCII, Latin-1 and a few arrows and symbols); anything
   else shows as `?`, and so does a charset entry Inter has no glyph for. For pictograms use
-  `ui/Icons` (drawn from Canvas primitives) rather than hunting for a Unicode symbol.
+  `ui/Icons` rather than hunting for a Unicode symbol.
+- Icons are Lucide's (ISC licence): the SVG files in `assets/aller/icons`, named in the `Icons` enum.
+  `ui/font/IconAtlas` reads them at startup with its own small SVG parser and strokes them into two
+  atlases, both drawn by the text pipeline (`Canvas.icon`): a distance field, and a hard 24 by 24
+  picture sampled without smoothing, used whenever "Pixelated corners" is on at all. To add an icon,
+  copy its SVG in and add an enum entry; nothing is drawn by hand any more. Keys shown as text
+  (the Enter and arrow legends in the launcher and palette) stay glyphs.
 - Besides rounded boxes the shape shader draws regular polygons and a star (`Canvas.polygon`,
   `Canvas.star`); the kind travels in `Normal.y`.
 - Blur is vanilla's whole-screen `blurBeforeThisStratum()`, once per frame, for modal screens. HUD
@@ -133,12 +144,22 @@ drawn. It works at the draw call, not per screen:
   background, list background and separator textures become the dim and the list panel.
 - `ScreenMixin` brackets the screen's drawing (`MenuSkin.drawing()`), replaces the panorama with
   `Theme.scene` and drops vanilla's blur outside a world (in a world the blur stays).
+- A widget vanilla calls highlighted is only drawn so while the pointer is on it or the last input
+  was the keyboard (`MenuSkin.lit`): vanilla keeps the button last clicked focused, which otherwise
+  leaves it lit after coming back from the screen it opened. Keyboard focus gets an accent ring.
+- Buttons lift on hover and sink while the mouse is held, like `ui.widget.Button` (the label does
+  not move). A slider is the button plate, filled in the accent up to a tall thumb that stands a
+  little proud of it; the handle sprite draws fill and thumb, from the track remembered just before.
+- Only plain fills are touched: one drawn with another pipeline (a text box's selection) is left alone.
 - Text: `FontMixin` wraps the width provider so a restyled screen measures in Inter, and
   `GuiRenderStateMixin` hands each queued line to `platform/VanillaText`, which lays it out with
   the same advances (no kerning). Glyphs Inter lacks fall back to the vanilla font in place.
   The line equal to the screen title is drawn larger and bold.
-- Sodium draws only flat rectangles, so on its screens fills are rounded and recoloured (its teal
-  becomes the accent); `SodiumWidgetMixin` and `IrisGuiMixin` are `@Pseudo` with `require = 0`.
+- Sodium draws only flat rectangles, so on its screens (`MenuKind.flat`) `MenuSkin.flatFill` tells them
+  apart by colour: its shades of black are surfaces (rows, headings, buttons, by alpha and size; the
+  rest state is remembered per rectangle so its hover animates), white and its pastel theme colours
+  are marks, and the pastels become the accent in fills, text and texture tints. The gradient behind
+  its page list becomes a panel. `SodiumWidgetMixin` and `IrisGuiMixin` are `@Pseudo` with `require = 0`.
 - `platform/MenuKind` sorts a screen into a `MenuSkin.Menu` group, each with a switch under
   "Minecraft menus" in the client settings. Vanilla screens must be matched with `instanceof`,
   never by class or package name (1.21.8 is obfuscated outside dev). Inventories, chat, books,
@@ -174,8 +195,28 @@ To restyle another vanilla piece, add its sprite id to `MenuSkin.sprite`.
   shapes drawn between `c.pixel(true)` and `c.pixel(false)` are stepped.
 - The layer behind a menu is `Theme.veil` (the "Behind menus" option), not a hand-rolled dim rect.
   The blur radius follows `AllerScreen.blurAmount()` through `Hooks.blurRadius`.
-- A menu that opens a Minecraft screen goes through `screen/Handover` (fade out, fade back in on
-  `reshown()`); the vanilla screen then eases in via `screen/Entrance`.
+- A menu that opens a Minecraft screen goes through `screen/Handover`, and the two overlap: the screen
+  is shown at once and eases in via `screen/Entrance` while the menu's content, drawn over it
+  (`AllerScreen.drawLeaving`, which skips the menu's own backdrop), slides away. `Entrance` scales the
+  screen down into place and fades everything it draws: `Entrance.alpha()` reaches textures and
+  sprites through `Hooks.menuTint` (a `@ModifyVariable` on the one method every blit ends in), text
+  through `VanillaText`, and plain fills by redrawing them through the canvas. Items and entity
+  models are not faded. `Screens.replace` starts it for every menu (`MenuKind.of` not null), restyled
+  or not; between two Minecraft menus it is the quicker, smaller version.
+
+### Essential
+
+Essential puts its buttons on the vanilla title and pause screens, which Aller replaces.
+`compat/EssentialCompat` offers the same destinations (host or invite, social, wardrobe, pictures,
+settings, and the account switcher on the main menu) as a strip of icon buttons to the right of the
+column on both menus. Essential has no API for it, so each is found by reflection against its
+internals (names checked against 1.5.0.1; classes are looked up without initialising them, which
+crashes if done before the game has started). A button whose target is missing is left out, one
+that fails says so in a toast, and Essential's own "menu layout: off" hides them all. Its screens
+are opened through its `GuiUtil.openScreen`, which is what asks for its terms to be accepted.
+Essential's screens are never restyled (`MenuKind`). Its loader jar does not start in a 26.2 dev
+run (it looks for mapping files); the mod jar nested inside it does, and that is what sits in
+`versions/26.2/run/mods`.
 
 ### Launcher (Ctrl+K)
 
@@ -328,6 +369,40 @@ server stays open. Experimental, restricted (the server sees the player standing
   looks), and keep the `pocket$` prefix. Every hook body is wrapped so an exception ejects rather
   than crashes.
 
+### Effect mods
+
+Motion blur, depth of field and colour grading (`module/mods/EffectMods`) work on the picture of the
+world after it and the hand are drawn and before the HUD. Bloom, rim lighting and sharpen are built
+the same way but not registered in `Modules.registerAll` (the user did not want them); their code
+and shader branches are still there. `feature/Effects`
+decides the passes; `platform/Post` is the version-specific plumbing (a pipeline per fragment shader in
+`shaders/post`, drawn through the device API the way vanilla's `PostPass` does, not through
+`PostChain`: that has no per-frame uniforms and no half-size targets).
+
+- Two hooks in `GameRendererMixin`: `worldDepth` just before `renderLevel` clears the depth for the
+  hand (the world's depth is copied then), and `worldDrawn` after `renderLevel` returns.
+- Bloom (a down and up chain, added in place) and depth of field (two half-size passes) prepare
+  pictures; everything else, and their mixing in, is the single `composite` pass, switched by
+  uniforms. So a further effect should be a branch there unless it needs a blur of its own.
+- Motion blur is its own pass after the composite (`motion.fsh`): each pixel is reprojected to where
+  it was a frame ago from its depth and the camera's move and turn (`Effects.camera`), and the
+  picture is averaged along that path, scaled from the frame time to the shutter time. It blurs
+  camera motion only (there is no velocity for moving entities) and keeps the hand sharp. It is not
+  frame blending: mixing old frames in was tried first and looked like being drunk.
+- Every shader reads one block, `Fx { vec4 U[12]; }`, filled from a float array. Each draw gets its
+  own ring buffer (`Pass.slot`), since a recording backend would otherwise see only the last values.
+- 1.21.8 draws the quad buffer with `post/quad.vsh`; 26.2 uses vanilla's `core/screenquad` triangle.
+  Depth is reversed on 26.2 and may be zero-to-one: `Post.depthParams` hides that, never read raw
+  depth as a distance. The hand has its own depth (near 0.05, far 100) in the main target.
+- Targets are RGBA8, so bloom levels are stored at 1/n and the composite dithers.
+- Depth effects (motion blur, rim, depth of field, the sky tint) stand down while an Iris shader pack is in use
+  (`Post.shaderPack`, by reflection); the colour ones still run on the pack's picture.
+- With every effect off nothing runs and the targets are freed. A shader that fails to compile, or
+  any exception, switches the effects off for the session with a toast rather than crashing.
+- "Fog and sky" changes fog distances and colour in `FogRendererMixin` (the private `updateBuffer`
+  both versions share) and only in clear air (`Game.clearView`): never under water or lava, in
+  powder snow, or with blindness or darkness, where seeing further would be an advantage.
+
 ### Adding a mod
 
 1. Subclass `Module` (or `HudModule` / `TextHud`) in `module/mods/` or `hud/elements/`; declare
@@ -352,6 +427,8 @@ integrated server, so guard with `instanceof ClientLevel` / `LocalPlayer`.
 ## Style
 
 - Java only. Match the surrounding code: short doc comments that say why, no banner comments.
+- The product is "Aller Client" in anything the player reads (use `AllerClient.NAME`), never bare
+  "Aller": that is the author's username. The mod id, package and file names stay `aller`.
 - British spelling in user-facing text ("colour", "armour"), sentence case, no exclamation marks.
 - Keep `Hooks` and mixins trivial; behaviour belongs in modules and features.
 - Config must tolerate malformed or outdated JSON: skip what cannot be read, never crash.
@@ -370,8 +447,21 @@ limit, search, log, copy, name colours, stack repeats, filters, unread marker, s
 The harness only proves things load and draw. Not yet exercised by a person: anything that needs
 held keys or a server (zoom, freelook, toggle sprint, replay saving, the connecting screen, ping,
 tab list with many players, auto-profile rules), and Iris with a shader pack actually enabled.
-Menu restyling is off by default and marked experimental. Restyled menus are only checked as still captures: hover, focus, dragging sliders, typing in
-fields, tooltips, Realms, the pack screens and a non-Latin language have not been tried.
+Menu restyling is off by default and marked experimental, and stays so until a person has been through
+it. It is checked with `-Paller.skin` on both versions (26.2 with Sodium 0.9, Iris and Essential,
+1.21.8 with Sodium 0.7 and Iris), in the pixel look and the smooth one: stills, plus the hand-over
+caught part way. The harness has no pointer, so untried by hand: hover and press on buttons, the
+keyboard focus ring, dragging a slider, typing in fields, tooltips, Realms, a non-Latin language,
+Sodium's sliders and search, and how the cross-fade feels at speed.
+
+The Essential buttons were pressed through the harness on 26.2 with an offline dev account: settings,
+pictures and the account switcher opened; social and wardrobe got as far as Essential's own
+"authentication failed" box, and hosting its "can't invite" notice. Untried: a signed-in account,
+its terms prompt, the pause menu on a server (invite), 1.21.8, and Essential's unread badge, which
+is not shown.
+
+The Lucide icons are checked in captures in both looks. Pixel icons use whole cells only when that
+lands within 15% of the size asked for, so at some GUI scales their cells are uneven.
 
 The launcher is only checked through the harness, which calls `keyDown`/`charTyped` directly: the
 real Ctrl+K press, rebinding the chord, mouse use, pins, custom actions being sent, joining a server
@@ -393,6 +483,14 @@ page, the shortcuts while a page has the keyboard, Escape, video full screen, ba
 mute, chat links, tab restore across launches, exclusive fullscreen, the Vulkan backend, and whether
 the telemetry switches all take effect (they are passed; nothing was measured on the network).
 
+The effect mods were checked through the harness on both versions with Sodium and Iris loaded and no
+shader pack (`effects-off`, `effects` and one `effect-<id>` capture each, in daylight), but that was
+before motion blur was rewritten as camera reprojection: the rewrite compiles on both versions and
+has not been run at all. Untried besides: the focus easing in motion, an Iris pack
+actually enabled, the Vulkan backend, Fabulous graphics, a resize or fullscreen switch while they
+are on, and fog in the Nether and End. One bench run on 26.2 put all of them together within the
+run's own noise of the idle figure.
+
 The pocket dimension is checked through the harness on both versions with the test world standing in
 for the server (26.2 with Sodium and Iris loaded). Untried: a real multiplayer server and its
 anticheat, the eject paths (damage, respawn, server-opened screens, a dropped connection), a proxy
@@ -401,3 +499,6 @@ server's signed chat is then acknowledged on the wrong connection), a server wit
 another mod displacing one of its mixins.
 
 Not built yet: README, more novel features (quick wheel, notes).
+
+### Git
+Commit to git when you are done something, if you have to bundle in other unrelated work it is fine. It's mostly just as a backup, and later to be pushed to github so people can see the source code.

@@ -25,7 +25,7 @@ public final class SdfAtlas {
     /** Distance range in atlas pixels encoded on each side of the edge. */
     public static final int SPREAD = 6;
     /** Supersampling factor used when measuring distances. */
-    private static final int SS = 4;
+    public static final int SS = 4;
     public static final int SIZE = 1024;
 
     public static final String CHARSET = buildCharset();
@@ -83,7 +83,7 @@ public final class SdfAtlas {
                 rowH = 0;
             }
             if (penY + oh + 1 > SIZE) break; // atlas full; remaining glyphs fall back to '?'
-            float[] dist = distanceField(gv, ox, oy, ow, oh);
+            float[] dist = distanceField(gv.getOutline(), ox, oy, ow, oh);
             for (int y = 0; y < oh; y++) {
                 for (int x = 0; x < ow; x++) {
                     float d = dist[y * ow + x] / SPREAD; // -1..1, positive inside
@@ -100,15 +100,18 @@ public final class SdfAtlas {
         }
     }
 
-    /** Signed distance (in atlas pixels, positive inside the glyph) for each output texel. */
-    private static float[] distanceField(GlyphVector gv, int ox, int oy, int ow, int oh) {
+    /**
+     * Signed distance (in atlas pixels, positive inside) for each output texel of a filled shape
+     * given at {@link #SS} times the atlas scale. The icon atlas is built with it too.
+     */
+    public static float[] distanceField(java.awt.Shape shape, int ox, int oy, int ow, int oh) {
         int W = ow * SS, H = oh * SS;
         BufferedImage img = new BufferedImage(W, H, BufferedImage.TYPE_BYTE_GRAY);
         Graphics2D g = img.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
         g.translate(-ox * SS, -oy * SS);
-        g.fill(gv.getOutline());
+        g.fill(shape);
         g.dispose();
         byte[] src = ((DataBufferByte) img.getRaster().getDataBuffer()).getData();
 

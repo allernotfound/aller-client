@@ -16,6 +16,7 @@ public final class Screens {
 
     public static Screen replace(Screen screen) {
         Screen next = choose(screen);
+        Entrance.opened(Mc.screen(), next);
         // Before the screen lays itself out: a restyled menu has to measure its text in Inter from the start.
         MenuSkin.sync(next);
         return next;

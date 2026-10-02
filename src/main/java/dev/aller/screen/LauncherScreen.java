@@ -15,6 +15,7 @@ import dev.aller.platform.Sounds;
 import dev.aller.setting.Settings;
 import dev.aller.ui.AllerScreen;
 import dev.aller.ui.Colors;
+import dev.aller.ui.Icons;
 import dev.aller.ui.Theme;
 import dev.aller.ui.Toasts;
 import dev.aller.ui.anim.Spring;
@@ -614,8 +615,7 @@ public final class LauncherScreen extends AllerScreen {
         if (step == null) {
             float cx = px + 17, cy = py + HEADER / 2;
             int icon = Colors.mix(Theme.TEXT_MUTED, Theme.accent(), search.text.isEmpty() ? 0 : 1);
-            c.ring(cx - 1, cy - 1, 4.2f, 1.3f, icon);
-            c.line(cx + 2.2f, cy + 2.2f, cx + 5.2f, cy + 5.2f, 1.4f, icon);
+            Icons.SEARCH.draw(c, cx + 0.5f, cy + 0.5f, 11f, icon);
             return px + 31;
         }
         String title = Fonts.SEMIBOLD.truncate(step.title, 8f, pw * 0.42f);
@@ -623,7 +623,7 @@ public final class LauncherScreen extends AllerScreen {
         c.rect(x, y, tw, h, h / 2, Colors.withAlpha(Theme.accent(), 0.20f));
         c.stroke(x, y, tw, h, h / 2, 1, Colors.withAlpha(Theme.accent(), 0.45f));
         c.textMiddle(Fonts.SEMIBOLD, title, x + 7, y, h, 8f, Colors.lighten(Theme.accent(), 0.45f));
-        c.textMiddle(Fonts.MEDIUM, "›", x + tw + 5, py - 0.5f, HEADER, 10f, Theme.TEXT_MUTED);
+        Icons.CHEVRON_RIGHT.draw(c, x + tw + 7.5f, py + HEADER / 2, 9.5f, Theme.TEXT_MUTED);
         return x + tw + 14;
     }
 
@@ -716,7 +716,7 @@ public final class LauncherScreen extends AllerScreen {
         } else {
             int tint = cmd.danger ? Theme.DANGER : Theme.accent();
             c.rect(x + 9, y + 6, 14, 14, 4.5f, Colors.withAlpha(tint, 0.16f + 0.14f * hv));
-            c.textCentered(Fonts.SEMIBOLD, "→", cx + 1.1f * hv, y + 6 + (14 - Fonts.SEMIBOLD.height(7.5f)) / 2, 7.5f, Colors.lighten(tint, 0.35f));
+            Icons.FORWARD.draw(c, cx + 1.1f * hv, y + 13, 8.5f, Colors.lighten(tint, 0.35f));
         }
 
         if (isSelected) {
@@ -731,7 +731,7 @@ public final class LauncherScreen extends AllerScreen {
             Theme.keycap(c, label, right - kw, y + (ROW - 12) / 2, 12);
             right -= kw + 7;
         } else if (History.pinned(cmd.key)) {
-            c.star(right - 4, cy, 4.2f, Colors.withAlpha(Theme.accent(), 0.85f));
+            Icons.PIN.draw(c, right - 5, cy, 9.5f, Colors.withAlpha(Theme.accent(), 0.85f));
             right -= 14;
         }
         if (m != null || cmd.state != null) {
@@ -751,7 +751,7 @@ public final class LauncherScreen extends AllerScreen {
             right -= Fonts.MEDIUM.width(value, 7.6f) + 8;
         }
         if (cmd.step != null) {
-            c.textMiddle(Fonts.MEDIUM, "›", right - 5, y - 0.5f, ROW, 10f, Colors.fade(Theme.TEXT_MUTED, 0.5f + 0.5f * hv));
+            Icons.CHEVRON_RIGHT.draw(c, right - 2.5f, y + ROW / 2, 9.5f, Colors.fade(Theme.TEXT_MUTED, 0.5f + 0.5f * hv));
             right -= 12;
         }
 

@@ -135,7 +135,7 @@ public final class Commands {
                 .run(parent -> Mc.setScreen(new ScreenHost(new HudEditorScreen(parent)))));
         page(c, "ui", "UI settings", "Accent colour, font, sizes, backgrounds and motion", "options preferences aller theme interface look accent blur zoom", SettingsPage::ui)
                 .suggest(false, true);
-        page(c, "client", "Client settings", "Aller's keys and behaviour", "options preferences aller keybinds", SettingsPage::new);
+        page(c, "client", "Client settings", "Aller Client's keys and behaviour", "options preferences aller keybinds", SettingsPage::new);
         page(c, "profiles", "Profiles", "Switch between setups, or let rules switch them for you", "profile preset rules auto", ProfilesPage::new);
         page(c, "waypoints", "Waypoints", "Manage saved places and death markers", "waypoint marker list places", WaypointsPage::new);
         page(c, "stats", "Session stats", "Playtime, FPS and combat numbers", "statistics graph history playtime", StatsPage::new);
@@ -154,7 +154,7 @@ public final class Commands {
                 .run(parent -> Browser.open(parent, null)));
         c.add(new Command("web", "Search the web", Group.NAVIGATE).detail("Or type: web minecraft wiki").alias("web")
                 .keywords("google internet browse address url site look up").when(Browser::usable).after()
-                .step(new Step.Text("Web", "Search, or an address", "Opens in Aller's browser.", text -> {
+                .step(new Step.Text("Web", "Search, or an address", "Opens in Aller Client's browser.", text -> {
                     Browser.open(Mc.screen(), text);
                     return null;
                 }).max(512).inline(text -> Browser.isAddress(text) ? "Open " + text : "Search " + Browser.engine().label() + " for " + quote(text))));
@@ -195,7 +195,7 @@ public final class Commands {
         folder(c, "clips", "Open replay clips folder", mc.gameDirectory.toPath().resolve("aller-clips"));
         folder(c, "packs", "Open resource packs folder", mc.getResourcePackDirectory());
         folder(c, "chat", "Open chat logs folder", dev.aller.feature.ChatLog.dir());
-        folder(c, "config", "Open Aller's config folder", AllerClient.config().dir());
+        folder(c, "config", "Open Aller Client's config folder", AllerClient.config().dir());
         folder(c, "logs", "Open logs folder", mc.gameDirectory.toPath().resolve("logs"));
         folder(c, "game", "Open game folder", mc.gameDirectory.toPath());
 
@@ -236,7 +236,7 @@ public final class Commands {
                 .value(Nav::playerName).run(() -> copy(Nav.playerName(), "Username copied")));
         c.add(new Command("copy.uuid", "Copy your UUID", Group.GAME).keywords("clipboard player account id")
                 .run(() -> copy(String.valueOf(Mc.mc().getUser().getProfileId()), "UUID copied")));
-        c.add(new Command("copy.version", "Copy game version", Group.GAME).detail("Minecraft and Aller versions, for bug reports").keywords("clipboard about")
+        c.add(new Command("copy.version", "Copy game version", Group.GAME).detail("Minecraft and Aller Client versions, for bug reports").keywords("clipboard about")
                 .value(Nav::minecraftVersion).run(() -> copy("Minecraft " + Nav.minecraftVersion() + ", " + AllerClient.NAME + " " + AllerClient.VERSION, "Version copied")));
         c.add(new Command("copy.mods", "Copy mod list", Group.GAME).detail("Every installed mod and its version, one per line").keywords("clipboard installed fabric bug report")
                 .value(() -> Nav.countMods() + " mods").run(() -> {
@@ -340,7 +340,7 @@ public final class Commands {
                 .keywords("create add macro shortcut message command").step(newCustom()));
 
         // Client settings, then every mod and its settings.
-        settings(c, "aller.", "", "Aller setting", Group.ALLER, AllerClient.options(), null);
+        settings(c, "aller.", "", "Aller Client setting", Group.ALLER, AllerClient.options(), null);
         for (Module m : AllerClient.modules().all()) {
             c.add(new Command("mod." + m.id, m.name, Group.MOD).detail(m.description).keywords(String.join(" ", m.keywords) + " " + m.category.label.toLowerCase())
                     .hidePalette().run(() -> AllerClient.modules().userToggle(m)).module(m)

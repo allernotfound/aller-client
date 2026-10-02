@@ -133,7 +133,7 @@ public final class CustomActionsPage extends Page {
             c.rect(left, cy + 1, cw, st.h - 2, Theme.R_SM, Colors.withAlpha(Colors.WHITE, 0.03f + 0.05f * hv));
             if (e > 0.02f) c.stroke(left, cy + 1, cw, st.h - 2, Theme.R_SM, 1, Colors.withAlpha(Theme.accent(), 0.45f * e));
             c.rect(left + 8, cy + 7, 14, 14, 4.5f, Colors.withAlpha(Theme.accent(), 0.16f + 0.14f * hv));
-            c.textCentered(Fonts.SEMIBOLD, "→", left + 15, cy + 7 + (14 - Fonts.SEMIBOLD.height(7.5f)) / 2, 7.5f, Colors.lighten(Theme.accent(), 0.35f));
+            Icons.FORWARD.draw(c, left + 15, cy + 14, 8.5f, Colors.lighten(Theme.accent(), 0.35f));
             c.text(Fonts.SEMIBOLD, Fonts.SEMIBOLD.truncate(each.name, 8.5f, cw - 62), left + 30, cy + 5, 8.5f, Theme.TEXT);
             c.text(Fonts.REGULAR, Fonts.REGULAR.truncate(each.message, 7f, cw - 62), left + 30, cy + 16, 7f, Theme.TEXT_MUTED);
             boolean overX = over && mx >= left + cw - 22;

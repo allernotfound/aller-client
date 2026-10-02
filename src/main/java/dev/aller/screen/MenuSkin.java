@@ -6,10 +6,12 @@ import dev.aller.platform.Mc;
 import dev.aller.platform.MenuKind;
 import dev.aller.platform.ScreenHost;
 import dev.aller.ui.Colors;
+import dev.aller.ui.Icons;
 import dev.aller.ui.Theme;
 import dev.aller.ui.anim.Motion;
 import dev.aller.ui.anim.Spring;
 import net.minecraft.client.gui.screens.Screen;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -113,11 +115,35 @@ public final class MenuSkin {
 
     public static void begin(Screen rendering) {
         drawing = active && rendering == screen;
+        front = rendering == Mc.screen();
     }
 
-    public static void end() {
+    public static void end(Canvas c) {
+        if (drawing) flushBox(c);
         drawing = false;
         selection = false;
+    }
+
+    // ---- pointer ---------------------------------------------------------------------------------
+
+    /** False while the menu is only on show beneath one of Aller's screens: nothing in it reacts then. */
+    private static boolean front;
+
+    /**
+     * Whether a widget vanilla calls highlighted is shown as such. Vanilla keeps the button last
+     * clicked focused, and so highlighted, until something else is clicked; that only means
+     * something to a player moving through the menu with the keyboard.
+     */
+    private static boolean lit(boolean highlighted, boolean over) {
+        return front && highlighted && (over || keyboard());
+    }
+
+    private static boolean keyboard() {
+        return Mc.mc().getLastInputType().isKeyboard();
+    }
+
+    private static boolean pressing() {
+        return GLFW.glfwGetMouseButton(Mc.window(), 0) == GLFW.GLFW_PRESS;
     }
 
     // ---- background ------------------------------------------------------------------------------
@@ -125,7 +151,12 @@ public final class MenuSkin {
     /** Stands in for the panorama: outside a world there is nothing to blur, so the menu backdrop shows instead. */
     public static boolean backdrop(Canvas c) {
         if (!drawing) return false;
-        Theme.scene(c, c.width(), c.height());
+        // Coming from the main menu, the backdrop settles from that menu's brighter one.
+        Entrance.still(c, () -> {
+            c.pushSolid();
+            Theme.scene(c, c.width(), c.height(), Entrance.handover());
+            c.popAlpha();
+        });
         return true;
     }
 
@@ -142,13 +173,15 @@ public final class MenuSkin {
             case "menu_background.png" -> {
                 // Only the whole-screen dim; partial ones are strips behind headers, which the panels replace.
                 if (w >= c.width() - 1 && h >= c.height() - 1) {
-                    c.rect(x, y, w, h, 0, 0x5207060B);
-                    c.gradientV(x, y, w, h * 0.3f, 0, 0x8007060B, 0x0007060B);
-                    c.gradientV(x, y + h * 0.7f, w, h * 0.3f, 0, 0x0007060B, 0x8007060B);
+                    Entrance.still(c, () -> {
+                        c.rect(x, y, w, h, 0, 0x5207060B);
+                        c.gradientV(x, y, w, h * 0.3f, 0, 0x8007060B, 0x0007060B);
+                        c.gradientV(x, y + h * 0.7f, w, h * 0.3f, 0, 0x0007060B, 0x8007060B);
+                    });
                 }
             }
             case "inworld_menu_background.png" -> {
-                if (w >= c.width() - 1 && h >= c.height() - 1) c.rect(x, y, w, h, 0, 0x73050409);
+                if (w >= c.width() - 1 && h >= c.height() - 1) Entrance.still(c, () -> c.rect(x, y, w, h, 0, 0x73050409));
             }
             case "menu_list_background.png", "inworld_menu_list_background.png" -> {
                 // A list that spans the window gets a margin so it reads as a floating panel.
@@ -199,7 +232,7 @@ public final class MenuSkin {
             case "widget/tab_selected" -> tab(c, x, y, w, h, true, false);
             case "widget/tab_selected_highlighted" -> tab(c, x, y, w, h, true, true);
             case "widget/scroller_background" -> c.rect(x + w / 2 - 1.5f, y + 2, 3, h - 4, 1.5f, 0x12FFFFFF);
-            case "widget/scroller" -> c.rect(x + w / 2 - 1.5f, y + 2, 3, h - 4, 1.5f, 0x5CFFFFFF);
+            case "widget/scroller" -> scroller(c, x, y, w, h);
             case "tooltip/background" -> {
                 // The sprite carries a 9px transparent margin around the box.
                 float px = x + 9, py = y + 9, pw = w - 18, ph = h - 18;
@@ -215,79 +248,132 @@ public final class MenuSkin {
         return handled;
     }
 
-    /** The glass button, as {@code ui.widget.Button} draws it; also used for mods that draw their own. */
-    public static void button(Canvas c, float x, float y, float w, float h, boolean hot, boolean enabled) {
-        float hv = enabled ? anim(BUTTON, x, y, w, h, hot) : 0;
-        float r = Math.min(Theme.R_MD, h / 2);
-        c.pushAlpha(enabled ? 1f : 0.5f);
+    /** The glass button, as {@code ui.widget.Button} draws it and moves it; also used for mods that draw their own. */
+    public static void button(Canvas c, float x, float y, float w, float h, boolean highlighted, boolean enabled) {
+        boolean over = front && c.hovered(x, y, w, h);
+        boolean hot = enabled && lit(highlighted, over);
+        Anim a = anim(BUTTON, x, y, w, h, hot).step(hot, hot && over && pressing());
+        // Rows of buttons that touch in vanilla get a little air between them.
+        if (h >= 18) {
+            y += 1;
+            h -= 2;
+        }
+        c.push();
         c.pixel(true);
-        c.rect(x, y, w, h, r, BASE);
-        c.rect(x, y, w, h, r, Colors.mix(Theme.RAISED, Theme.RAISED_HOVER, hv));
-        c.stroke(x, y, w, h, r, 1, Colors.mix(Theme.BORDER, Theme.BORDER_STRONG, hv));
-        c.pixel(false);
+        // Lift on hover, sink on press; the label stays put.
+        if (!c.pixelated()) c.scale(1f + 0.02f * a.hv - 0.04f * a.pr, x + w / 2, y + h / 2);
+        c.pushAlpha(enabled ? 1f : 0.5f);
+        plate(c, x, y, w, h, a.hv, a.pr);
+        if (hot && !over) c.stroke(x, y, w, h, Math.min(Theme.R_MD, h / 2), 1, Colors.withAlpha(Theme.accent(), 0.85f));
         c.popAlpha();
+        c.pixel(false);
+        c.pop();
     }
 
-    // Vanilla draws a slider as a track sprite followed by its handle; the track is remembered so
-    // the handle can fill the part of it that lies to its left.
+    private static void plate(Canvas c, float x, float y, float w, float h, float hv, float pr) {
+        float r = Math.min(Theme.R_MD, h / 2);
+        c.rect(x, y, w, h, r, BASE);
+        c.rect(x, y, w, h, r, Colors.mix(Theme.RAISED, Theme.RAISED_HOVER, hv));
+        if (pr > 0.01f) c.rect(x, y, w, h, r, Colors.withAlpha(Colors.BLACK, 0.20f * pr));
+        c.stroke(x, y, w, h, r, 1, Colors.mix(Theme.BORDER, Theme.BORDER_STRONG, hv));
+    }
+
+    // Vanilla draws a slider as a track sprite followed by its handle. The track is drawn as a
+    // button and remembered; the handle then adds the progress line and knob along its bottom
+    // edge, clear of the label.
     private static float sliderX, sliderY, sliderW, sliderH;
 
     private static void sliderTrack(Canvas c, float x, float y, float w, float h, boolean focused) {
-        float r = Math.min(Theme.R_MD, h / 2);
-        c.rect(x, y, w, h, r, BASE);
-        c.rect(x, y, w, h, r, Theme.RAISED);
-        c.stroke(x, y, w, h, r, 1, focused ? Theme.BORDER_STRONG : Theme.BORDER);
+        Anim a = anim(HANDLE, x, y, w, h, false);
+        c.pixel(true);
+        plate(c, x, y + 1, w, h - 2, a.hv, 0);
+        if (front && focused && keyboard()) {
+            c.stroke(x, y + 1, w, h - 2, Math.min(Theme.R_MD, (h - 2) / 2), 1, Colors.withAlpha(Theme.accent(), 0.85f));
+        }
+        c.pixel(false);
         sliderX = x;
         sliderY = y;
         sliderW = w;
         sliderH = h;
     }
 
-    private static void sliderHandle(Canvas c, float x, float y, float w, float h, boolean hot) {
-        float hv = anim(HANDLE, sliderX, y, sliderW, h, hot);
-        if (sliderW > 0 && y == sliderY && h == sliderH && x >= sliderX && x + w <= sliderX + sliderW + 0.5f) {
-            // The filled part is the track's own shape, cut off at the handle.
-            c.clip(sliderX, y, x + w / 2 - sliderX, h);
-            c.rect(sliderX, y, sliderW, h, Math.min(Theme.R_MD, h / 2), Colors.withAlpha(Theme.accent(), 0.30f + 0.12f * hv));
-            c.unclip();
+    private static void sliderHandle(Canvas c, float x, float y, float w, float h, boolean highlighted) {
+        boolean matched = sliderW > w && y == sliderY && h == sliderH && x >= sliderX && x + w <= sliderX + sliderW + 0.5f;
+        if (!matched) {
+            // A handle without its track (another mod's widget): a plain grip.
+            c.rect(x + w / 2 - 1.5f, y + 3, 3, h - 6, 1.5f, Colors.lighten(Theme.accent(), 0.35f));
+            return;
         }
-        float bar = 2f + hv;
-        c.rect(x + (w - bar) / 2, y + 3, bar, h - 6, bar / 2, Colors.mix(Colors.lighten(Theme.accent(), 0.35f), Colors.WHITE, hv));
+        float tx = sliderX, tw = sliderW, ty = y + 1, th = h - 2;
+        sliderW = 0;
+        boolean over = front && c.hovered(tx, y, tw, h);
+        boolean hot = lit(highlighted, over);
+        Anim a = anim(HANDLE, tx, y, tw, h, hot).step(hot, hot && over && pressing());
+
+        float fraction = Math.clamp((x - tx) / Math.max(1, tw - w), 0f, 1f);
+        // The thumb travels between the track's rounded ends.
+        float pad = Math.min(6.5f, th * 0.36f), kx = tx + pad + (tw - pad * 2) * fraction;
+        // The filled part is the track's own shape, cut off at the thumb.
+        c.clip(tx, ty, kx - tx, th);
+        c.pixel(true);
+        c.gradientH(tx, ty, tw, th, Math.min(Theme.R_MD, th / 2), Colors.withAlpha(Theme.accent(), 0.20f + 0.08f * a.hv),
+                Colors.withAlpha(Theme.accent(), 0.38f + 0.10f * a.hv));
+        c.pixel(false);
+        c.unclip();
+        // A tall thumb, standing a little proud of the track above and below.
+        float kw = 4 + a.hv - 0.6f * a.pr, over2 = 1.5f + 0.5f * a.hv, ky = ty - over2, kh = th + over2 * 2;
+        c.shadow(kx - kw / 2, ky + 1, kw, kh, kw / 2, 4, Colors.withAlpha(Colors.BLACK, 0.45f));
+        c.rect(kx - kw / 2, ky, kw, kh, kw / 2, Colors.mix(Colors.lighten(Theme.accent(), 0.6f), Colors.WHITE, a.hv));
     }
 
     private static void field(Canvas c, float x, float y, float w, float h, boolean focused) {
-        float f = anim(FIELD_FOCUS, x, y, w, h, focused);
+        Anim a = anim(FIELD_FOCUS, x, y, w, h, focused).step(focused, false);
         float r = Math.min(Theme.R_SM, h / 2);
         c.rect(x, y, w, h, r, FIELD);
-        c.stroke(x, y, w, h, r, 1, Colors.mix(Theme.BORDER_STRONG, Colors.withAlpha(Theme.accent(), 0.9f), f));
+        c.stroke(x, y, w, h, r, 1, Colors.mix(Theme.BORDER_STRONG, Colors.withAlpha(Theme.accent(), 0.75f), a.hv));
     }
 
-    private static void checkbox(Canvas c, float x, float y, float w, float h, boolean on, boolean hot) {
-        float hv = anim(CHECK, x, y, w, h, hot);
+    private static void checkbox(Canvas c, float x, float y, float w, float h, boolean on, boolean highlighted) {
+        boolean over = front && c.hovered(x, y, w, h);
+        boolean hot = lit(highlighted, over);
+        Anim a = anim(CHECK, x, y, w, h, hot).step(hot, hot && over && pressing());
         float r = Math.min(4.5f, h / 2);
+        c.push();
+        if (!c.pixelated()) c.scale(1f + 0.05f * a.hv - 0.09f * a.pr, x + w / 2, y + h / 2);
         if (on) {
             Theme.accentFill(c, x, y, w, h, r);
-            c.gradientV(x, y, w, h, r, Colors.withAlpha(Colors.WHITE, 0.10f + 0.10f * hv), 0x00FFFFFF);
-            float t = Math.max(1.4f, h * 0.1f);
-            c.line(x + w * 0.27f, y + h * 0.52f, x + w * 0.43f, y + h * 0.68f, t, Theme.onAccent());
-            c.line(x + w * 0.43f, y + h * 0.68f, x + w * 0.74f, y + h * 0.34f, t, Theme.onAccent());
+            c.gradientV(x, y, w, h, r, Colors.withAlpha(Colors.WHITE, 0.10f + 0.10f * a.hv), 0x00FFFFFF);
+            Icons.CHECK.draw(c, x + w / 2, y + h / 2, Math.min(w, h) * 0.78f, Theme.onAccent());
         } else {
             c.rect(x, y, w, h, r, BASE);
-            c.rect(x, y, w, h, r, Colors.mix(Theme.RAISED, Theme.RAISED_HOVER, hv));
-            c.stroke(x, y, w, h, r, 1, Colors.mix(Theme.BORDER_STRONG, Theme.TEXT_MUTED, hv));
+            c.rect(x, y, w, h, r, Colors.mix(Theme.RAISED, Theme.RAISED_HOVER, a.hv));
+            c.stroke(x, y, w, h, r, 1, Colors.mix(Theme.BORDER_STRONG, Theme.TEXT_MUTED, a.hv));
         }
+        if (hot && !over) c.stroke(x - 1, y - 1, w + 2, h + 2, r + 1, 1, Colors.withAlpha(Theme.accent(), 0.85f));
+        c.pop();
     }
 
-    private static void tab(Canvas c, float x, float y, float w, float h, boolean selected, boolean hot) {
-        float hv = anim(TAB, x, y, w, h, hot);
+    private static void tab(Canvas c, float x, float y, float w, float h, boolean selected, boolean highlighted) {
+        boolean over = front && c.hovered(x, y, w, h);
+        boolean hot = lit(highlighted, over);
+        Anim a = anim(TAB, x, y, w, h, hot).step(hot, false);
         float px = x + 2, py = y + 3, pw = w - 4, ph = h - 5;
         if (selected) {
             c.rect(px, py, pw, ph, Theme.R_MD, BASE);
             c.rect(px, py, pw, ph, Theme.R_MD, Theme.RAISED_HOVER);
             c.stroke(px, py, pw, ph, Theme.R_MD, 1, Theme.BORDER_STRONG);
+            c.rect(px + pw / 2 - 7, py + ph - 2.5f, 14, 1.5f, 0.75f, Theme.accent());
         } else {
-            c.rect(px, py, pw, ph, Theme.R_MD, Colors.withAlpha(Colors.WHITE, 0.08f * hv));
+            c.rect(px, py, pw, ph, Theme.R_MD, Colors.withAlpha(Colors.WHITE, 0.08f * a.hv));
         }
+        if (hot && !over) c.stroke(px, py, pw, ph, Theme.R_MD, 1, Colors.withAlpha(Theme.accent(), 0.85f));
+    }
+
+    private static void scroller(Canvas c, float x, float y, float w, float h) {
+        boolean over = front && c.hovered(x - 2, y, w + 4, h);
+        Anim a = anim(HANDLE, x, 0, w, h, false).step(over, false);
+        float bar = 3 + a.hv;
+        c.rect(x + w / 2 - bar / 2, y + 2, bar, h - 4, bar / 2, Colors.withAlpha(Colors.WHITE, 0.36f + 0.24f * a.hv));
     }
 
     // ---- lists -----------------------------------------------------------------------------------
@@ -301,7 +387,7 @@ public final class MenuSkin {
 
     /**
      * A plain filled rectangle. Vanilla menus hardly use them, but Sodium's settings screen is
-     * built from nothing else, so on its screens each one becomes a rounded Aller surface.
+     * built from nothing else, so on its screens each one becomes an Aller surface.
      *
      * @return true if it was drawn here
      */
@@ -315,24 +401,69 @@ public final class MenuSkin {
         }
         if (!flat) return outlinedBox(c, x, y, w, h, color);
         if (w >= c.width() - 1 && h >= c.height() - 1) return false;
-        float r = Math.min(w, h) <= 2.5f ? 0 : Math.min(4, Math.min(w, h) / 2);
-        int alpha = color >>> 24;
-        if ((color & 0xFFFFFF) != 0) {
-            c.rect(x, y, w, h, r, flatColor(color));
-        } else if (alpha >= 0xD0) {
-            float hv = anim(FLAT, x, y, w, h, true);
-            c.rect(x, y, w, h, r, BASE);
-            c.rect(x, y, w, h, r, Colors.mix(Theme.RAISED, Theme.RAISED_HOVER, hv));
-        } else if (alpha >= 0x80) {
-            float hv = anim(FLAT, x, y, w, h, false);
-            c.rect(x, y, w, h, r, BASE);
-            c.rect(x, y, w, h, r, Colors.mix(Theme.RAISED, Theme.RAISED_HOVER, hv));
-        } else {
-            // Resting rows: dark enough to read over the backdrop, with a hint of lift.
-            c.rect(x, y, w, h, r, Colors.withAlpha(0xFF0D0B14, 0.30f + alpha / 255f));
-            c.rect(x, y, w, h, r, 0x08FFFFFF);
-        }
+        flatFill(c, x, y, w, h, color);
         return true;
+    }
+
+    /** A two-colour rectangle: on Sodium's screen that is the panel behind its list of pages. */
+    public static boolean gradient(Canvas c, float x0, float y0, float x1, float y1, int top, int bottom) {
+        if (!drawing) return false;
+        if (!flat || selection) return fill(c, x0, y0, x1, y1, bottom);
+        surface(c, Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0), Theme.R_MD);
+        return true;
+    }
+
+    /**
+     * Sodium's rectangles, told apart by what they are filled with: shades of black are surfaces
+     * (the darker, the more raised: its hover is the darkest), white and the theme colours are
+     * marks drawn on them.
+     */
+    private static void flatFill(Canvas c, float x, float y, float w, float h, int color) {
+        int alpha = color >>> 24, rgb = color & 0xFFFFFF;
+        float least = Math.min(w, h);
+        if (rgb != 0) {
+            if (rgb == 0xFFFFFF && alpha <= 0x20) {
+                // A faint wash: the pointer over an entry in the list of pages.
+                c.rect(x, y + 0.5f, w, h - 1, 4.5f, Colors.withAlpha(Colors.WHITE, 0.07f));
+                return;
+            }
+            int mark = rgb == 0xFFFFFF ? Colors.withAlpha(Theme.TEXT, alpha / 255f) : flatColor(color);
+            if (least <= 4) {
+                // Slider tracks and thumbs, underlines, the bar beside the page in view: pills.
+                if (h > w && h >= 12) {
+                    y += 3;
+                    h -= 6;
+                }
+                c.rect(x, y, w, h, Math.min(w, h) / 2, mark);
+            } else {
+                c.rect(x, y, w, h, Math.min(3, least / 2), mark);
+            }
+            return;
+        }
+        boolean row = h >= 10 && h <= 28 && w >= 16;
+        if (!row) {
+            // Blocks: the tooltip beside the options, the search results.
+            if (least <= 2.5f) c.rect(x, y, w, h, 0, Colors.withAlpha(0xFF0D0B14, 0.30f + alpha / 255f * 0.6f));
+            else if (alpha >= 0xD0) panel(c, x, y, w, h);
+            else surface(c, x, y, w, h, Math.min(Theme.R_MD, least / 2));
+            return;
+        }
+        // Rows and buttons. A hairline of air keeps neighbours apart now that their corners are round.
+        boolean hovered = alpha >= 0xD0;
+        Anim a = anim(FLAT, x, y, w, h, hovered);
+        a.step(hovered && front, hovered && front && pressing() && c.hovered(x, y, w, h));
+        // What the rectangle is at rest decides its look: a button, a heading, or a quiet row.
+        if (!hovered) a.level = alpha >= 0x80 ? w <= 100 ? 2 : 1 : alpha >= 0x50 ? 1 : 0;
+        float ry = y + 0.5f, rh = h - 1, r = Math.min(4.5f, rh / 2);
+        if (a.level == 2) {
+            c.pixel(true);
+            plate(c, x, ry, w, rh, a.hv, a.pr);
+            c.pixel(false);
+        } else {
+            c.rect(x, ry, w, rh, r, Colors.withAlpha(0xFF0D0B14, a.level == 1 ? 0.62f : 0.34f + 0.30f * a.hv));
+            c.rect(x, ry, w, rh, r, Colors.mix(a.level == 1 ? 0x12FFFFFF : 0x08FFFFFF, Theme.RAISED_HOVER, a.hv));
+            if (a.hv > 0.01f) c.stroke(x, ry, w, rh, r, 1, Colors.withAlpha(Colors.WHITE, 0.16f * a.hv));
+        }
     }
 
     private static float boxX, boxY, boxW, boxH, boxAt = -1;
@@ -350,11 +481,8 @@ public final class MenuSkin {
             highlight(c, boxX, boxY, boxW, boxH, boxFocused);
             return true;
         }
-        if (pending) {
-            // Not a selection after all: draw the held rectangle as it was meant to be.
-            boxAt = -1;
-            c.rect(boxX, boxY, boxW, boxH, 0, boxFocused ? 0xFFFFFFFF : 0xFF808080);
-        }
+        // Not a selection after all: draw the held rectangle as it was meant to be.
+        flushBox(c);
         if ((color == 0xFFFFFFFF || color == 0xFF808080) && w >= 40 && h >= 12) {
             boxX = x;
             boxY = y;
@@ -365,6 +493,13 @@ public final class MenuSkin {
             return true;
         }
         return false;
+    }
+
+    /** Draws a rectangle that was held back as a possible selection box and turned out not to be one. */
+    private static void flushBox(Canvas c) {
+        if (boxAt != Motion.time()) return;
+        boxAt = -1;
+        c.rect(boxX, boxY, boxW, boxH, 0, boxFocused ? 0xFFFFFFFF : 0xFF808080);
     }
 
     private static void highlight(Canvas c, float x, float y, float w, float h, boolean focused) {
@@ -378,19 +513,29 @@ public final class MenuSkin {
         float w = x1 - x0, h = y1 - y0;
         // White is both a focus ring (large) and an empty tick box (small).
         int mapped = color == 0xFFFFFFFF ? Math.min(w, h) <= 12 ? 0xA6FFFFFF : Colors.withAlpha(Theme.accent(), 0.9f)
-                : (color & 0xFFFFFF) == 0x00FFEE ? Theme.BORDER_STRONG : flatColor(color);
-        c.stroke(x0, y0, w, h, Math.min(4, Math.min(w, h) / 2), 1, mapped);
+                : (color & 0xFFFFFF) == 0x00FFEE ? Colors.withAlpha(Theme.accent(), 0.85f) : flatColor(color);
+        // A ring round a row sits on the row as it is drawn, half a pixel in.
+        boolean row = h >= 10 && h <= 28 && w >= 16 && Math.min(w, h) > 12;
+        c.stroke(x0, y0 + (row ? 0.5f : 0), w, h - (row ? 1 : 0), Math.min(4.5f, Math.min(w, h) / 2), 1, mapped);
         return true;
     }
 
-    /** Sodium's teal becomes the accent, so its ticks, sliders and tab markers match the rest of the client. */
+    /**
+     * Sodium's theme colours become the accent, so its ticks, sliders and headings match the rest of
+     * the client. Each mod on its screen has a pastel of its own with a lighter and a darker shade;
+     * they are told from ordinary coloured text (warnings, formatting codes) by being pastel.
+     */
     private static int flatColor(int color) {
-        // Matched by hue: the theme has a base, a lighter and a darker shade, kept as such.
         float[] hsv = Colors.toHsv(color);
-        if (hsv[0] < 0.40f || hsv[0] > 0.53f || hsv[1] < 0.12f) return color;
+        if (hsv[1] < 0.10f || hsv[1] > 0.50f || hsv[2] < 0.45f) return color;
         int accent = Theme.accent();
-        int shade = hsv[2] < 0.75f ? Colors.darken(accent, 0.25f) : hsv[1] < 0.28f ? Colors.lighten(accent, 0.45f) : accent;
+        int shade = hsv[2] < 0.75f ? Colors.mix(accent, Theme.TEXT_MUTED, 0.45f) : hsv[1] < 0.28f ? Colors.lighten(accent, 0.45f) : accent;
         return (color & 0xFF000000) | (shade & 0xFFFFFF);
+    }
+
+    /** The tint of a texture about to be drawn: on Sodium's screen its icons take the accent too. */
+    public static int tint(int color) {
+        return drawing && flat ? flatColor(color) : color;
     }
 
     /** A bordered box a mod draws by hand (Iris's panels). */
@@ -414,11 +559,24 @@ public final class MenuSkin {
     // ---- per-widget animation --------------------------------------------------------------------
 
     private static final class Anim {
-        final Spring spring;
-        float seen;
+        final Spring hover, press = Spring.snappy(0);
+        float seen = -1, hv, pr;
+        /** For Sodium's rows: what kind of surface it is at rest. */
+        int level;
 
         Anim(float start) {
-            spring = Spring.snappy(start);
+            hover = Spring.snappy(start);
+            hv = start;
+        }
+
+        /** Advances the springs, once a frame however often the widget is drawn. */
+        Anim step(boolean on, boolean down) {
+            if (seen != Motion.time()) {
+                seen = Motion.time();
+                hv = Math.clamp(hover.target(on ? 1 : 0).update(), 0f, 1f);
+                pr = Math.clamp(press.target(down ? 1 : 0).update(), 0f, 1f);
+            }
+            return this;
         }
     }
 
@@ -426,16 +584,12 @@ public final class MenuSkin {
     private static final Map<Long, Anim> anims = new HashMap<>();
     private static float pruned;
 
-    private static float anim(int kind, float x, float y, float w, float h, boolean on) {
+    /** @param on the state a rectangle not seen before starts settled in, so scrolling a list does not replay every hover */
+    private static Anim anim(int kind, float x, float y, float w, float h, boolean on) {
         long key = (((long) kind * 31 + Float.floatToIntBits(x)) * 31 + Float.floatToIntBits(y)) * 31 + Float.floatToIntBits(w);
         key = key * 31 + Float.floatToIntBits(h);
         Anim a = anims.get(key);
-        // A new rectangle starts settled, so scrolling a list does not replay every hover.
         if (a == null) anims.put(key, a = new Anim(on ? 1 : 0));
-        if (a.seen != Motion.time()) {
-            a.seen = Motion.time();
-            a.spring.target(on ? 1 : 0).update();
-        }
-        return Math.clamp(a.spring.get(), 0f, 1f);
+        return a;
     }
 }

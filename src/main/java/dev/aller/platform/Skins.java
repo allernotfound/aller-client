@@ -1,5 +1,7 @@
 package dev.aller.platform;
 
+import dev.aller.ui.Colors;
+import dev.aller.ui.Theme;
 import java.util.function.Supplier;
 //? if <26.1 {
 /*import net.minecraft.client.gui.components.PlayerFaceRenderer;
@@ -88,6 +90,17 @@ public final class Skins {
         PlayerFaceExtractor.extractRenderState(c.raw(), own(), 0, 0, size, tint);
         //?}
         c.pop();
+    }
+
+    /**
+     * The face in its accent frame. The border is drawn over the face's edge by half a unit: the
+     * face lands on whole pixels and the border does not, so merely touching leaves a dark line between.
+     */
+    public static void drawFramedFace(Canvas c, float x, float y, int size) {
+        drawOwnFace(c, x, y, size);
+        // An opaque border, so the face underneath does not show through it.
+        int border = Colors.mix(0xFF14121A, 0xFF000000 | Theme.accent(), 0.75f);
+        c.stroke(x - 2, y - 2, size + 4, size + 4, 5, 2.5f, border);
     }
 
     public static boolean ownSlim() {

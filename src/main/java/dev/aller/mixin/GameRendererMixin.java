@@ -27,6 +27,18 @@ public abstract class GameRendererMixin {
         Frame.end();
     }
 
+    @Inject(method = "renderLevel", at = @At(value = "INVOKE",
+            target = "Lcom/mojang/blaze3d/systems/CommandEncoder;clearDepthTexture(Lcom/mojang/blaze3d/textures/GpuTexture;D)V"))
+    private void aller$worldDepth(DeltaTracker delta, CallbackInfo ci) {
+        Hooks.worldDepth();
+    }
+
+    @Inject(method = "render", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel(Lnet/minecraft/client/DeltaTracker;)V", shift = At.Shift.AFTER))
+    private void aller$worldDrawn(DeltaTracker delta, boolean advance, CallbackInfo ci) {
+        Hooks.worldDrawn();
+    }
+
     @Inject(method = "preloadUiShader", at = @At("TAIL"))
     private void aller$preloadShaders(CallbackInfo ci) {
         Pipelines.preload();

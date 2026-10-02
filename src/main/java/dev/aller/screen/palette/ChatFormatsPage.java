@@ -121,7 +121,7 @@ public final class ChatFormatsPage extends Page {
 
         float cy = y + 8 - scroll.get();
         float top = cy;
-        cy = paragraph(c, "Servers format chat however they like and never say who wrote a line, so Aller works it out from the text. "
+        cy = paragraph(c, "Servers format chat however they like and never say who wrote a line, so Aller Client works it out from the text. "
                 + "A line is read as author, separator, message; your own name as the author never pings you.", left, cy, cw);
         cy += 8;
         cy = label(c, "Separators", left, cy);

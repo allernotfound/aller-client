@@ -21,6 +21,37 @@ public final class Game {
         return player() != null && level() != null;
     }
 
+    private static net.minecraft.client.Camera camera() {
+        //? if <26.1 {
+        /*return Mc.mc().gameRenderer.getMainCamera();
+        *///?} else {
+        return Mc.mc().gameRenderer.mainCamera();
+        //?}
+    }
+
+    /** False while the view is fogged for a reason of the game's: under water or lava, in powder snow, blinded. */
+    public static boolean clearView() {
+        LocalPlayer p = player();
+        return p != null && camera().getFluidInCamera() == net.minecraft.world.level.material.FogType.NONE
+                && !p.hasEffect(net.minecraft.world.effect.MobEffects.BLINDNESS)
+                && !p.hasEffect(net.minecraft.world.effect.MobEffects.DARKNESS);
+    }
+
+    /** How far the camera is from what the crosshair is on, or {@code max} if that is further or nothing. */
+    public static float lookDistance(float max) {
+        LocalPlayer p = player();
+        if (p == null || level() == null) return max;
+        var from = camera().position();
+        var dir = p.getViewVector(1f);
+        if (Mc.mc().options.getCameraType().isMirrored()) dir = dir.scale(-1);
+        var hit = level().clip(new net.minecraft.world.level.ClipContext(from, from.add(dir.scale(max)),
+                net.minecraft.world.level.ClipContext.Block.VISUAL, net.minecraft.world.level.ClipContext.Fluid.NONE, p));
+        double d = hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? max : hit.getLocation().distanceTo(from);
+        var entity = Mc.mc().crosshairPickEntity;
+        if (entity != null) d = Math.min(d, entity.getBoundingBox().getCenter().distanceTo(from));
+        return (float) Math.min(d, max);
+    }
+
     /** Time of day in ticks since the world began (divide by 24000 for the day number). */
     public static long dayTime() {
         //? if <26.1 {

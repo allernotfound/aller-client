@@ -82,12 +82,12 @@ public final class SettingsPage extends Page {
 
     /** Client options: keys and behaviour. */
     public SettingsPage() {
-        this("Client settings", "Aller's keys and behaviour. These apply to every profile.", AllerClient.options().client());
+        this("Client settings", "Aller Client's keys and behaviour. These apply to every profile.", AllerClient.options().client());
     }
 
     /** Interface options: look, sizes, motion and which screens Aller draws. */
     public static SettingsPage ui() {
-        return new SettingsPage("UI settings", "How Aller looks and moves. These apply to every profile.", AllerClient.options().ui());
+        return new SettingsPage("UI settings", "How Aller Client looks and moves. These apply to every profile.", AllerClient.options().ui());
     }
 
     private SettingsPage(String title, String blurb, List<Setting<?>> settings) {
@@ -143,7 +143,7 @@ public final class SettingsPage extends Page {
         List<String> lines = Fonts.REGULAR.wrap(blurb, 8f, cw - 4);
         String warning = module == null ? null : module.experimentalNote != null
                 ? "Experimental. " + module.experimentalNote + (module.fairPlayNote != null ? " " + module.fairPlayNote : "")
-                : module.fairPlayNote != null ? module.fairPlayNote + " Aller never blocks it; the choice is yours." : null;
+                : module.fairPlayNote != null ? module.fairPlayNote + " Aller Client never blocks it; the choice is yours." : null;
         List<String> note = warning != null ? Fonts.REGULAR.wrap(warning, 7.5f, cw - 30) : List.of();
         boolean preview = module instanceof VisualMods.Crosshair;
         // A HUD element shows itself, sharp, since the real one is blurred behind the palette.

@@ -62,9 +62,9 @@ public final class Pipelines {
                 ok &= device.precompilePipeline(p, Pipelines::source).isValid();
             }
             preloaded = ok;
-            if (!ok) AllerClient.LOG.warn("Aller shaders did not compile at startup; the splash will be plain");
+            if (!ok) AllerClient.LOG.warn("Aller Client shaders did not compile at startup; the splash will be plain");
         } catch (RuntimeException e) {
-            AllerClient.LOG.warn("Could not preload Aller shaders", e);
+            AllerClient.LOG.warn("Could not preload Aller Client shaders", e);
         }
     }
 

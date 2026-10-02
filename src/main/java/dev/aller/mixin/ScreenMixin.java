@@ -29,7 +29,7 @@ public abstract class ScreenMixin {
 
     @Inject(method = "renderWithTooltip", at = @At("TAIL"))
     private void aller$skin(GuiGraphics g, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        Hooks.menuEnd();
+        Hooks.menuEnd(Canvas.of(g));
         Hooks.screenEnd(Canvas.of(g));
         LoadingSkin.draw(new Canvas(g), (Screen) (Object) this);
     }
@@ -52,7 +52,7 @@ public abstract class ScreenMixin {
 
     @Inject(method = "extractRenderStateWithTooltipAndSubtitles", at = @At("TAIL"))
     private void aller$skin(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        Hooks.menuEnd();
+        Hooks.menuEnd(Canvas.of(g));
         Hooks.screenEnd(Canvas.of(g));
         LoadingSkin.draw(new Canvas(g), (Screen) (Object) this);
     }

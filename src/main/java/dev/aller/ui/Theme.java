@@ -66,9 +66,14 @@ public final class Theme {
 
     /** The animated menu backdrop, for Aller screens shown outside a world (where there is nothing to blur). */
     public static void scene(Canvas c, float w, float h) {
+        scene(c, w, h, 0);
+    }
+
+    /** @param lift 0 for the usual quieter backdrop, up to 1 for the main menu's full strength */
+    public static void scene(Canvas c, float w, float h, float lift) {
         var opt = AllerClient.options();
         c.rect(0, 0, w, h, 0, BG);
-        c.backdrop(0, 0, w, h, accent(), opt.backdropIntensity.get() * 0.7f, dev.aller.ui.anim.Motion.time(), opt.backdropCell.get());
+        c.backdrop(0, 0, w, h, accent(), opt.backdropIntensity.get() * (0.7f + 0.3f * lift), dev.aller.ui.anim.Motion.time(), opt.backdropCell.get());
     }
 
     /**

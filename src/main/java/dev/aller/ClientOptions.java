@@ -29,7 +29,7 @@ public final class ClientOptions extends Configurable {
     { section("Look"); }
     public final Settings.Color accent = add(new Settings.Color("accent", "Accent colour", 0xFF8B5CF6, false));
     public final Settings.Choice<Typeface> typeface = choice("typeface", "Font", Typeface.INTER)
-            .describe("Minecraft sets Aller's own text in the game's pixel font");
+            .describe("Minecraft sets Aller Client's own text in the game's pixel font");
     public final Settings.Choice<Pixelate> pixelate = choice("pixelate", "Pixelated corners", Pixelate.OFF)
             .describe("Stepped, pixel-art corners in place of smooth ones");
     public final Settings.Choice<Background> background = choice("background", "Behind menus", Background.BLUR)
@@ -40,7 +40,7 @@ public final class ClientOptions extends Configurable {
 
     { section("Size"); }
     public final Settings.Num uiScale = num("ui_scale", "Menu size", 1f, 0.7f, 1.5f, 0.05f).suffix("x")
-            .describe("Scales every Aller menu, panel and all");
+            .describe("Scales every Aller Client menu, panel and all");
     public final Settings.Num paletteZoom = zoom("palette_zoom", "Mod palette zoom")
             .describe("Shrinks what is inside the palette so more mods fit. Ctrl and scroll does it too");
     public final Settings.Num launcherZoom = zoom("launcher_zoom", "Launcher zoom")
@@ -55,9 +55,9 @@ public final class ClientOptions extends Configurable {
             .describe("Skip springs and slides: things change state at once");
 
     { section("Screens"); }
-    public final Settings.Bool customMainMenu = bool("custom_main_menu", "Aller main menu", true);
-    public final Settings.Bool customPauseMenu = bool("custom_pause_menu", "Aller pause menu", true);
-    public final Settings.Bool customLoading = bool("custom_loading", "Aller loading screens", true)
+    public final Settings.Bool customMainMenu = bool("custom_main_menu", "Aller Client main menu", true);
+    public final Settings.Bool customPauseMenu = bool("custom_pause_menu", "Aller Client pause menu", true);
+    public final Settings.Bool customLoading = bool("custom_loading", "Aller Client loading screens", true)
             .describe("The startup splash and the connecting and world loading screens");
     public final Settings.Bool gridView = bool("grid_view", "Show mods as a grid", false);
 
@@ -72,7 +72,7 @@ public final class ClientOptions extends Configurable {
     { section("Minecraft menus (experimental)"); }
     // A new id here too, so the switch starts off for everyone: it was on by default before it was ready.
     public final Settings.Bool restyleMenus = bool("skin_menus", "Restyle Minecraft's menus", false)
-            .describe("Experimental. Aller's backdrop, panels, buttons and type on the menus chosen below");
+            .describe("Experimental. Aller Client's backdrop, panels, buttons and type on the menus chosen below");
     public final Settings.Bool restyleOptions = menu("restyle_options", "Options");
     public final Settings.Bool restyleVideo = menu("restyle_video", "Video settings")
             .describe("Sodium's video settings too, when it is installed");

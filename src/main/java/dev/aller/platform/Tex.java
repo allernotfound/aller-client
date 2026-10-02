@@ -8,7 +8,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 //?}
 
-/** A GPU texture owned by Aller, smoothly filtered and clamped. Create and use on the render thread. */
+/** A GPU texture owned by Aller, clamped and smoothly filtered unless asked otherwise. Create and use on the render thread. */
 public final class Tex implements AutoCloseable {
     private final DynamicTexture texture;
     private final TextureSetup setup;
@@ -17,19 +17,28 @@ public final class Tex implements AutoCloseable {
 
     /** @param argb row-major pixels, {@code width * height} long */
     public Tex(String label, int width, int height, int[] argb) {
-        this(label, toImage(width, height, argb));
+        this(label, toImage(width, height, argb), true);
+    }
+
+    /** @param smooth false to sample the nearest texel, for pixel art */
+    public Tex(String label, int width, int height, int[] argb, boolean smooth) {
+        this(label, toImage(width, height, argb), smooth);
     }
 
     public Tex(String label, NativeImage image) {
+        this(label, image, true);
+    }
+
+    private Tex(String label, NativeImage image, boolean smooth) {
         this.width = image.getWidth();
         this.height = image.getHeight();
         this.texture = new DynamicTexture(() -> label, image);
         //? if <26.1 {
-        /*texture.setFilter(true, false);
+        /*texture.setFilter(smooth, false);
         texture.setClamp(true);
         setup = TextureSetup.singleTexture(texture.getTextureView());
         *///?} else {
-        setup = TextureSetup.singleTexture(texture.getTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+        setup = TextureSetup.singleTexture(texture.getTextureView(), RenderSystem.getSamplerCache().getClampToEdge(smooth ? FilterMode.LINEAR : FilterMode.NEAREST));
         //?}
     }
 

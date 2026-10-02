@@ -80,6 +80,19 @@ public abstract class AllerScreen {
         }
     }
 
+    /** True while a menu is drawn over the Minecraft screen it has just handed over to (see {@code screen/Entrance}). */
+    public static boolean drawingLeaving;
+
+    /** Draws only this screen's content, on its way out; whatever it paints behind itself is left to the screen underneath. */
+    public final void drawLeaving(Canvas c) {
+        drawingLeaving = true;
+        try {
+            draw(c, -10000, -10000);
+        } finally {
+            drawingLeaving = false;
+        }
+    }
+
     /**
      * A vanilla (or other mod's) screen to keep showing behind this one, or null. It draws its own
      * background and blur, so the host adds neither.

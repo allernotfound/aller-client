@@ -44,6 +44,8 @@ public final class MainMenuScreen extends AllerScreen {
     private final List<IconButton> icons = new ArrayList<>();
     /** Small square buttons in the corner of the profile card, for things about the player. */
     private final List<IconButton> cardIcons = new ArrayList<>();
+    /** Another mod's destinations (Essential's), in a strip on the other side of the column. */
+    private final List<IconButton> extras = new ArrayList<>();
     private final List<Tween> buttonIn = new ArrayList<>();
     private final boolean intro;
     private final Tween backdropIn;
@@ -58,7 +60,7 @@ public final class MainMenuScreen extends AllerScreen {
     /** Canvas size in layout units (window size divided by {@link #k}). */
     private float vw, vh;
     /** Fades the whole menu out before handing over to a vanilla screen. */
-    private final Handover handover = new Handover();
+    private final Handover handover = new Handover(this);
 
     public MainMenuScreen() {
         intro = !introPlayed;
@@ -83,6 +85,8 @@ public final class MainMenuScreen extends AllerScreen {
         if (Nav.hasModMenu()) {
             icons.add(new IconButton(Icons.MODS, "Installed mods (" + Nav.countMods() + ")", () -> go(() -> Nav.mods(Mc.screen()))));
         }
+
+        extras.addAll(dev.aller.compat.EssentialCompat.buttons(true, this::go));
 
         cardIcons.add(new IconButton(Icons.WARDROBE, "Wardrobe", () -> Mc.setScreen(new ScreenHost(new WardrobeScreen(Mc.screen())))));
 
@@ -122,7 +126,7 @@ public final class MainMenuScreen extends AllerScreen {
     }
 
     /** Fade out, run the navigation, and be ready to fade back in when the user returns. */
-    private void go(Runnable action) {
+    public void go(Runnable action) {
         handover.go(action);
     }
 
@@ -143,7 +147,7 @@ public final class MainMenuScreen extends AllerScreen {
         k = Math.clamp(Math.min(height / (columnH + 56), width / 360f), 0.5f, 1f);
         vw = width / k;
         vh = height / k;
-        colW = Math.min(COLUMN, vw - 40 - STRIP);
+        colW = Math.min(COLUMN, vw - 40 - STRIP - (extras.isEmpty() ? 0 : STRIP));
         leftX = Math.max(20 + STRIP, Math.min(vw * 0.085f + STRIP, (vw - colW) / 2));
         topY = Math.max(14, (vh - columnH) / 2 - 10);
     }
@@ -161,16 +165,22 @@ public final class MainMenuScreen extends AllerScreen {
     @Override
     protected void draw(Canvas c, float mx, float my) {
         var opt = AllerClient.options();
-        float lv = handover.update(this);
+        float lv = handover.update();
         float present = 1 - lv;
+        // Drawn over the screen it is leaving for, the menu brings only its content and its shading.
+        boolean over = drawingLeaving;
 
-        // Backdrop. A solid base first so nothing shows through if the shader is still loading.
-        c.plainRect(0, 0, width, height, Theme.BG);
         float bd = backdropIn.update();
-        c.backdrop(0, 0, width, height, Theme.accent(), opt.backdropIntensity.get() * bd, Motion.time(), opt.backdropCell.get());
+        if (!over) {
+            // Backdrop. A solid base first so nothing shows through if the shader is still loading.
+            c.plainRect(0, 0, width, height, Theme.BG);
+            c.backdrop(0, 0, width, height, Theme.accent(), opt.backdropIntensity.get() * bd, Motion.time(), opt.backdropCell.get());
+        }
         // Darken towards the left so the column always has contrast.
+        c.pushAlpha(over ? present : 1);
         c.gradientH(0, 0, width * 0.6f, height, 0, 0xCC07060B, 0x0007060B);
         c.gradientV(0, height - 70, width, 70, 0, 0x0007060B, 0xCC07060B);
+        c.popAlpha();
 
         c.push();
         c.scale(k, 0, 0);
@@ -218,14 +228,16 @@ public final class MainMenuScreen extends AllerScreen {
             b.draw(c, mx, my);
             c.popAlpha();
         }
+        drawExtras(c, buttonsTop, mx, my);
         for (IconButton b : icons) b.drawTip(c, true);
         for (IconButton b : cardIcons) b.drawTip(c, true);
+        for (IconButton b : extras) b.drawTip(c, true);
         c.pop();
         c.popAlpha();
 
         float ft = footerIn.update() * present;
         c.pushAlpha(ft);
-        c.text(Fonts.REGULAR, "Minecraft " + Nav.minecraftVersion() + "  •  Aller " + AllerClient.VERSION, leftX, vh - 16, 7f, Theme.TEXT_MUTED);
+        c.text(Fonts.REGULAR, "Minecraft " + Nav.minecraftVersion() + "  •  Aller Client " + AllerClient.VERSION, leftX, vh - 16, 7f, Theme.TEXT_MUTED);
         String legal = "Not an official Minecraft product. Not affiliated with Mojang or Microsoft.";
         if (vw > leftX * 2 + 170 + Fonts.REGULAR.width(legal, 7f)) {
             c.textRight(Fonts.REGULAR, legal, vw - leftX, vh - 16, 7f, Theme.TEXT_MUTED);
@@ -234,17 +246,34 @@ public final class MainMenuScreen extends AllerScreen {
         c.pop();
 
         // Intro curtain: the whole scene emerges from black on first launch.
+        if (over) return;
         if (intro && bd < 1) c.plainRect(0, 0, width, height, Colors.withAlpha(Colors.BLACK, (1 - bd) * (1 - bd)));
         Toasts.draw(c);
     }
 
-    /** "Aller" with each letter rising into place slightly after the previous one, then a version tag. */
+    /** The strip to the right of the column, centred against the button stack like the one on its left. */
+    private void drawExtras(Canvas c, float buttonsTop, float mx, float my) {
+        float stripH = extras.size() * ICON + (extras.size() - 1) * ICON_GAP;
+        float iy = buttonsTop + (rows.size() * ROW - (ROW - BUTTON_H) - stripH) / 2;
+        for (int i = 0; i < extras.size(); i++) {
+            float t = buttonIn.get(Math.min(i, buttonIn.size() - 1)).get();
+            IconButton b = extras.get(i);
+            b.bounds(leftX + colW + STRIP - ICON + (1 - t) * 14, iy + i * (ICON + ICON_GAP), ICON, ICON);
+            c.pushAlpha(t);
+            b.draw(c, mx, my);
+            c.popAlpha();
+        }
+    }
+
+    /** "Aller Client" with each letter rising into place slightly after the previous one, then a version tag. */
     private void drawWordmark(Canvas c, float x, float y, float progress) {
-        String word = "Aller";
+        String word = AllerClient.NAME;
         float size = 24;
         float pen = x;
+        // The letters share the time the five of "Aller" used to take, so the full stop still lands last.
+        float step = 0.6f / word.length();
         for (int i = 0; i < word.length(); i++) {
-            float eased = Easing.OUT_CUBIC.apply(Math.clamp(progress * 1.6f - i * 0.12f, 0f, 1f));
+            float eased = Easing.OUT_CUBIC.apply(Math.clamp(progress * 1.6f - i * step, 0f, 1f));
             String ch = word.substring(i, i + 1);
             c.pushAlpha(eased);
             c.text(Fonts.BOLD, ch, pen, y + (1 - eased) * 12, size, Theme.TEXT);
@@ -254,19 +283,10 @@ public final class MainMenuScreen extends AllerScreen {
         // The accent full stop lands last with a little bounce.
         float dot = Easing.OUT_BACK.apply(Math.clamp(progress * 1.6f - 0.6f, 0f, 1f));
         float r = 2.3f * dot;
-        float dy = y + 20.5f;
-        c.shadow(pen + 2 - r, dy - r, r * 2, r * 2, r, 8, Colors.withAlpha(Theme.accent(), 0.7f * dot));
-        c.circle(pen + 2, dy, r, Theme.accent());
-
-        float tag = Math.clamp(progress * 1.6f - 0.6f, 0f, 1f);
-        c.pushAlpha(tag);
-        String label = "CLIENT";
-        float tw = Fonts.MEDIUM.width(label, 6.5f) + 12;
-        float tx = x + colW - tw;
-        c.rect(tx, y + 9, tw, 13, 6.5f, 0x1AFFFFFF);
-        c.stroke(tx, y + 9, tw, 13, 6.5f, 1, Theme.BORDER);
-        c.textMiddle(Fonts.MEDIUM, label, tx + 6, y + 9, 13, 6.5f, Theme.TEXT_DIM);
-        c.popAlpha();
+        // Clear of the "t", which ends closer to its edge than the "r" of "Aller" did.
+        float dy = y + 20.5f, dotX = pen + 4.5f;
+        c.shadow(dotX - r, dy - r, r * 2, r * 2, r, 8, Colors.withAlpha(Theme.accent(), 0.7f * dot));
+        c.circle(dotX, dy, r, Theme.accent());
     }
 
     private void drawProfileCard(Canvas c, float x, float y, float mx, float my) {
@@ -275,9 +295,7 @@ public final class MainMenuScreen extends AllerScreen {
         // The player's own face, framed.
         int face = 32;
         float fx = x + 11, fy = y + 10;
-        c.rect(fx - 2, fy - 2, face + 4, face + 4, 5, 0x33000000);
-        Skins.drawOwnFace(c, fx, fy, face);
-        c.stroke(fx - 2, fy - 2, face + 4, face + 4, 5, 1.5f, Colors.withAlpha(Theme.accent(), 0.75f));
+        Skins.drawFramedFace(c, fx, fy, face);
 
         float tx = fx + face + 11;
         String name = Nav.playerName();
@@ -296,8 +314,8 @@ public final class MainMenuScreen extends AllerScreen {
         lx += 8;
         lx += c.text(Fonts.SEMIBOLD, Integer.toString(enabled), lx, y + 27, 8, Theme.TEXT) + 3;
         lx += c.text(Fonts.REGULAR, "of " + AllerClient.modules().all().size() + " mods on", lx, y + 27.4f, 7.5f, Theme.TEXT_DIM);
-        c.text(Fonts.REGULAR, "✓ " + Skins.ownModel() + "  •  " + AllerClient.config().activeProfile() + " profile",
-                tx, y + 38.5f, 7, Theme.TEXT_MUTED);
+        Icons.CHECK.draw(c, tx + 3.5f, y + 38.5f + Fonts.REGULAR.height(7) / 2, 7.5f, Theme.TEXT_MUTED);
+        c.text(Fonts.REGULAR, Skins.ownModel() + "  •  " + AllerClient.config().activeProfile() + " profile", tx + 10, y + 38.5f, 7, Theme.TEXT_MUTED);
 
         // Accent strip: click a swatch to recolour the whole client live.
         float sy = y + CARD_H - 13;
@@ -326,6 +344,7 @@ public final class MainMenuScreen extends AllerScreen {
         for (Button b : buttons) if (b.mouseDown(x, y, button)) return true;
         for (IconButton b : icons) if (b.mouseDown(x, y, button)) return true;
         for (IconButton b : cardIcons) if (b.mouseDown(x, y, button)) return true;
+        for (IconButton b : extras) if (b.mouseDown(x, y, button)) return true;
         if (button == 0) {
             float sy = topY + 34 + CARD_H - 13;
             for (int i = 0; i < ACCENTS.length; i++) {
@@ -346,6 +365,7 @@ public final class MainMenuScreen extends AllerScreen {
         for (Button b : buttons) used |= b.mouseUp(x / k, y / k, button);
         for (IconButton b : icons) used |= b.mouseUp(x / k, y / k, button);
         for (IconButton b : cardIcons) used |= b.mouseUp(x / k, y / k, button);
+        for (IconButton b : extras) used |= b.mouseUp(x / k, y / k, button);
         return used;
     }
 }

@@ -50,6 +50,7 @@ public final class AllerClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         Fonts.preload();
+        dev.aller.ui.Icons.preload();
         Pipelines.init();
         Modules.registerAll(MODULES);
         CONFIG.load();

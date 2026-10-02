@@ -53,6 +53,8 @@ public final class MenuKind {
         if (name.startsWith("net.caffeinemc.")) return Menu.VIDEO;
         if (name.startsWith("net.irisshaders.")) return Menu.SHADERS;
         if (name.startsWith("com.terraformersmc.modmenu.")) return Menu.MOD_LIST;
+        // Essential draws its screens itself, through its own toolkit.
+        if (name.startsWith("gg.essential.")) return null;
 
         if (s instanceof AbstractContainerScreen<?> || s instanceof ChatScreen || s instanceof TitleScreen
                 || s instanceof WinScreen || s instanceof AccessibilityOnboardingScreen) return null;

@@ -548,7 +548,7 @@ public final class Browser {
             case "close" -> {
                 if (close(tab) && screen != null) screen.close();
             }
-            case "download" -> Toasts.info("Download blocked", "Aller's browser does not save files. " + host(data));
+            case "download" -> Toasts.info("Download blocked", "Aller Client's browser does not save files. " + host(data));
             case "esc" -> {
                 if (screen != null && tab == active()) screen.close();
             }

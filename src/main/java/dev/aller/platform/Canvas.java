@@ -4,6 +4,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.aller.ui.Colors;
 import dev.aller.ui.font.Fonts;
+import dev.aller.ui.font.IconAtlas;
 import dev.aller.ui.font.SdfAtlas;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
@@ -124,6 +125,12 @@ public final class Canvas {
         alpha *= Math.clamp(factor, 0f, 1f);
     }
 
+    /** Sets the opacity aside until the matching {@link #popAlpha()}: for a backdrop that stays solid while what is on it fades. */
+    public void pushSolid() {
+        alphaStack[alphaDepth++] = alpha;
+        alpha = 1f;
+    }
+
     public void popAlpha() {
         alpha = alphaStack[--alphaDepth];
     }
@@ -160,6 +167,17 @@ public final class Canvas {
 
     public void unclip() {
         g.disableScissor();
+    }
+
+    /** Whether the pointer is over a rectangle as it would be drawn now: transformed, and inside the clip. */
+    public boolean hovered(float x, float y, float w, float h) {
+        Matrix3x2fStack m = g.pose();
+        if (m.m01() != 0 || m.m10() != 0) return false;
+        float px = Mc.mouseX(), py = Mc.mouseY();
+        float x0 = m.m00() * x + m.m20(), y0 = m.m11() * y + m.m21();
+        if (px < x0 || py < y0 || px >= x0 + m.m00() * w || py >= y0 + m.m11() * h) return false;
+        ScreenRectangle scissor = g.scissorStack.peek();
+        return scissor == null || scissor.containsPoint((int) px, (int) py);
     }
 
     /** Starts a new layer: everything drawn after this is composited above everything drawn before. */
@@ -399,6 +417,56 @@ public final class Canvas {
     /** Draws text vertically centred inside a row of the given height. */
     public float textMiddle(Fonts font, CharSequence text, float x, float y, float rowHeight, float size, int color) {
         return text(font, text, x, y + (rowHeight - font.height(size)) / 2, size, color);
+    }
+
+    // ---- icons ---------------------------------------------------------------------------------
+
+    /** Whether icons come out as 24 by 24 pixel art: whenever "Pixelated corners" is on at all. */
+    public static boolean pixelIcons() {
+        return dev.aller.AllerClient.options().pixelate.get() != dev.aller.ClientOptions.Pixelate.OFF;
+    }
+
+    /** A Lucide icon centred on (cx, cy), its 24-unit box drawn {@code size} wide. */
+    public void icon(dev.aller.ui.Icons icon, float cx, float cy, float size, int color) {
+        int c = Colors.fade(color, alpha);
+        if (c >>> 24 == 0 || size <= 0) return;
+        Matrix3x2fStack m = g.pose();
+        boolean chunky = pixelIcons();
+        float half = size / 2;
+        if (chunky) {
+            // Each of the 24 cells covers a whole number of screen pixels where that lands near the size
+            // asked for; otherwise the icon is at least a whole number of pixels across, starting on one.
+            boolean upright = m.m01() == 0 && m.m10() == 0 && m.m00() > 0 && m.m11() > 0;
+            float device = scale() * Math.max(0.01f, (float) Math.sqrt(m.m00() * m.m00() + m.m01() * m.m01()));
+            float wanted = size * device;
+            int whole = IconAtlas.UNIT * Math.max(1, Math.round(wanted / IconAtlas.UNIT));
+            half = (Math.abs(whole - wanted) <= wanted * 0.15f ? whole : Math.max(8, Math.round(wanted))) / device / 2;
+            if (upright) {
+                float px = scale();
+                cx = (Math.round((m.m00() * (cx - half) + m.m20()) * px) / px - m.m20()) / m.m00() + half;
+                cy = (Math.round((m.m11() * (cy - half) + m.m21()) * px) / px - m.m21()) / m.m11() + half;
+            }
+        } else {
+            half *= 1 + IconAtlas.MARGIN * 2 / IconAtlas.UNIT;
+        }
+        float[] uv = dev.aller.ui.Icons.atlas().uv(icon.ordinal(), chunky);
+        float[] v = new float[16];
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+        for (int k = 0; k < 4; k++) {
+            float qx = k < 2 ? cx - half : cx + half, qy = k == 1 || k == 2 ? cy + half : cy - half;
+            float tx = m.m00() * qx + m.m10() * qy + m.m20();
+            float ty = m.m01() * qx + m.m11() * qy + m.m21();
+            v[k * 4] = tx;
+            v[k * 4 + 1] = ty;
+            v[k * 4 + 2] = k < 2 ? uv[0] : uv[2];
+            v[k * 4 + 3] = k == 1 || k == 2 ? uv[3] : uv[1];
+            minX = Math.min(minX, tx);
+            minY = Math.min(minY, ty);
+            maxX = Math.max(maxX, tx);
+            maxY = Math.max(maxY, ty);
+        }
+        submit(new Mesh(Pipelines.TEXT, dev.aller.ui.Icons.texture(chunky).setup(), g.scissorStack.peek(), bounds(minX, minY, maxX, maxY),
+                v, new int[] {c}, 0, 0, 0, 0, 0f, 0f, 0f));
     }
 
     // ---- special -------------------------------------------------------------------------------

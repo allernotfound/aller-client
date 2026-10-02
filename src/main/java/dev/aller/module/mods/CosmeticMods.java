@@ -24,7 +24,7 @@ public final class CosmeticMods {
         public final Settings.Color color = add(new Settings.Color("color", "Colour", 0xFF8B5CF6, false));
 
         public Cape() {
-            super("cape", "Aller cape", "Wear a cape in your accent colour. Only you can see it", Category.COSMETIC);
+            super("cape", "Aller Client cape", "Wear a cape in your accent colour. Only you can see it", Category.COSMETIC);
             keywords("cloak", "elytra", "skin");
             color.visibleWhen(() -> !followAccent.get());
         }

@@ -68,7 +68,7 @@ public final class ScreenHost extends Screen {
                 //?}
             } catch (RuntimeException e) {
                 vanillaFailed = true;
-                AllerClient.LOG.warn("Could not draw {} beneath an Aller screen", vanilla.getClass().getName(), e);
+                AllerClient.LOG.warn("Could not draw {} beneath an Aller Client screen", vanilla.getClass().getName(), e);
             }
             c.layer();
             return;

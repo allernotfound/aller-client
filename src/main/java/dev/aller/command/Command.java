@@ -16,7 +16,7 @@ import java.util.function.Supplier;
  */
 public final class Command {
     public enum Group {
-        NAVIGATE("Go to"), GAME("Game"), OPTION("Minecraft settings"), ALLER("Aller"), CUSTOM("Custom"),
+        NAVIGATE("Go to"), GAME("Game"), OPTION("Minecraft settings"), ALLER("Aller Client"), CUSTOM("Custom"),
         MOD("Mods"), SETTING("Mod settings"), WAYPOINT("Waypoints"), RESULT("Results");
 
         public final String label;

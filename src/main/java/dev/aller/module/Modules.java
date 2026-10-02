@@ -7,6 +7,7 @@ import dev.aller.hud.elements.StatusHuds;
 import dev.aller.hud.elements.WideHuds;
 import dev.aller.module.mods.ChatMods;
 import dev.aller.module.mods.CosmeticMods;
+import dev.aller.module.mods.EffectMods;
 import dev.aller.module.mods.UtilityMods;
 import dev.aller.module.mods.VisualMods;
 import dev.aller.module.mods.WorldMods;
@@ -25,6 +26,13 @@ public final class Modules {
     public static final VisualMods.Crosshair CROSSHAIR = new VisualMods.Crosshair();
     public static final VisualMods.BlockOutline BLOCK_OUTLINE = new VisualMods.BlockOutline();
     public static final VisualMods.Scoreboard SCOREBOARD = new VisualMods.Scoreboard();
+    public static final EffectMods.Bloom BLOOM = new EffectMods.Bloom();
+    public static final EffectMods.MotionBlur MOTION_BLUR = new EffectMods.MotionBlur();
+    public static final EffectMods.RimLight RIM_LIGHT = new EffectMods.RimLight();
+    public static final EffectMods.DepthOfField DEPTH_OF_FIELD = new EffectMods.DepthOfField();
+    public static final EffectMods.ColourGrading COLOUR_GRADING = new EffectMods.ColourGrading();
+    public static final EffectMods.Sharpen SHARPEN = new EffectMods.Sharpen();
+    public static final EffectMods.Atmosphere ATMOSPHERE = new EffectMods.Atmosphere();
     public static final UtilityMods.ToggleSprint TOGGLE_SPRINT = new UtilityMods.ToggleSprint();
     public static final UtilityMods.Freelook FREELOOK = new UtilityMods.Freelook();
     public static final UtilityMods.ReplayMod REPLAY = new UtilityMods.ReplayMod();
@@ -86,6 +94,11 @@ public final class Modules {
         m.register(TIME_CHANGER);
         m.register(WEATHER_CHANGER);
         m.register(SCOREBOARD);
+        // Bloom, rim lighting and sharpen are built but left out of the catalogue.
+        m.register(MOTION_BLUR);
+        m.register(DEPTH_OF_FIELD);
+        m.register(COLOUR_GRADING);
+        m.register(ATMOSPHERE);
 
         // Utility
         m.register(TOGGLE_SPRINT);

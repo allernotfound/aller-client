@@ -166,7 +166,7 @@ public final class ProfilesPage extends Page {
                 row.match.focused = false;
             }
             rx += matchW + 2;
-            c.textMiddle(Fonts.MEDIUM, "→", rx + 2, cy, ROW, 8f, Theme.TEXT_MUTED);
+            Icons.FORWARD.draw(c, rx + 6, cy + ROW / 2, 9f, Theme.TEXT_MUTED);
             rx += 14;
             row.profile.label = Fonts.MEDIUM.truncate(rule.profile, 7.5f, profW - 14);
             row.profile.bounds(rx, cy + 2, profW, ROW - 4);

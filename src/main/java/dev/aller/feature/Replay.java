@@ -38,7 +38,7 @@ public final class Replay {
 
     private static final ArrayDeque<Frame> frames = new ArrayDeque<>();
     private static final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "Aller replay encoder");
+        Thread t = new Thread(r, "Aller Client replay encoder");
         t.setDaemon(true);
         t.setPriority(Thread.MIN_PRIORITY);
         return t;

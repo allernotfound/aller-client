@@ -29,4 +29,12 @@ public interface GuiTextRenderStateAccessor {
 
     @Accessor("backgroundColor")
     int aller$backgroundColor();
+
+    @Accessor("dropShadow")
+    boolean aller$dropShadow();
+
+    //? if >=26.1 {
+    @Accessor("includeEmpty")
+    boolean aller$includeEmpty();
+    //?}
 }

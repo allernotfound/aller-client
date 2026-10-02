@@ -49,9 +49,14 @@ public final class IconButton extends Widget {
         }
         c.pixel(false);
         int color = active ? Theme.onAccent() : Colors.mix(Theme.TEXT_DIM, danger ? Colors.lighten(Theme.DANGER, 0.3f) : Theme.TEXT, hv);
-        icon.draw(c, x + w / 2, y + h / 2, Math.min(w, h) * 0.56f, color);
+        icon.draw(c, x + w / 2, y + h / 2, Math.min(w, h) * 0.46f, color);
         c.popAlpha();
         c.pop();
+    }
+
+    /** Runs the button's action as a click would. */
+    public void press() {
+        action.run();
     }
 
     /** Draws the name beside the button. Call after everything else so it sits on top. */

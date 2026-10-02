@@ -59,12 +59,15 @@ public final class Splash {
         c.gradientV(0, h * 0.5f, w, h * 0.5f, 0, 0xB307060B, 0x0007060B);
 
         c.pushAlpha(alpha);
-        String word = "Aller";
+        String word = AllerClient.NAME;
         float size = Math.clamp(h * 0.14f, 22f, 44f);
-        float total = Fonts.BOLD.width(word, size) + size * 0.2f;
+        // The name is long enough to run off a narrow window at full size.
+        size = Math.min(size, size * (w - 60) / Fonts.BOLD.width(word, size));
+        float total = Fonts.BOLD.width(word, size) + size * 0.3f;
         float pen = (w - total) / 2, y = h * 0.5f - size * 0.75f;
+        float step = 0.65f / word.length();
         for (int i = 0; i < word.length(); i++) {
-            float e = Easing.OUT_CUBIC.apply(Math.clamp(t * 1.9f - i * 0.13f, 0f, 1f));
+            float e = Easing.OUT_CUBIC.apply(Math.clamp(t * 1.9f - i * step, 0f, 1f));
             String ch = word.substring(i, i + 1);
             c.pushAlpha(e);
             c.text(Fonts.BOLD, ch, pen, y + (1 - e) * size * 0.45f, size, Theme.TEXT);
@@ -72,7 +75,7 @@ public final class Splash {
             pen += Fonts.BOLD.width(ch, size) - size * 0.016f;
         }
         float dot = Easing.OUT_BACK.apply(Math.clamp(t * 1.9f - 0.75f, 0f, 1f));
-        float r = size * 0.095f * dot, dx = pen + size * 0.1f, dy = y + size * 0.86f;
+        float r = size * 0.095f * dot, dx = pen + size * 0.19f, dy = y + size * 0.86f;
         c.shadow(dx - r, dy - r, r * 2, r * 2, r, size * 0.4f, Colors.withAlpha(Theme.accent(), 0.75f * dot));
         c.circle(dx, dy, r, Theme.accent());
 

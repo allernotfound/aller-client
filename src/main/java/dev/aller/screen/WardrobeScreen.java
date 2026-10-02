@@ -199,7 +199,7 @@ public final class WardrobeScreen extends AllerScreen {
             } finally {
                 choosing = false;
             }
-        }, "Aller file picker");
+        }, "Aller Client file picker");
         thread.setDaemon(true);
         thread.start();
     }

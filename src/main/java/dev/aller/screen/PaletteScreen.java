@@ -128,7 +128,7 @@ public final class PaletteScreen extends AllerScreen {
                 Game::inWorld, () -> Mc.open(new HudEditorScreen(Mc.screen())));
         action("UI settings", "Accent colour, font, sizes, backgrounds and motion", "options preferences accent theme color colour blur motion interface look zoom font",
                 () -> true, () -> open(SettingsPage.ui()));
-        action("Client settings", "Aller's keys and behaviour", "options preferences keys keybinds",
+        action("Client settings", "Aller Client's keys and behaviour", "options preferences keys keybinds",
                 () -> true, () -> open(new SettingsPage()));
         action("Profiles", "Switch between setups, or let rules switch them for you", "profile preset config auto rules",
                 () -> true, () -> open(new ProfilesPage()));
@@ -532,8 +532,7 @@ public final class PaletteScreen extends AllerScreen {
     private void drawSearch(Canvas c) {
         float cx = px + 17, cy = py + HEADER / 2;
         int icon = Colors.mix(Theme.TEXT_MUTED, Theme.accent(), search.text.isEmpty() ? 0 : 1);
-        c.ring(cx - 1, cy - 1, 4.2f, 1.3f, icon);
-        c.line(cx + 2.2f, cy + 2.2f, cx + 5.2f, cy + 5.2f, 1.4f, icon);
+        Icons.SEARCH.draw(c, cx + 0.5f, cy + 0.5f, 11f, icon);
         search.bounds(px + 31, py, pw - 31 - 44, HEADER);
         search.draw(c, 0, 0);
         float kw = Fonts.SEMIBOLD.width("esc", 12 * 0.56f) + 12 * 0.6f;
@@ -544,8 +543,7 @@ public final class PaletteScreen extends AllerScreen {
         boolean over = page != null && mx >= px + 8 && mx < px + 30 && my >= py + 7 && my < py + 29;
         float hv = backHover.target(over ? 1 : 0).update();
         c.rect(px + 9, py + 8, 20, 20, 6, Colors.withAlpha(Colors.WHITE, 0.06f + 0.08f * hv));
-        c.textCentered(Fonts.MEDIUM, "←", px + 19 - 1.5f * hv, py + 8 + (20 - Fonts.MEDIUM.height(9.5f)) / 2, 9.5f,
-                Colors.mix(Theme.TEXT_DIM, Theme.TEXT, hv));
+        Icons.BACK.draw(c, px + 19 - 1.5f * hv, py + 18, 11f, Colors.mix(Theme.TEXT_DIM, Theme.TEXT, hv));
         float tx = px + 37;
         tx += c.textMiddle(Fonts.SEMIBOLD, drawnPage.title(), tx, py, HEADER, 10.5f, Theme.TEXT);
         String sub = drawnPage.subtitle();
@@ -685,7 +683,7 @@ public final class PaletteScreen extends AllerScreen {
             }
             // Chevron: opens settings.
             boolean overChevron = mx >= right - 14 && mx < right + 4 && my >= y && my < y + ROW_H;
-            c.textMiddle(Fonts.MEDIUM, "›", right - 7, y - 0.5f, ROW_H, 11f,
+            Icons.CHEVRON_RIGHT.draw(c, right - 4.5f, y + ROW_H / 2, 10f,
                     overChevron ? Theme.TEXT : Colors.fade(Theme.TEXT_MUTED, 0.45f + 0.55f * hv));
             right -= 20;
             anim.toggle.draw(c, right - Toggle.W, y + (ROW_H - Toggle.H) / 2, on, isSelected && !overChevron);
@@ -701,8 +699,7 @@ public final class PaletteScreen extends AllerScreen {
             name = r.action.name;
             detail = r.action.detail;
             c.rect(x + 8, y + 7, 16, 16, 5, Colors.withAlpha(Theme.accent(), 0.16f + 0.14f * hv));
-            c.textCentered(Fonts.SEMIBOLD, "→", x + 16 + 1.2f * hv, y + 7 + (16 - Fonts.SEMIBOLD.height(8f)) / 2, 8f,
-                    Colors.lighten(Theme.accent(), 0.35f));
+            Icons.FORWARD.draw(c, x + 16 + 1.2f * hv, y + 15, 9.5f, Colors.lighten(Theme.accent(), 0.35f));
             if (isSelected) {
                 float kw = 13;
                 c.pushAlpha(Math.clamp(hv, 0f, 1f));
@@ -744,7 +741,7 @@ public final class PaletteScreen extends AllerScreen {
             c.ring(cx, cy, 3, 1.1f, 0x55FFFFFF);
         }
         boolean overChevron = mx >= x + w - 18 && mx < x + w && my >= y && my < y + 20;
-        c.textMiddle(Fonts.MEDIUM, "›", x + w - 12, y + 1, 20, 11f,
+        Icons.CHEVRON_RIGHT.draw(c, x + w - 9.5f, y + 11, 10f,
                 overChevron ? Theme.TEXT : Colors.fade(Theme.TEXT_MUTED, 0.45f + 0.55f * hv));
 
         int base = Colors.mix(Theme.TEXT_DIM, Theme.TEXT, on ? 1f : 0.35f + 0.65f * hv);

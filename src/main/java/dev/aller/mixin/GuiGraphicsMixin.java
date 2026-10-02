@@ -5,7 +5,9 @@ import dev.aller.Hooks;
 import dev.aller.platform.Canvas;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import net.minecraft.client.renderer.RenderPipelines;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 //? if <26.1 {
 /*import net.minecraft.client.gui.GuiGraphics;
@@ -17,7 +19,8 @@ import net.minecraft.resources.Identifier;
 
 /**
  * The draw calls every vanilla widget funnels through. On a restyled menu Aller draws its own
- * version of the sprite, texture or rectangle and the vanilla one is dropped.
+ * version of the sprite, texture or rectangle and the vanilla one is dropped. Whatever is left to
+ * vanilla still has its tint passed through {@code Hooks.menuTint}, which fades a screen in.
  */
 //? if <26.1 {
 /*@Mixin(GuiGraphics.class)
@@ -36,12 +39,17 @@ public abstract class GuiGraphicsMixin {
 
     @Inject(method = "fill(Lcom/mojang/blaze3d/pipeline/RenderPipeline;IIIII)V", at = @At("HEAD"), cancellable = true)
     private void aller$fill(RenderPipeline pipeline, int x0, int y0, int x1, int y1, int color, CallbackInfo ci) {
-        if (Hooks.menuFill(Canvas.of((GuiGraphics) (Object) this), x0, y0, x1, y1, color)) ci.cancel();
+        if (Hooks.menuFill(Canvas.of((GuiGraphics) (Object) this), pipeline == RenderPipelines.GUI, x0, y0, x1, y1, color)) ci.cancel();
     }
 
     @Inject(method = "fillGradient", at = @At("HEAD"), cancellable = true)
     private void aller$gradient(int x0, int y0, int x1, int y1, int top, int bottom, CallbackInfo ci) {
-        if (Hooks.menuFill(Canvas.of((GuiGraphics) (Object) this), x0, y0, x1, y1, bottom)) ci.cancel();
+        if (Hooks.menuGradient(Canvas.of((GuiGraphics) (Object) this), x0, y0, x1, y1, top, bottom)) ci.cancel();
+    }
+
+    @ModifyVariable(method = "submitBlit", at = @At("HEAD"), argsOnly = true, ordinal = 4)
+    private int aller$tint(int color) {
+        return Hooks.menuTint(color);
     }
 }
 *///?} else {
@@ -62,12 +70,23 @@ public abstract class GuiGraphicsMixin {
 
     @Inject(method = "fill(Lcom/mojang/blaze3d/pipeline/RenderPipeline;IIIII)V", at = @At("HEAD"), cancellable = true)
     private void aller$fill(RenderPipeline pipeline, int x0, int y0, int x1, int y1, int color, CallbackInfo ci) {
-        if (Hooks.menuFill(Canvas.of((GuiGraphicsExtractor) (Object) this), x0, y0, x1, y1, color)) ci.cancel();
+        if (Hooks.menuFill(Canvas.of((GuiGraphicsExtractor) (Object) this), pipeline == RenderPipelines.GUI, x0, y0, x1, y1, color)) ci.cancel();
     }
 
     @Inject(method = "fillGradient", at = @At("HEAD"), cancellable = true)
     private void aller$gradient(int x0, int y0, int x1, int y1, int top, int bottom, CallbackInfo ci) {
-        if (Hooks.menuFill(Canvas.of((GuiGraphicsExtractor) (Object) this), x0, y0, x1, y1, bottom)) ci.cancel();
+        if (Hooks.menuGradient(Canvas.of((GuiGraphicsExtractor) (Object) this), x0, y0, x1, y1, top, bottom)) ci.cancel();
+    }
+
+    @ModifyVariable(method = "innerBlit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lcom/mojang/blaze3d/textures/GpuTextureView;Lcom/mojang/blaze3d/textures/GpuSampler;IIIIFFFFI)V",
+            at = @At("HEAD"), argsOnly = true, ordinal = 4)
+    private int aller$tint(int color) {
+        return Hooks.menuTint(color);
+    }
+
+    @ModifyVariable(method = "innerTiledBlit", at = @At("HEAD"), argsOnly = true, ordinal = 6)
+    private int aller$tiledTint(int color) {
+        return Hooks.menuTint(color);
     }
 }
 //?}

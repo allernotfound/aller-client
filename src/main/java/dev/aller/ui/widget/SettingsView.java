@@ -6,6 +6,7 @@ import dev.aller.platform.Sounds;
 import dev.aller.setting.Setting;
 import dev.aller.setting.Settings;
 import dev.aller.ui.Colors;
+import dev.aller.ui.Icons;
 import dev.aller.ui.Theme;
 import dev.aller.ui.anim.Motion;
 import dev.aller.ui.anim.Spring;
@@ -519,8 +520,8 @@ public final class SettingsView {
                 String label = Settings.Choice.label(s.get());
                 float lw = Fonts.MEDIUM.width(label, 8f), bw = lw + 34, bx = x + w - 8 - bw;
                 c.rect(bx, by, bw, bh, bh / 2, 0x16FFFFFF);
-                c.textMiddle(Fonts.MEDIUM, "‹", bx + 6, by - 0.5f, bh, 9f, Theme.TEXT_MUTED);
-                c.textMiddle(Fonts.MEDIUM, "›", bx + bw - 10, by - 0.5f, bh, 9f, Theme.TEXT_MUTED);
+                Icons.CHEVRON_LEFT.draw(c, bx + 8.5f, by + bh / 2, 8.5f, Theme.TEXT_MUTED);
+                Icons.CHEVRON_RIGHT.draw(c, bx + bw - 8.5f, by + bh / 2, 8.5f, Theme.TEXT_MUTED);
                 c.textMiddle(Fonts.MEDIUM, label, bx + 17, by, bh, 8f, Theme.TEXT);
             }
         }

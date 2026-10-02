@@ -12,6 +12,7 @@
     "ConnectScreenAccessor",
     "ClientTimeMixin",
     "EntityMixin",
+    "FogRendererMixin",
     "FontMixin",
     "GameRendererMixin",
     "GuiGraphicsMixin",

@@ -88,7 +88,7 @@ public class Button extends Widget {
         c.pixel(false);
         Fonts font = style == Style.PRIMARY ? Fonts.SEMIBOLD : Fonts.MEDIUM;
         float pad = Math.min(12, h * 0.45f);
-        float mark = icon != null ? textSize * 1.05f : 0, gap = icon != null ? textSize * 0.4f : 0;
+        float mark = icon != null ? textSize * 0.82f : 0, gap = icon != null ? textSize * 0.45f : 0;
         float tx = alignLeft ? x + pad + 2 * hv : x + (w - font.width(label, textSize) - mark - gap) / 2;
         if (icon != null) icon.draw(c, tx + mark / 2, y + h / 2, mark, textColor);
         c.textMiddle(font, label, tx + mark + gap, y, h, textSize, textColor);

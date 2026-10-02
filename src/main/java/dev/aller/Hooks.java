@@ -132,6 +132,27 @@ public final class Hooks {
         return Modules.BLOCK_OUTLINE.tint();
     }
 
+    /** The world is drawn and its depth is about to be cleared for the hand. */
+    public static void worldDepth() {
+        dev.aller.feature.Effects.worldDepth();
+    }
+
+    /** World and hand are drawn, the HUD is not: where the effect mods work on the picture. */
+    public static void worldDrawn() {
+        dev.aller.feature.Effects.worldDrawn();
+    }
+
+    /** A fog distance on its way to the shaders: 0 and 1 the haze's start and end, 2 the start of the fade at the edge of the world. */
+    public static float fog(int which, float value, float renderEnd) {
+        return Modules.ATMOSPHERE.enabled() ? Modules.ATMOSPHERE.fog(which, value, renderEnd) : value;
+    }
+
+    /** The fog colour, which is also what the sky is cleared to; changed in place. */
+    public static void fogColor(org.joml.Vector4f color, float renderEnd) {
+        // The "no fog" buffer is filled through the same method, with every distance at the maximum.
+        if (Modules.ATMOSPHERE.enabled() && renderEnd < 1e30f) Modules.ATMOSPHERE.color(color);
+    }
+
     /** A link Minecraft is about to hand to the system browser. @return true if Aller's browser took it */
     public static boolean openLink(java.net.URI uri) {
         return dev.aller.feature.Browser.chatLink(uri);
@@ -199,8 +220,8 @@ public final class Hooks {
         MenuSkin.begin(screen);
     }
 
-    public static void menuEnd() {
-        MenuSkin.end();
+    public static void menuEnd(Canvas c) {
+        MenuSkin.end(c);
     }
 
     public static boolean menuBackdrop(Canvas c) {
@@ -219,8 +240,30 @@ public final class Hooks {
         return MenuSkin.texture(c, namespace, path, x0, y0, x1, y1);
     }
 
-    public static boolean menuFill(Canvas c, int x0, int y0, int x1, int y1, int color) {
-        return MenuSkin.fill(c, x0, y0, x1, y1, color);
+    /** @param plain false for a rectangle drawn with a special blend (the selection in a text box), which is left alone */
+    public static boolean menuFill(Canvas c, boolean plain, int x0, int y0, int x1, int y1, int color) {
+        if (!plain) return false;
+        if (MenuSkin.fill(c, x0, y0, x1, y1, color)) return true;
+        return fadeFill(c, x0, y0, x1, y1, color, color);
+    }
+
+    public static boolean menuGradient(Canvas c, int x0, int y0, int x1, int y1, int top, int bottom) {
+        if (MenuSkin.gradient(c, x0, y0, x1, y1, top, bottom)) return true;
+        return fadeFill(c, x0, y0, x1, y1, top, bottom);
+    }
+
+    /** While a screen eases in, the rectangles nothing restyles are drawn through the canvas so they fade with the rest. */
+    private static boolean fadeFill(Canvas c, int x0, int y0, int x1, int y1, int top, int bottom) {
+        if (!dev.aller.screen.Entrance.fading()) return false;
+        c.gradientV(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0), 0, top, bottom);
+        return true;
+    }
+
+    /** The tint of every texture and sprite on its way to be drawn. */
+    public static int menuTint(int color) {
+        int tinted = MenuSkin.tint(color);
+        float alpha = dev.aller.screen.Entrance.alpha();
+        return alpha < 1 ? dev.aller.ui.Colors.fade(tinted, alpha) : tinted;
     }
 
     public static boolean menuBorder(Canvas c, int x0, int y0, int x1, int y1, int color) {
