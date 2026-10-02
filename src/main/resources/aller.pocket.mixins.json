@@ -1,0 +1,23 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "dev.aller.mixin.pocket",
+  "plugin": "dev.aller.mixin.pocket.PocketPlugin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ChatPocketMixin",
+    "HandshakePocketAccessor",
+    "ListenerPocketAccessor",
+    "ListenerPocketMixin",
+    "MinecraftPocketAccessor",
+    "MinecraftPocketMixin",
+    "PacketPocketMixin",
+    "ParticlePocketMixin",
+    "QuitPocketMixin",
+    "ScreenPocketMixin",
+    "SoundPocketMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

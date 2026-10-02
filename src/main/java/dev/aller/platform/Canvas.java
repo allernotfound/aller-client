@@ -31,22 +31,55 @@ public final class Canvas {
 
     public Canvas(GuiGraphics graphics) {
         this.g = graphics;
+        latest = this;
     }
 
     public GuiGraphics raw() {
         return g;
+    }
+
+    public static Canvas of(GuiGraphics graphics) {
+        if (shared == null || shared.g != graphics) shared = new Canvas(graphics);
+        latest = shared;
+        return shared;
     }
     *///?} else {
     private final GuiGraphicsExtractor g;
 
     public Canvas(GuiGraphicsExtractor graphics) {
         this.g = graphics;
+        latest = this;
     }
 
     public GuiGraphicsExtractor raw() {
         return g;
     }
+
+    public static Canvas of(GuiGraphicsExtractor graphics) {
+        if (shared == null || shared.g != graphics) shared = new Canvas(graphics);
+        latest = shared;
+        return shared;
+    }
     //?}
+
+    /** The canvas handed out by {@code of}: hooks that fire many times a frame share one per graphics object. */
+    private static Canvas shared;
+
+    /** The canvas in use, so text can be measured at the scale it is about to be drawn at. */
+    private static Canvas latest;
+
+    /**
+     * Scale for Minecraft's font at a text size, snapped so each of its pixels covers a whole
+     * number of screen pixels at the zoom being drawn at; anything in between smears them.
+     */
+    public static float pixelFontScale(float size) {
+        float device = scale();
+        if (latest != null) {
+            Matrix3x2fStack m = latest.g.pose();
+            device *= Math.max(0.01f, (float) Math.sqrt(m.m00() * m.m00() + m.m01() * m.m01()));
+        }
+        return Math.max(1, Math.round(size * Fonts.VANILLA * device)) / device;
+    }
 
     private final float[] alphaStack = new float[32];
     private int alphaDepth;
@@ -139,6 +172,19 @@ public final class Canvas {
         g.blurBeforeThisStratum();
     }
 
+    private boolean chunky;
+
+    /** Marks what is drawn next as a button, which the "Pixelated corners" option may give stepped corners. */
+    public void pixel(boolean on) {
+        chunky = on;
+    }
+
+    /** Whether rounded shapes drawn now come out pixelated. */
+    public boolean pixelated() {
+        var mode = dev.aller.AllerClient.options().pixelate.get();
+        return mode == dev.aller.ClientOptions.Pixelate.EVERYTHING || chunky && mode == dev.aller.ClientOptions.Pixelate.BUTTONS;
+    }
+
     // ---- shapes --------------------------------------------------------------------------------
 
     public void rect(float x, float y, float w, float h, float radius, int color) {
@@ -164,6 +210,20 @@ public final class Canvas {
 
     public void circle(float cx, float cy, float r, int color) {
         rect(cx - r, cy - r, r * 2, r * 2, r, color);
+    }
+
+    /**
+     * A soft-edged ellipse, for glows and the shadow under something standing on a floor.
+     *
+     * @param softness how much of the radius is falloff, 0 to 1
+     */
+    public void oval(float cx, float cy, float rx, float ry, float softness, int color) {
+        if (rx <= 0 || ry <= 0) return;
+        float core = rx * (1 - softness);
+        g.pose().pushMatrix();
+        g.pose().translate(cx, cy).scale(1f, ry / rx);
+        shadow(-core, -core, core * 2, core * 2, core, rx - core, color);
+        g.pose().popMatrix();
     }
 
     public void ring(float cx, float cy, float r, float thickness, int color) {
@@ -232,8 +292,15 @@ public final class Canvas {
             maxX = Math.max(maxX, tx);
             maxY = Math.max(maxY, ty);
         }
+        // Pixel-art corners: one cell per GUI pixel, whatever scale the shape is drawn at. Hairlines,
+        // shadows and anything rotated stay smooth.
+        float cell = 0;
+        if (kind == 0 && sin == 0 && mode != SHADOW && radius >= 0.75f && pixelated()) {
+            float zoom = (float) Math.sqrt(m.m00() * m.m00() + m.m01() * m.m01());
+            cell = (Math.clamp(Math.round(16f / Math.max(zoom, 0.01f)), 1, 127) + 0.25f) / 127f;
+        }
         submit(new Mesh(Pipelines.SHAPE, TextureSetup.noTexture(), g.scissorStack.peek(), bounds(minX, minY, maxX, maxY),
-                v, colors, q4(hw), q4(hh), q4(radius), q4(param), mode * 0.5f, kind / 8f));
+                v, colors, q4(hw), q4(hh), q4(radius), q4(param), mode * 0.5f, kind / 8f, cell));
     }
 
     /** Quarter-pixel fixed point, the precision the shape shader unpacks. */
@@ -246,6 +313,7 @@ public final class Canvas {
     /** Draws a single line with its top at {@code y}. Returns the advance width. */
     public float text(Fonts font, CharSequence text, float x, float y, float size, int color) {
         if (text.isEmpty()) return 0;
+        if (Fonts.vanilla()) return pixelText(font, text, x, y, size, color);
         SdfAtlas atlas = font.atlas();
         float s = size / SdfAtlas.EM;
         float pen = 0;
@@ -286,9 +354,38 @@ public final class Canvas {
         if (n > 0) {
             float[] verts = n == v.length ? v : java.util.Arrays.copyOf(v, n);
             submit(new Mesh(Pipelines.TEXT, font.texture().setup(), g.scissorStack.peek(), bounds(minX, minY, maxX, maxY),
-                    verts, new int[] {c}, 0, 0, 0, 0, 0f, 0f));
+                    verts, new int[] {c}, 0, 0, 0, 0, 0f, 0f, 0f));
         }
         return pen * s;
+    }
+
+    /** The same line in Minecraft's font, sitting on the baseline Inter would have used. */
+    private float pixelText(Fonts font, CharSequence text, float x, float y, float size, int color) {
+        var mc = Minecraft.getInstance().font;
+        var line = Mc.styled(text, font.bold());
+        float k = pixelFontScale(size);
+        int c = Colors.fade(color, alpha);
+        y += font.atlas().ascent * size / SdfAtlas.EM - 7 * k;
+        Matrix3x2fStack m = g.pose();
+        if (m.m01() == 0 && m.m10() == 0 && m.m00() > 0 && m.m11() > 0) {
+            // Start on a screen pixel too.
+            float px = scale();
+            x = (Math.round((m.m00() * x + m.m20()) * px) / px - m.m20()) / m.m00();
+            y = (Math.round((m.m11() * y + m.m21()) * px) / px - m.m21()) / m.m11();
+        }
+        // Vanilla treats a nearly transparent colour as opaque, so leave those out.
+        if (c >>> 24 >= 4) {
+            g.pose().pushMatrix();
+            g.pose().translate(x, y);
+            g.pose().scale(k, k);
+            //? if <26.1 {
+            /*g.drawString(mc, line, 0, 0, c, true);
+            *///?} else {
+            g.text(mc, line, 0, 0, c, true);
+            //?}
+            g.pose().popMatrix();
+        }
+        return mc.width(line) * k;
     }
 
     public void textCentered(Fonts font, CharSequence text, float cx, float y, float size, int color) {
@@ -321,7 +418,7 @@ public final class Canvas {
         int cs = (int) (seconds * 100) & 0x3FFFFFFF;
         int color = Colors.withAlpha(accent, intensity * alpha);
         submit(new Mesh(Pipelines.BACKDROP, TextureSetup.noTexture(), g.scissorStack.peek(), bounds(x, y, x + w, y + h),
-                v, new int[] {color}, cs & 0x7FFF, cs >> 15, Math.max(4, Math.round(cellGuiPx * sc)), 0, 0f, 0f));
+                v, new int[] {color}, cs & 0x7FFF, cs >> 15, Math.max(4, Math.round(cellGuiPx * sc)), 0, 0f, 0f, 0f));
     }
 
     /** A plain vanilla rectangle; usable before Aller's shaders have loaded (startup overlay). */
@@ -339,6 +436,16 @@ public final class Canvas {
 
     /** Minecraft's own pixel font, for content that must match vanilla formatting. */
     public void vanillaText(net.minecraft.network.chat.Component text, float x, float y, int color) {
+        var font = Minecraft.getInstance().font;
+        //? if <26.1 {
+        /*g.drawString(font, text, Math.round(x), Math.round(y), Colors.fade(color, alpha), true);
+        *///?} else {
+        g.text(font, text, Math.round(x), Math.round(y), Colors.fade(color, alpha), true);
+        //?}
+    }
+
+    /** One wrapped line of Minecraft's font, as {@code Font.split} returns them. */
+    public void vanillaText(net.minecraft.util.FormattedCharSequence text, float x, float y, int color) {
         var font = Minecraft.getInstance().font;
         //? if <26.1 {
         /*g.drawString(font, text, Math.round(x), Math.round(y), Colors.fade(color, alpha), true);
@@ -371,8 +478,8 @@ public final class Canvas {
      * @param verts  x, y, u, v per vertex
      * @param colors one per vertex, or a single colour for the whole mesh
      */
-    private record Mesh(RenderPipeline pipeline, TextureSetup textureSetup, ScreenRectangle scissorArea, ScreenRectangle bounds,
-            float[] verts, int[] colors, int u1, int v1, int u2, int v2, float mode, float kind) implements GuiElementRenderState {
+    record Mesh(RenderPipeline pipeline, TextureSetup textureSetup, ScreenRectangle scissorArea, ScreenRectangle bounds,
+            float[] verts, int[] colors, int u1, int v1, int u2, int v2, float mode, float kind, float pixel) implements GuiElementRenderState {
 
         //? if <26.1 {
         /*@Override
@@ -393,7 +500,7 @@ public final class Canvas {
                         .setUv(verts[i + 2], verts[i + 3])
                         .setUv1(u1, v1)
                         .setUv2(u2, v2)
-                        .setNormal(mode, kind, 0f);
+                        .setNormal(mode, kind, pixel);
             }
         }
     }

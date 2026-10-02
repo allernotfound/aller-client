@@ -1,6 +1,7 @@
 package dev.aller.ui.font;
 
 import dev.aller.AllerClient;
+import dev.aller.platform.Mc;
 import dev.aller.platform.Tex;
 
 import java.awt.Font;
@@ -13,6 +14,19 @@ public enum Fonts {
     MEDIUM("Inter-Medium"),
     SEMIBOLD("Inter-SemiBold"),
     BOLD("Inter-Bold");
+
+    /** Scale of Minecraft's font per unit of text size, before snapping to whole pixels: its capitals then stand about as tall as Inter's. */
+    public static final float VANILLA = 0.1f;
+
+    /** Whether text is set in Minecraft's own font rather than Inter (the "Font" option). */
+    public static boolean vanilla() {
+        return AllerClient.options().typeface.get() == dev.aller.ClientOptions.Typeface.MINECRAFT && Mc.fontReady();
+    }
+
+    /** Minecraft's font has one heavier weight, kept for the heaviest face. */
+    public boolean bold() {
+        return this == BOLD;
+    }
 
     private final String file;
     private CompletableFuture<SdfAtlas> pending;
@@ -59,6 +73,7 @@ public enum Fonts {
     }
 
     public float width(CharSequence text, float size) {
+        if (vanilla()) return Mc.mc().font.width(Mc.styled(text, bold())) * dev.aller.platform.Canvas.pixelFontScale(size);
         SdfAtlas a = atlas();
         float w = 0;
         char prev = 0;

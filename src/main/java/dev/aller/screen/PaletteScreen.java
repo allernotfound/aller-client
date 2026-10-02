@@ -1,6 +1,10 @@
 package dev.aller.screen;
 
 import dev.aller.AllerClient;
+import dev.aller.command.Command;
+import dev.aller.command.Commands;
+import dev.aller.command.History;
+import dev.aller.command.Search;
 import dev.aller.feature.AutoProfiles;
 import dev.aller.feature.Replay;
 import dev.aller.feature.Waypoints;
@@ -12,6 +16,8 @@ import dev.aller.platform.Game;
 import dev.aller.platform.Mc;
 import dev.aller.platform.ScreenHost;
 import dev.aller.platform.Sounds;
+import dev.aller.screen.palette.ChatFormatsPage;
+import dev.aller.screen.palette.CustomActionsPage;
 import dev.aller.screen.palette.Page;
 import dev.aller.screen.palette.ProfilesPage;
 import dev.aller.screen.palette.SettingsPage;
@@ -90,6 +96,8 @@ public final class PaletteScreen extends AllerScreen {
     private final Spring backHover = Spring.snappy(0);
     private final Tween intro = new Tween(0.55f, Easing.OUT_CUBIC);
     private final float[] dockPos = new float[Category.values().length + 2];
+    /** The launcher's actions, so a search here finds them too. */
+    private final List<Command> launcher = new ArrayList<>();
     private List<String> profileNames = List.of();
     private Category filter;
     private int selected = -1;
@@ -118,7 +126,9 @@ public final class PaletteScreen extends AllerScreen {
         }
         action("Edit HUD layout", "Drag, resize and snap everything on your HUD", "hud editor move position layout arrange",
                 Game::inWorld, () -> Mc.open(new HudEditorScreen(Mc.screen())));
-        action("Client settings", "Accent colour, animation speed, menus and more", "options preferences accent theme color colour blur motion",
+        action("UI settings", "Accent colour, font, sizes, backgrounds and motion", "options preferences accent theme color colour blur motion interface look zoom font",
+                () -> true, () -> open(SettingsPage.ui()));
+        action("Client settings", "Aller's keys and behaviour", "options preferences keys keybinds",
                 () -> true, () -> open(new SettingsPage()));
         action("Profiles", "Switch between setups, or let rules switch them for you", "profile preset config auto rules",
                 () -> true, () -> open(new ProfilesPage()));
@@ -126,6 +136,12 @@ public final class PaletteScreen extends AllerScreen {
                 () -> true, () -> open(new WaypointsPage()));
         action("Session stats", "Playtime, FPS and combat numbers for this session and past ones", "stats statistics graph dashboard history playtime",
                 () -> true, () -> open(new StatsPage()));
+        action("Custom actions", "Your own chat and command shortcuts for the launcher", "macro message command shortcut launcher",
+                () -> true, () -> open(new CustomActionsPage()));
+        action("Search chat history", "Everything said, back through old game logs", "find messages log regex past chat",
+                () -> true, () -> close(() -> Mc.setScreen(new ScreenHost(new ChatHistoryScreen(parent)))));
+        action("Chat formats", "How each server's chat lines and private messages are read", "mention whisper separator author regex server chat",
+                () -> true, () -> open(new ChatFormatsPage()));
         action("Add waypoint here", "Save your current position", "waypoint new mark save place",
                 Game::inWorld, () -> {
                     var w = Waypoints.addHere("Waypoint " + (Waypoints.all().size() + 1),
@@ -139,15 +155,43 @@ public final class PaletteScreen extends AllerScreen {
                     close();
                 });
         profileNames = AllerClient.config().profileNames();
+        for (Command c : Commands.snapshot()) {
+            boolean listed = c.group == Command.Group.MOD || c.group == Command.Group.SETTING || c.group == Command.Group.WAYPOINT;
+            if (!c.hidePalette && !listed) launcher.add(c);
+        }
         rebuild();
+    }
+
+    /** Opens straight to a page (used by the launcher). */
+    public PaletteScreen(Screen parent, Page page) {
+        this(parent);
+        this.page = drawnPage = page;
+        pageT.snap(1);
+        search.focused = false;
     }
 
     /** Opens straight to a module's settings (used by the HUD editor). */
     public PaletteScreen(Screen parent, Module module) {
-        this(parent);
-        page = drawnPage = new SettingsPage(module);
-        pageT.snap(1);
-        search.focused = false;
+        this(parent, new SettingsPage(module));
+    }
+
+    /** Runs one of the launcher's actions; anything that asks a question or leaves this screen is handed to the launcher. */
+    private void run(Command c) {
+        if (c.after || c.step != null || c.danger) {
+            close(() -> {
+                Mc.setScreen(parent);
+                LauncherScreen.invoke(parent, c);
+            });
+            return;
+        }
+        History.used(c.key);
+        c.run.accept(parent);
+        if (!c.stay) close();
+    }
+
+    @Override
+    public boolean capturing() {
+        return page != null && page.capturing();
     }
 
     private void action(String name, String detail, String keywords, BooleanSupplier available, Runnable run) {
@@ -173,6 +217,11 @@ public final class PaletteScreen extends AllerScreen {
     public void opened() {
         super.opened();
         intro.restart();
+    }
+
+    @Override
+    public float scale() {
+        return super.scale() * AllerClient.options().paletteZoom.get();
     }
 
     /** Opened from a menu, the palette floats over it: the menu keeps drawing underneath, blurred. */
@@ -227,6 +276,16 @@ public final class PaletteScreen extends AllerScreen {
                     float score = match(q, a.name, hits);
                     if (a.keywords.contains(q)) score = Math.max(score, 60);
                     if (score > 0) found.add(actionRow(a, hits, score - 1));
+                }
+                for (Command c : launcher) {
+                    if (!c.available.getAsBoolean()) continue;
+                    boolean[] hits = new boolean[c.name.length()];
+                    // Whole-word matches only: the mods are what this list is for.
+                    float score = match(q, c.name, hits);
+                    if (score < 100) score = !c.keywords.isEmpty() && c.keywords.contains(q) ? 55 : 0;
+                    if (score <= 0) continue;
+                    Action a = new Action(c.name, c.detail.isEmpty() ? c.group.label : c.detail, "", () -> true, () -> run(c));
+                    found.add(actionRow(a, score >= 100 ? hits : new boolean[c.name.length()], score - 3));
                 }
                 String active = AllerClient.config().activeProfile();
                 for (String name : profileNames) {
@@ -328,35 +387,8 @@ public final class PaletteScreen extends AllerScreen {
         return r;
     }
 
-    /**
-     * Scores how well {@code q} matches {@code text}: a contiguous match beats scattered letters,
-     * and matches at the start of a word beat matches in the middle. Zero means no match.
-     */
     private static float match(String q, String text, boolean[] hits) {
-        String t = text.toLowerCase();
-        int idx = t.indexOf(q);
-        if (idx >= 0) {
-            for (int i = 0; i < q.length(); i++) hits[idx + i] = true;
-            boolean wordStart = idx == 0 || !Character.isLetterOrDigit(t.charAt(idx - 1));
-            return 100 + (idx == 0 ? 40 : wordStart ? 25 : 0) - idx * 0.5f - t.length() * 0.05f;
-        }
-        boolean[] tmp = new boolean[t.length()];
-        float score = 30;
-        int from = 0, last = -2;
-        for (int i = 0; i < q.length(); i++) {
-            char ch = q.charAt(i);
-            if (ch == ' ') continue;
-            int found = t.indexOf(ch, from);
-            if (found < 0) return 0;
-            boolean wordStart = found == 0 || !Character.isLetterOrDigit(t.charAt(found - 1));
-            score += found == last + 1 ? 6 : wordStart ? 8 : 0;
-            score -= (found - from) * 0.8f;
-            tmp[found] = true;
-            last = found;
-            from = found + 1;
-        }
-        System.arraycopy(tmp, 0, hits, 0, tmp.length);
-        return Math.max(score, 1);
+        return Search.match(q, text, hits);
     }
 
     private void select(int index, boolean reveal) {
@@ -436,8 +468,10 @@ public final class PaletteScreen extends AllerScreen {
 
     @Override
     protected void layout() {
-        pw = Math.min(440, width - 24);
-        ph = Math.min(330, height - 24);
+        // The panel keeps its size on screen; a smaller zoom only makes more fit inside it.
+        float zoom = AllerClient.options().paletteZoom.get();
+        pw = Math.min(440 / zoom, width - 24);
+        ph = Math.min(330 / zoom, height - 24);
         px = (width - pw) / 2;
         py = (height - ph) / 2;
     }
@@ -447,7 +481,7 @@ public final class PaletteScreen extends AllerScreen {
         float open = openness(), fade = fade();
         boolean inWorld = Mc.mc().level != null;
         if (!inWorld && underlay() == null) Theme.scene(c, width, height);
-        c.rect(0, 0, width, height, 0, Colors.withAlpha(0xFF050409, 0.42f * fade));
+        Theme.veil(c, width, height, fade, 0.42f);
 
         c.pushAlpha(fade);
         c.push();
@@ -682,11 +716,12 @@ public final class PaletteScreen extends AllerScreen {
         float nx = textX + 1.5f * hv, ny = y + 5.5f;
         int base = Colors.mix(Theme.TEXT_DIM, Theme.TEXT, r.module == null || r.module.enabled() ? 1f : 0.35f + 0.65f * hv);
         float endX = drawName(c, name, r.hits, nx, ny, nameSize, base);
-        if (r.module != null && r.module.fairPlayNote != null) {
-            float bw = Fonts.SEMIBOLD.width("CHECK RULES", 5.6f) + 8, bx = endX + 6;
+        if (r.module != null && (r.module.fairPlayNote != null || r.module.experimentalNote != null)) {
+            String badge = r.module.experimentalNote != null ? "EXPERIMENTAL" : "CHECK RULES";
+            float bw = Fonts.SEMIBOLD.width(badge, 5.6f) + 8, bx = endX + 6;
             if (bx + bw < right) {
                 c.rect(bx, ny + 1.2f, bw, 9, 4.5f, Colors.withAlpha(Theme.WARN, 0.14f));
-                c.textMiddle(Fonts.SEMIBOLD, "CHECK RULES", bx + 4, ny + 1.2f, 9, 5.6f, Theme.WARN);
+                c.textMiddle(Fonts.SEMIBOLD, badge, bx + 4, ny + 1.2f, 9, 5.6f, Theme.WARN);
             }
         }
         c.text(Fonts.REGULAR, Fonts.REGULAR.truncate(detail, 7.2f, right - textX - 6), nx, y + 17f, 7.2f, Theme.TEXT_MUTED);
@@ -727,10 +762,11 @@ public final class PaletteScreen extends AllerScreen {
         int key = m.keybind.get();
         if (key != Settings.Key.NONE) {
             Theme.keycap(c, Mc.keyName(key), x + 9, y + CARD_H - 19, 12);
-        } else if (m.fairPlayNote != null) {
-            float bw = Fonts.SEMIBOLD.width("CHECK RULES", 5.4f) + 8;
+        } else if (m.fairPlayNote != null || m.experimentalNote != null) {
+            String badge = m.experimentalNote != null ? "EXPERIMENTAL" : "CHECK RULES";
+            float bw = Fonts.SEMIBOLD.width(badge, 5.4f) + 8;
             c.rect(x + 9, y + CARD_H - 17, bw, 9, 4.5f, Colors.withAlpha(Theme.WARN, 0.14f));
-            c.textMiddle(Fonts.SEMIBOLD, "CHECK RULES", x + 13, y + CARD_H - 17, 9, 5.4f, Theme.WARN);
+            c.textMiddle(Fonts.SEMIBOLD, badge, x + 13, y + CARD_H - 17, 9, 5.4f, Theme.WARN);
         }
     }
 
@@ -831,6 +867,12 @@ public final class PaletteScreen extends AllerScreen {
 
     @Override
     public boolean mouseScroll(float x, float y, float amount) {
+        if (Mc.ctrlDown()) {
+            var zoom = AllerClient.options().paletteZoom;
+            zoom.set(zoom.get() + (amount > 0 ? zoom.step : -zoom.step));
+            AllerClient.config().markDirty();
+            return true;
+        }
         if (page != null) return page.mouseScroll(x, y, amount);
         scroll.scroll(amount);
         return true;

@@ -71,6 +71,20 @@ public final class Theme {
         c.backdrop(0, 0, w, h, accent(), opt.backdropIntensity.get() * 0.7f, dev.aller.ui.anim.Motion.time(), opt.backdropCell.get());
     }
 
+    /**
+     * The layer between an Aller menu and whatever is behind it, following the "Behind menus" option.
+     *
+     * @param dim how dark the layer is when the scene behind is blurred
+     */
+    public static void veil(Canvas c, float w, float h, float fade, float dim) {
+        switch (AllerClient.options().background.get()) {
+            case BLUR -> c.rect(0, 0, w, h, 0, Colors.withAlpha(0xFF050409, dim * fade));
+            case DARKEN -> c.rect(0, 0, w, h, 0, Colors.withAlpha(0xFF050409, Math.min(0.85f, dim + 0.32f) * fade));
+            case SOLID -> c.rect(0, 0, w, h, 0, Colors.withAlpha(BG, fade));
+            case NONE -> {}
+        }
+    }
+
     /** A small keyboard-key chip; returns its width. */
     public static float keycap(Canvas c, String label, float x, float y, float h) {
         float size = h * 0.56f;

@@ -3,6 +3,7 @@ package dev.aller.ui.widget;
 import dev.aller.platform.Canvas;
 import dev.aller.platform.Sounds;
 import dev.aller.ui.Colors;
+import dev.aller.ui.Icons;
 import dev.aller.ui.Theme;
 import dev.aller.ui.anim.Spring;
 import dev.aller.ui.font.Fonts;
@@ -16,6 +17,8 @@ public class Button extends Widget {
     public float textSize = 9f;
     public boolean alignLeft;
     public boolean enabled = true;
+    /** Drawn before the label. */
+    public Icons icon;
     private final Runnable action;
     private final Spring hover = Spring.snappy(0);
     private final Spring press = Spring.snappy(0);
@@ -36,6 +39,11 @@ public class Button extends Widget {
         return this;
     }
 
+    public Button icon(Icons i) {
+        icon = i;
+        return this;
+    }
+
     public Button left() {
         alignLeft = true;
         return this;
@@ -48,8 +56,9 @@ public class Button extends Widget {
         float pr = press.target(down && over ? 1 : 0).update();
 
         c.push();
-        // Lift on hover, sink on press.
-        c.scale(1f + 0.02f * hv - 0.04f * pr, x + w / 2, y + h / 2);
+        c.pixel(true);
+        // Lift on hover, sink on press. Pixel-art corners would shimmer while scaling, so they stay put.
+        if (!c.pixelated()) c.scale(1f + 0.02f * hv - 0.04f * pr, x + w / 2, y + h / 2);
         c.pushAlpha(enabled ? 1f : 0.45f);
         float r = Math.min(Theme.R_MD, h / 2);
         int textColor = Theme.TEXT;
@@ -76,14 +85,13 @@ public class Button extends Widget {
                 textColor = Colors.mix(Theme.TEXT_DIM, Theme.TEXT, hv);
             }
         }
+        c.pixel(false);
         Fonts font = style == Style.PRIMARY ? Fonts.SEMIBOLD : Fonts.MEDIUM;
         float pad = Math.min(12, h * 0.45f);
-        if (alignLeft) {
-            c.textMiddle(font, label, x + pad + 2 * hv, y, h, textSize, textColor);
-        } else {
-            float tw = font.width(label, textSize);
-            c.textMiddle(font, label, x + (w - tw) / 2, y, h, textSize, textColor);
-        }
+        float mark = icon != null ? textSize * 1.05f : 0, gap = icon != null ? textSize * 0.4f : 0;
+        float tx = alignLeft ? x + pad + 2 * hv : x + (w - font.width(label, textSize) - mark - gap) / 2;
+        if (icon != null) icon.draw(c, tx + mark / 2, y + h / 2, mark, textColor);
+        c.textMiddle(font, label, tx + mark + gap, y, h, textSize, textColor);
         if (hint != null) {
             float hs = textSize * 0.82f;
             c.textMiddle(Fonts.REGULAR, hint, x + w - pad - Fonts.REGULAR.width(hint, hs), y, h, hs,

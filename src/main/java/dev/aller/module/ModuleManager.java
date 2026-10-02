@@ -58,6 +58,9 @@ public final class ModuleManager {
         if (m.enabled() && m.fairPlayNote != null && AllerClient.options().fairPlayWarnings.get() && warned.add(m.id)) {
             Toasts.warn("Check server rules", m.fairPlayNote);
         }
+        if (m.enabled() && m.experimentalNote != null && warned.add(m.id + ".experimental")) {
+            Toasts.warn(m.name + " is experimental", m.experimentalNote);
+        }
         AllerClient.config().markDirty();
     }
 
@@ -70,6 +73,7 @@ public final class ModuleManager {
     public void pollKeys() {
         boolean canUseKeys = Mc.mc().player != null && Mc.screen() == null;
         for (Module m : all) {
+            if (m.ownKey) continue;
             boolean down = canUseKeys && Mc.isDown(m.keybind.get());
             boolean was = Boolean.TRUE.equals(keyState.put(m, down));
             if (m.holdToActivate()) m.keyInput(down, down && !was, canUseKeys);

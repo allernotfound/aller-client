@@ -45,4 +45,31 @@ public final class WorldMods {
             addWasDown = down;
         }
     }
+
+    /** A private room to step into without leaving the server. Its key goes in and out; see {@code feature/Pocket}. */
+    public static final class PocketDimension extends Module {
+        public enum Mode { CREATIVE, SURVIVAL }
+
+        public final Settings.Choice<Mode> mode = choice("mode", "Game mode", Mode.CREATIVE)
+                .describe("Set each time you step in. Items never cross between the server and the pocket");
+        public final Settings.Bool bright = bool("bright", "Light the room", true)
+                .describe("The room is black and has no lamps. Off leaves it as dark as you build it");
+        public final Settings.Text prefix = text("prefix", "Pocket command prefix", "\\", 3)
+                .describe("Chat and /commands still go to the server. Start a line with this to run a command in the pocket");
+
+        public PocketDimension() {
+            super("pocket", "Pocket dimension", "Step into a private room that keeps what you build, while you stay connected to the server", Category.WORLD);
+            keywords("room", "base", "private", "storage", "chest", "void", "afk");
+            restricted("While you are in the pocket the server sees you standing still, which some servers treat as being AFK.");
+            experimental("It runs a second world beside the server's. If something goes wrong it puts you back and switches itself off.");
+            ownKey = true;
+            keybind.describe("Steps into the pocket, and back out from anywhere inside it");
+            bind(GLFW.GLFW_KEY_O);
+        }
+
+        @Override
+        protected void onDisable() {
+            dev.aller.feature.Pocket.close(false);
+        }
+    }
 }

@@ -35,6 +35,9 @@ public abstract class AllerScreen {
         finished = false;
     }
 
+    /** Called when the screen is shown again after one opened from it has closed. */
+    public void reshown() {}
+
     /** Called once the screen has actually been removed. */
     public void closed() {}
 
@@ -77,6 +80,19 @@ public abstract class AllerScreen {
         }
     }
 
+    /**
+     * A vanilla (or other mod's) screen to keep showing behind this one, or null. It draws its own
+     * background and blur, so the host adds neither.
+     */
+    public net.minecraft.client.gui.screens.Screen vanillaUnderlay() {
+        return null;
+    }
+
+    /** True while the screen is waiting for a key to bind or has a text field focused besides its search bar. */
+    public boolean capturing() {
+        return false;
+    }
+
     /** Size multiplier for this screen; layout happens in scaled units. */
     public float scale() {
         return dev.aller.AllerClient.options().uiScale.get();
@@ -90,6 +106,11 @@ public abstract class AllerScreen {
     /** Clamped 0..1 version for opacity. */
     protected float fade() {
         return Math.clamp(open.get(), 0f, 1f);
+    }
+
+    /** How strongly to blur what is behind, 0 to 1: it eases with the screen unless there is a menu beneath to keep blurred. */
+    public float blurAmount() {
+        return underlay() != null || vanillaUnderlay() != null ? 1f : fade();
     }
 
     public boolean isClosing() {
@@ -132,6 +153,9 @@ public abstract class AllerScreen {
     public boolean charTyped(int codepoint) {
         return false;
     }
+
+    /** Files dragged from the desktop and dropped on the window. */
+    public void filesDropped(java.util.List<java.nio.file.Path> files) {}
 
     public boolean closeOnEscape() {
         return true;

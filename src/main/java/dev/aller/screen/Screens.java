@@ -15,6 +15,13 @@ public final class Screens {
     public static boolean passThrough;
 
     public static Screen replace(Screen screen) {
+        Screen next = choose(screen);
+        // Before the screen lays itself out: a restyled menu has to measure its text in Inter from the start.
+        MenuSkin.sync(next);
+        return next;
+    }
+
+    private static Screen choose(Screen screen) {
         if (passThrough) return screen;
         var opt = AllerClient.options();
         if (opt.customPauseMenu.get() && screen instanceof PauseScreen pause && pause.showsPauseMenu()) {

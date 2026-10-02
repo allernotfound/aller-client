@@ -184,6 +184,28 @@ public final class SdfAtlas {
         }
     }
 
+    /** Whether this face has its own glyph for the codepoint (otherwise {@link #glyph} hands back '?'). */
+    public boolean has(int codepoint) {
+        return glyphs.containsKey(codepoint);
+    }
+
+    private float[] latin;
+
+    /** Advance in em-size pixels, or NaN if the face has no glyph. Cheap enough to call per character when measuring. */
+    public float advance(int codepoint) {
+        if (latin == null) {
+            float[] table = new float[256];
+            for (int i = 0; i < table.length; i++) {
+                Glyph g = glyphs.get(i);
+                table[i] = g != null ? g.advance() : Float.NaN;
+            }
+            latin = table;
+        }
+        if (codepoint >= 0 && codepoint < 256) return latin[codepoint];
+        Glyph g = glyphs.get(codepoint);
+        return g != null ? g.advance() : Float.NaN;
+    }
+
     public Glyph glyph(int codepoint) {
         Glyph g = glyphs.get(codepoint);
         return g != null ? g : glyphs.get((int) '?');

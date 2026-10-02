@@ -39,6 +39,12 @@ public class TextField extends Widget {
         allSelected = false;
     }
 
+    /** Selects everything, as a browser's address bar does when it is clicked. */
+    public void selectAll() {
+        caret = text.length();
+        allSelected = !text.isEmpty();
+    }
+
     public boolean caretAtEnd() {
         return caret >= text.length();
     }

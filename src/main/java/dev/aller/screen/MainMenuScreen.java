@@ -7,6 +7,7 @@ import dev.aller.platform.Nav;
 import dev.aller.platform.ScreenHost;
 import dev.aller.platform.Skins;
 import dev.aller.platform.Sounds;
+import dev.aller.screen.palette.SettingsPage;
 import dev.aller.ui.AllerScreen;
 import dev.aller.ui.Colors;
 import dev.aller.ui.Theme;
@@ -35,9 +36,14 @@ public final class MainMenuScreen extends AllerScreen {
     private static final float COLUMN = 232, CARD_H = 74, ROW = 27, BUTTON_H = 23;
     private static boolean introPlayed;
 
-    private static final float ICON = 20, ICON_GAP = 5, STRIP = 28;
+    private static final float ICON = 20, ICON_GAP = 5, STRIP = 28, SEGMENT_GAP = 4, CARD_ICON = 15;
     private final List<Button> buttons = new ArrayList<>();
+    /** The button stack, a line at a time: most lines hold one button, the mods line is split. */
+    private final List<Button[]> rows = new ArrayList<>();
+    private final List<float[]> shares = new ArrayList<>();
     private final List<IconButton> icons = new ArrayList<>();
+    /** Small square buttons in the corner of the profile card, for things about the player. */
+    private final List<IconButton> cardIcons = new ArrayList<>();
     private final List<Tween> buttonIn = new ArrayList<>();
     private final boolean intro;
     private final Tween backdropIn;
@@ -52,8 +58,7 @@ public final class MainMenuScreen extends AllerScreen {
     /** Canvas size in layout units (window size divided by {@link #k}). */
     private float vw, vh;
     /** Fades the whole menu out before handing over to a vanilla screen. */
-    private final Spring leave = Spring.smooth(0);
-    private Runnable leaveAction;
+    private final Handover handover = new Handover();
 
     public MainMenuScreen() {
         intro = !introPlayed;
@@ -67,23 +72,25 @@ public final class MainMenuScreen extends AllerScreen {
         worlds = add("Singleplayer", () -> go(() -> Nav.singleplayer(Mc.screen()))).style(Button.Style.PRIMARY);
         servers = add("Multiplayer", () -> go(() -> Nav.multiplayer(Mc.screen())));
         // The palette opens over the menu (which stays visible, blurred), so no fade-out here.
-        add("Mods", () -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen()))))
-                .hint(Mc.keyName(AllerClient.options().menuKey.get()) + " in game");
+        row(new float[] {0.5f, 0.25f, 0.25f},
+                segment("Mods", () -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen())))),
+                segment("Client", () -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen(), new SettingsPage())))).icon(Icons.SETTINGS),
+                segment("UI", () -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen(), SettingsPage.ui())))).icon(Icons.SETTINGS));
         add("Options", () -> go(() -> Nav.options(Mc.screen())));
+        add("Quit game", Nav::quit).style(Button.Style.DANGER);
 
         icons.add(new IconButton(Icons.REALMS, "Realms", () -> go(() -> Nav.realms(Mc.screen()))));
         if (Nav.hasModMenu()) {
             icons.add(new IconButton(Icons.MODS, "Installed mods (" + Nav.countMods() + ")", () -> go(() -> Nav.mods(Mc.screen()))));
         }
-        IconButton quit = new IconButton(Icons.QUIT, "Quit game", Nav::quit);
-        quit.danger = true;
-        icons.add(quit);
+
+        cardIcons.add(new IconButton(Icons.WARDROBE, "Wardrobe", () -> Mc.setScreen(new ScreenHost(new WardrobeScreen(Mc.screen())))));
 
         // Counting worlds and servers reads from disk, so fill those details in when they arrive.
         CompletableFuture.supplyAsync(Nav::countWorlds).thenAccept(n -> worlds.hint = plural(n, "world"));
         CompletableFuture.supplyAsync(Nav::countServers).thenAccept(n -> servers.hint = plural(n, "server"));
 
-        for (int i = 0; i < buttons.size(); i++) {
+        for (int i = 0; i < rows.size(); i++) {
             buttonIn.add(new Tween(0.6f * pace, Easing.OUT_EXPO).delay((0.9f + i * 0.07f) * pace));
         }
         for (int i = 0; i < swatchHover.length; i++) swatchHover[i] = Spring.bouncy(0);
@@ -97,27 +104,42 @@ public final class MainMenuScreen extends AllerScreen {
     private Button add(String label, Runnable action) {
         Button b = new Button(label, action).left();
         b.textSize = 9.5f;
-        buttons.add(b);
+        row(new float[] {1f}, b);
         return b;
+    }
+
+    /** One of several buttons sharing a line. */
+    private static Button segment(String label, Runnable action) {
+        Button b = new Button(label, action);
+        b.textSize = 8.5f;
+        return b;
+    }
+
+    private void row(float[] share, Button... line) {
+        rows.add(line);
+        shares.add(share);
+        buttons.addAll(List.of(line));
     }
 
     /** Fade out, run the navigation, and be ready to fade back in when the user returns. */
     private void go(Runnable action) {
-        if (leaveAction != null) return;
-        leaveAction = action;
-        leave.target(1);
+        handover.go(action);
     }
 
     @Override
     public void opened() {
         super.opened();
-        leave.snap(0);
-        leaveAction = null;
+        handover.reset();
+    }
+
+    @Override
+    public void reshown() {
+        handover.back();
     }
 
     @Override
     protected void layout() {
-        float columnH = 34 + CARD_H + 10 + buttons.size() * ROW;
+        float columnH = 34 + CARD_H + 10 + rows.size() * ROW;
         k = Math.clamp(Math.min(height / (columnH + 56), width / 360f), 0.5f, 1f);
         vw = width / k;
         vh = height / k;
@@ -139,16 +161,8 @@ public final class MainMenuScreen extends AllerScreen {
     @Override
     protected void draw(Canvas c, float mx, float my) {
         var opt = AllerClient.options();
-        float lv = leave.update();
-        if (leaveAction != null && lv > 0.97f) {
-            Runnable action = leaveAction;
-            leaveAction = null;
-            AllerClient.defer(() -> {
-                action.run();
-                leave.snap(0);
-            });
-        }
-        float present = 1 - Math.clamp(lv, 0f, 1f);
+        float lv = handover.update(this);
+        float present = 1 - lv;
 
         // Backdrop. A solid base first so nothing shows through if the shader is still loading.
         c.plainRect(0, 0, width, height, Theme.BG);
@@ -162,7 +176,7 @@ public final class MainMenuScreen extends AllerScreen {
         c.scale(k, 0, 0);
         mx /= k;
         my /= k;
-        if (leaveAction != null) mx = -1000; // no hover feedback while leaving
+        if (handover.leaving()) mx = -1000; // no hover feedback while leaving
         c.pushAlpha(present);
         c.push();
         c.translate(-14 * lv, 0);
@@ -179,18 +193,23 @@ public final class MainMenuScreen extends AllerScreen {
 
         // Buttons slide in from the left one after another.
         float buttonsTop = y;
-        for (int i = 0; i < buttons.size(); i++) {
+        for (int i = 0; i < rows.size(); i++) {
             float t = buttonIn.get(i).update();
-            Button b = buttons.get(i);
-            b.bounds(leftX - (1 - t) * 26, y, colW, BUTTON_H);
+            Button[] line = rows.get(i);
+            float room = colW - SEGMENT_GAP * (line.length - 1), bx = leftX - (1 - t) * 26;
             c.pushAlpha(t);
-            b.draw(c, mx, my);
+            for (int j = 0; j < line.length; j++) {
+                float bw = room * shares.get(i)[j];
+                line[j].bounds(bx, y, bw, BUTTON_H);
+                line[j].draw(c, mx, my);
+                bx += bw + SEGMENT_GAP;
+            }
             c.popAlpha();
             y += ROW;
         }
         // Secondary destinations: a strip of icon buttons centred against the stack.
         float stripH = icons.size() * ICON + (icons.size() - 1) * ICON_GAP;
-        float iy = buttonsTop + (buttons.size() * ROW - (ROW - BUTTON_H) - stripH) / 2;
+        float iy = buttonsTop + (rows.size() * ROW - (ROW - BUTTON_H) - stripH) / 2;
         for (int i = 0; i < icons.size(); i++) {
             float t = buttonIn.get(Math.min(i, buttonIn.size() - 1)).get();
             IconButton b = icons.get(i);
@@ -200,6 +219,7 @@ public final class MainMenuScreen extends AllerScreen {
             c.popAlpha();
         }
         for (IconButton b : icons) b.drawTip(c, true);
+        for (IconButton b : cardIcons) b.drawTip(c, true);
         c.pop();
         c.popAlpha();
 
@@ -261,7 +281,13 @@ public final class MainMenuScreen extends AllerScreen {
 
         float tx = fx + face + 11;
         String name = Nav.playerName();
-        c.text(Fonts.BOLD, Fonts.BOLD.truncate(name, 13, x + colW - tx - 10), tx, y + 9, 13, Theme.TEXT);
+        float strip = cardIcons.size() * (CARD_ICON + 3) + 3;
+        c.text(Fonts.BOLD, Fonts.BOLD.truncate(name, 13, x + colW - tx - 10 - strip), tx, y + 9, 13, Theme.TEXT);
+        for (int i = 0; i < cardIcons.size(); i++) {
+            IconButton b = cardIcons.get(i);
+            b.bounds(x + colW - 9 - (cardIcons.size() - i) * (CARD_ICON + 3) + 3, y + 9, CARD_ICON, CARD_ICON);
+            b.draw(c, mx, my);
+        }
 
         int enabled = 0;
         for (var m : AllerClient.modules().all()) if (m.enabled()) enabled++;
@@ -294,11 +320,12 @@ public final class MainMenuScreen extends AllerScreen {
 
     @Override
     public boolean mouseDown(float x, float y, int button) {
-        if (leaveAction != null) return false;
+        if (handover.leaving()) return false;
         x /= k;
         y /= k;
         for (Button b : buttons) if (b.mouseDown(x, y, button)) return true;
         for (IconButton b : icons) if (b.mouseDown(x, y, button)) return true;
+        for (IconButton b : cardIcons) if (b.mouseDown(x, y, button)) return true;
         if (button == 0) {
             float sy = topY + 34 + CARD_H - 13;
             for (int i = 0; i < ACCENTS.length; i++) {
@@ -318,6 +345,7 @@ public final class MainMenuScreen extends AllerScreen {
         boolean used = false;
         for (Button b : buttons) used |= b.mouseUp(x / k, y / k, button);
         for (IconButton b : icons) used |= b.mouseUp(x / k, y / k, button);
+        for (IconButton b : cardIcons) used |= b.mouseUp(x / k, y / k, button);
         return used;
     }
 }

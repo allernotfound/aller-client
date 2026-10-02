@@ -1,6 +1,8 @@
 package dev.aller;
 
+import dev.aller.command.Launcher;
 import dev.aller.dev.DevHarness;
+import dev.aller.feature.Chat;
 import dev.aller.feature.Clicks;
 import dev.aller.feature.Replay;
 import dev.aller.feature.Waypoints;
@@ -9,6 +11,7 @@ import dev.aller.module.Modules;
 import dev.aller.platform.Canvas;
 import dev.aller.platform.Mc;
 import dev.aller.screen.HudEditorScreen;
+import dev.aller.screen.MenuSkin;
 import dev.aller.ui.Toasts;
 import dev.aller.ui.anim.Motion;
 
@@ -18,8 +21,13 @@ public final class Frame {
 
     public static void begin() {
         Motion.frame();
+        MenuSkin.frame();
         Clicks.frame();
         AllerClient.modules().pollKeys();
+        Launcher.poll();
+        Chat.poll();
+        dev.aller.feature.Browser.frame();
+        dev.aller.feature.Pocket.poll();
     }
 
     public static void end() {
@@ -29,6 +37,7 @@ public final class Frame {
 
     /** In-game HUD layer. Runs after vanilla's HUD, before any open screen. */
     public static void hud(Canvas c) {
+        dev.aller.feature.Pocket.draw(c);
         if (Mc.mc().player == null || Mc.hudHidden()) return;
         // The HUD editor draws the elements itself so it can move them around.
         boolean editing = Mc.current() instanceof HudEditorScreen;

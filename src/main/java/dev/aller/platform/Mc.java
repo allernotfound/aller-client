@@ -1,5 +1,6 @@
 package dev.aller.platform;
 
+import dev.aller.setting.Settings;
 import dev.aller.ui.AllerScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -55,6 +56,20 @@ public final class Mc {
         //?}
     }
 
+    private static boolean fontReady;
+
+    /** False until the first resource load has finished: before that Minecraft's font has no glyphs. */
+    public static boolean fontReady() {
+        if (!fontReady && mc().font != null && !loadingOverlay()) fontReady = true;
+        return fontReady;
+    }
+
+    /** A line for Minecraft's font. */
+    public static net.minecraft.network.chat.Component styled(CharSequence text, boolean bold) {
+        var line = net.minecraft.network.chat.Component.literal(text.toString());
+        return bold ? line.withStyle(net.minecraft.ChatFormatting.BOLD) : line;
+    }
+
     public static long window() {
         //? if <26.1 {
         /*return mc().getWindow().getWindow();
@@ -68,6 +83,45 @@ public final class Mc {
         /*return mc().options.hideGui;
         *///?} else {
         return mc().gui.hud.isHidden();
+        //?}
+    }
+
+    public static void toggleHud() {
+        //? if <26.1 {
+        /*mc().options.hideGui = !mc().options.hideGui;
+        *///?} else {
+        mc().gui.hud.toggle();
+        //?}
+    }
+
+    public static void clearChat() {
+        //? if <26.1 {
+        /*mc().gui.getChat().clearMessages(false);
+        *///?} else {
+        mc().gui.hud.getChat().clearMessages(false);
+        //?}
+    }
+
+    /** Shows a folder in the system file manager, creating it first if it is not there yet. */
+    public static void openFolder(java.nio.file.Path dir) {
+        try {
+            java.nio.file.Files.createDirectories(dir);
+        } catch (java.io.IOException ignored) {
+            // the file manager will say what is wrong
+        }
+        //? if <26.1 {
+        /*net.minecraft.Util.getPlatform().openPath(dir);
+        *///?} else {
+        net.minecraft.util.Util.getPlatform().openPath(dir);
+        //?}
+    }
+
+    /** Lays a screen out again for a new window size without showing it. */
+    public static void resize(Screen screen, int width, int height) {
+        //? if <26.1 {
+        /*screen.resize(mc(), width, height);
+        *///?} else {
+        screen.resize(width, height);
         //?}
     }
 
@@ -86,7 +140,11 @@ public final class Mc {
     public static boolean isDown(int code) {
         if (code == -1) return false;
         if (code <= -2) return GLFW.glfwGetMouseButton(window(), -2 - code) == GLFW.GLFW_PRESS;
-        return GLFW.glfwGetKey(window(), code) == GLFW.GLFW_PRESS;
+        int mods = Settings.Key.mods(code);
+        if ((mods & GLFW.GLFW_MOD_CONTROL) != 0 && !ctrlDown()) return false;
+        if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && !shiftDown()) return false;
+        if ((mods & GLFW.GLFW_MOD_ALT) != 0 && !altDown()) return false;
+        return GLFW.glfwGetKey(window(), Settings.Key.code(code)) == GLFW.GLFW_PRESS;
     }
 
     /** The key a vanilla binding is set to, in the same encoding as {@link #isDown}. */
@@ -117,6 +175,10 @@ public final class Mc {
         return isDown(GLFW.GLFW_KEY_LEFT_CONTROL) || isDown(GLFW.GLFW_KEY_RIGHT_CONTROL);
     }
 
+    public static boolean altDown() {
+        return isDown(GLFW.GLFW_KEY_LEFT_ALT) || isDown(GLFW.GLFW_KEY_RIGHT_ALT);
+    }
+
     public static String clipboard() {
         return mc().keyboardHandler.getClipboard();
     }
@@ -128,6 +190,12 @@ public final class Mc {
     public static String keyName(int code) {
         if (code == -1) return "None";
         if (code <= -2) return "Mouse " + (-1 - code);
+        int mods = Settings.Key.mods(code);
+        if (mods != 0) {
+            String prefix = ((mods & GLFW.GLFW_MOD_CONTROL) != 0 ? "Ctrl+" : "") + ((mods & GLFW.GLFW_MOD_ALT) != 0 ? "Alt+" : "")
+                    + ((mods & GLFW.GLFW_MOD_SHIFT) != 0 ? "Shift+" : "");
+            return prefix + keyName(Settings.Key.code(code));
+        }
         String name = GLFW.glfwGetKeyName(code, 0);
         if (name != null) return name.toUpperCase();
         return switch (code) {

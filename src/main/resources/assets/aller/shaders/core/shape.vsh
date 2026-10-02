@@ -10,7 +10,8 @@ in vec4 Color;
 in vec2 UV0;     // position relative to the shape centre, in GUI pixels
 in ivec2 UV1;    // half size * 4
 in ivec2 UV2;    // (corner radius, stroke width or shadow blur) * 4
-in vec3 Normal;  // x: 0 fill, 0.5 stroke, 1 shadow; y: outline kind / 8 (0 box, 1 star, 3+ polygon sides)
+in vec3 Normal;  // x: 0 fill, 0.5 stroke, 1 shadow; y: outline kind / 8 (0 box, 1 star, 3+ polygon sides);
+                 // z: pixel-art cell size * 16 / 127 (0 for a smooth shape)
 
 out vec4 vertexColor;
 out vec2 local;
@@ -18,6 +19,7 @@ out vec2 halfSize;
 out vec2 params;
 out float mode;
 out float kind;
+out float pixel;
 
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
@@ -27,4 +29,5 @@ void main() {
     params = vec2(UV2) / 4.0;
     mode = Normal.x;
     kind = Normal.y;
+    pixel = Normal.z;
 }

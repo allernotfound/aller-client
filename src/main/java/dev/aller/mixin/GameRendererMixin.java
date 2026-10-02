@@ -3,6 +3,7 @@ package dev.aller.mixin;
 import dev.aller.Frame;
 import dev.aller.Hooks;
 import dev.aller.platform.Pipelines;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.GameRenderer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -29,6 +30,17 @@ public abstract class GameRendererMixin {
     @Inject(method = "preloadUiShader", at = @At("TAIL"))
     private void aller$preloadShaders(CallbackInfo ci) {
         Pipelines.preload();
+    }
+
+    //? if <26.1 {
+    /*@ModifyExpressionValue(method = "render",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Options;getMenuBackgroundBlurriness()I"))
+    *///?} else {
+    @ModifyExpressionValue(method = "extractOptions",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Options;getMenuBackgroundBlurriness()I"))
+    //?}
+    private int aller$blurRadius(int original) {
+        return Hooks.blurRadius(original);
     }
 
     @Inject(method = "bobHurt", at = @At("HEAD"), cancellable = true)

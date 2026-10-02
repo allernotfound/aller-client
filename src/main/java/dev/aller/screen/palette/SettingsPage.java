@@ -75,22 +75,32 @@ public final class SettingsPage extends Page {
         var opt = AllerClient.options();
         if (key != opt.menuKey && opt.menuKey.get() == code) return "the palette";
         if (key != opt.hudEditorKey && opt.hudEditorKey.get() == code) return "the HUD editor";
+        if (key != opt.launcherKey && opt.launcherKey.get() == code) return "the launcher";
         String vanilla = Mc.vanillaUse(code);
         return vanilla == null ? null : "Minecraft's " + vanilla;
     }
 
-    /** Client options. */
+    /** Client options: keys and behaviour. */
     public SettingsPage() {
+        this("Client settings", "Aller's keys and behaviour. These apply to every profile.", AllerClient.options().client());
+    }
+
+    /** Interface options: look, sizes, motion and which screens Aller draws. */
+    public static SettingsPage ui() {
+        return new SettingsPage("UI settings", "How Aller looks and moves. These apply to every profile.", AllerClient.options().ui());
+    }
+
+    private SettingsPage(String title, String blurb, List<Setting<?>> settings) {
         this.module = null;
-        this.title = "Client settings";
-        this.blurb = "Look, motion and behaviour of Aller itself. These apply to every profile.";
-        view.set(AllerClient.options().settings());
+        this.title = title;
+        this.blurb = blurb;
+        view.set(settings);
         view.onChange = AllerClient.config()::markDirty;
         view.conflict = this::conflict;
         buttons.add(new Button("Reset to defaults", () -> {
-            AllerClient.options().resetSettings();
+            for (Setting<?> s : settings) s.reset();
             AllerClient.config().markDirty();
-            Toasts.info("Client settings reset", "Everything here is back to its default");
+            Toasts.info(title + " reset", "Everything here is back to its default");
         }).style(Button.Style.GHOST));
     }
 
@@ -131,9 +141,10 @@ public final class SettingsPage extends Page {
         bh = h;
         float pad = 12, cw = w - pad * 2;
         List<String> lines = Fonts.REGULAR.wrap(blurb, 8f, cw - 4);
-        List<String> note = module != null && module.fairPlayNote != null
-                ? Fonts.REGULAR.wrap(module.fairPlayNote + " Aller never blocks it; the choice is yours.", 7.5f, cw - 30)
-                : List.of();
+        String warning = module == null ? null : module.experimentalNote != null
+                ? "Experimental. " + module.experimentalNote + (module.fairPlayNote != null ? " " + module.fairPlayNote : "")
+                : module.fairPlayNote != null ? module.fairPlayNote + " Aller never blocks it; the choice is yours." : null;
+        List<String> note = warning != null ? Fonts.REGULAR.wrap(warning, 7.5f, cw - 30) : List.of();
         boolean preview = module instanceof VisualMods.Crosshair;
         // A HUD element shows itself, sharp, since the real one is blurred behind the palette.
         HudModule hud = module instanceof HudModule h0 && Game.inWorld() && Hud.measure(h0, true) && h0.w > 0 && h0.h > 0 ? h0 : null;

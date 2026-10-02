@@ -575,7 +575,7 @@ public final class SettingsView {
         @Override
         void draw(Canvas c, float mx, float my, boolean over) {
             float l = listen.target(listening ? 1 : 0).update();
-            String label = listening ? "Press a key…" : Mc.keyName(s.get());
+            String label = listening ? (s.chord ? "Press keys…" : "Press a key…") : Mc.keyName(s.get());
             float bh = 15, bw = Math.max(34, Fonts.SEMIBOLD.width(label, 7.5f) + 14), bx = x + w - 8 - bw, by = y + (ROW - bh) / 2;
             float pulse = listening ? 0.5f + 0.5f * (float) Math.sin(Motion.time() * 6f) : 0;
             c.rect(bx, by, bw, bh, 4, Colors.mix(0x16FFFFFF, Colors.withAlpha(Theme.accent(), 0.22f + 0.12f * pulse), l));
@@ -613,6 +613,13 @@ public final class SettingsView {
         @Override
         boolean keyDown(int key, int mods) {
             if (!listening) return false;
+            if (s.chord) {
+                // A modifier on its own is the start of a chord: keep waiting for the key that completes it.
+                if (key >= GLFW.GLFW_KEY_LEFT_SHIFT && key <= GLFW.GLFW_KEY_RIGHT_SUPER) return true;
+                int held = mods & (GLFW.GLFW_MOD_CONTROL | GLFW.GLFW_MOD_SHIFT | GLFW.GLFW_MOD_ALT);
+                set(key == GLFW.GLFW_KEY_ESCAPE && held == 0 ? Settings.Key.NONE : Settings.Key.pack(key, held));
+                return true;
+            }
             set(key == GLFW.GLFW_KEY_ESCAPE ? Settings.Key.NONE : key);
             return true;
         }

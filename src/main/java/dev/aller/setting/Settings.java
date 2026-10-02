@@ -63,8 +63,13 @@ public final class Settings {
         }
 
         public String display() {
-            if (format != null) return format.apply(value);
-            String num = step >= 1 ? Integer.toString(asInt()) : String.format(step >= 0.1f ? "%.1f" : "%.2f", value);
+            return display(value);
+        }
+
+        /** How a given value would read, for previews of a value not applied yet. */
+        public String display(float v) {
+            if (format != null) return format.apply(v);
+            String num = step >= 1 ? Integer.toString(Math.round(v)) : String.format(step >= 0.1f ? "%.1f" : "%.2f", v);
             return num + suffix;
         }
 
@@ -107,6 +112,11 @@ public final class Settings {
         }
     }
 
+    /** An option whose name cannot be derived from its constant ("DuckDuckGo"). */
+    public interface Named {
+        String label();
+    }
+
     public static final class Choice<E extends Enum<E>> extends Setting<E> {
         public final E[] options;
 
@@ -119,8 +129,9 @@ public final class Settings {
             set(options[Math.floorMod(value.ordinal() + direction, options.length)]);
         }
 
-        /** "TOP_LEFT" -> "Top left". */
+        /** "TOP_LEFT" -> "Top left", unless the option names itself. */
         public static String label(Enum<?> e) {
+            if (e instanceof Named named) return named.label();
             String s = e.name().replace('_', ' ').toLowerCase();
             return Character.toUpperCase(s.charAt(0)) + s.substring(1);
         }
@@ -141,12 +152,35 @@ public final class Settings {
         }
     }
 
-    /** A GLFW key code, or -1 for unbound. Negative values below -1 encode mouse buttons as {@code -2 - button}. */
+    /**
+     * A GLFW key code, or -1 for unbound. Negative values below -1 encode mouse buttons as {@code -2 - button}.
+     * A chord keeps its modifiers (GLFW's Ctrl, Shift and Alt bits) above the key code, see {@link #pack}.
+     */
     public static final class Key extends Setting<Integer> {
         public static final int NONE = -1;
+        /** Whether the binding may include modifier keys (Ctrl+K); plain keys ignore them. */
+        public boolean chord;
 
         public Key(String id, String name, int def) {
             super(id, name, def);
+        }
+
+        public Key chord() {
+            chord = true;
+            return this;
+        }
+
+        public static int pack(int key, int mods) {
+            return key < 0 ? key : key | (mods & 0xF) << 16;
+        }
+
+        /** The key or mouse code without its modifiers. */
+        public static int code(int value) {
+            return value < 0 ? value : value & 0xFFFF;
+        }
+
+        public static int mods(int value) {
+            return value < 0 ? 0 : value >> 16 & 0xF;
         }
 
         @Override

@@ -18,6 +18,9 @@ public abstract class HudModule extends Module {
 
     public enum AnchorV { TOP, MIDDLE, BOTTOM }
 
+    /** Space kept between every element and the edge of the screen. */
+    public static final float EDGE = 4f;
+
     public final Settings.Num scale = num("scale", "Scale", 1f, 0.5f, 2.5f, 0.05f).suffix("x");
     public final Settings.Bool background = bool("background", "Background", true);
 
@@ -61,19 +64,26 @@ public abstract class HudModule extends Module {
     }
 
     public float x(float screenW) {
-        return switch (anchorH) {
+        float x = switch (anchorH) {
             case LEFT -> offX;
             case CENTER -> screenW / 2 + offX - scaledW() / 2;
             case RIGHT -> screenW - offX - scaledW();
         };
+        return inset(x, screenW - scaledW());
     }
 
     public float y(float screenH) {
-        return switch (anchorV) {
+        float y = switch (anchorV) {
             case TOP -> offY;
             case MIDDLE -> screenH / 2 + offY - scaledH() / 2;
             case BOTTOM -> screenH - offY - scaledH();
         };
+        return inset(y, screenH - scaledH());
+    }
+
+    /** Keeps a position {@link #EDGE} clear of both ends; an element too large to fit starts at the near one. */
+    private static float inset(float pos, float room) {
+        return Math.clamp(pos, EDGE, Math.max(EDGE, room - EDGE));
     }
 
     /** Moves the element so its top-left is at (x, y), re-anchoring to the nearest third of the screen. */
@@ -88,8 +98,8 @@ public abstract class HudModule extends Module {
      */
     public void place(float x, float y, float screenW, float screenH, AnchorH h, AnchorV v) {
         float sw = scaledW(), sh = scaledH();
-        x = Math.clamp(x, 0, Math.max(0, screenW - sw));
-        y = Math.clamp(y, 0, Math.max(0, screenH - sh));
+        x = inset(x, screenW - sw);
+        y = inset(y, screenH - sh);
         float cx = x + sw / 2, cy = y + sh / 2;
         anchorH = h != null ? h : cx < screenW / 3 ? AnchorH.LEFT : cx > screenW * 2 / 3 ? AnchorH.RIGHT : AnchorH.CENTER;
         anchorV = v != null ? v : cy < screenH / 3 ? AnchorV.TOP : cy > screenH * 2 / 3 ? AnchorV.BOTTOM : AnchorV.MIDDLE;

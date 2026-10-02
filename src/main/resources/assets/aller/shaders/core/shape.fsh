@@ -8,6 +8,7 @@ in vec2 halfSize;
 in vec2 params;
 in float mode;
 in float kind;
+in float pixel;
 
 out vec4 fragColor;
 
@@ -46,7 +47,15 @@ void main() {
     float sides = floor(kind * 8.0 + 0.5);
     float size = min(halfSize.x, halfSize.y);
     float d;
-    if (sides < 0.5) {
+    // Pixel-art corners: the box is sampled once per cell of a grid that starts at its edges, so
+    // every corner steps the same way and straight edges stay where they were.
+    float cell = floor(pixel * 127.0 + 0.5) / 16.0;
+    bool chunky = cell > 0.0 && sides < 0.5;
+    if (chunky) {
+        vec2 inward = (floor((halfSize - abs(local)) / cell) + 0.5) * cell;
+        vec2 side = vec2(local.x < 0.0 ? -1.0 : 1.0, local.y < 0.0 ? -1.0 : 1.0);
+        d = roundedBox((halfSize - inward) * side, halfSize, radius);
+    } else if (sides < 0.5) {
         d = roundedBox(local, halfSize, radius);
     } else if (sides < 1.5) {
         d = star(local, size - radius) - radius;
@@ -54,7 +63,7 @@ void main() {
         d = polygon(local, (size - radius) * cos(3.14159265 / sides), sides) - radius;
     }
     // Size of one screen pixel in shape units: gives a one-pixel anti-aliased edge at any GUI scale.
-    float px = max(length(vec2(dFdx(local.x), dFdy(local.x))), 0.0001);
+    float px = chunky ? 0.001 : max(length(vec2(dFdx(local.x), dFdy(local.x))), 0.0001);
 
     float alpha;
     if (mode > 0.75) {
@@ -64,7 +73,8 @@ void main() {
     } else if (mode > 0.25) {
         // Stroke: the band between the edge and (edge - width).
         float outer = clamp(0.5 - d / px, 0.0, 1.0);
-        float inner = clamp(0.5 + (d + params.y) / px, 0.0, 1.0);
+        // A pixel-art outline is at least one cell thick, or it would fall between samples.
+        float inner = clamp(0.5 + (d + (chunky ? max(params.y, cell) : params.y)) / px, 0.0, 1.0);
         alpha = outer * inner;
     } else {
         alpha = clamp(0.5 - d / px, 0.0, 1.0);

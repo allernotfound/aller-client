@@ -58,6 +58,14 @@ if (providers.gradleProperty("aller.bench").isPresent) {
         if (providers.gradleProperty("aller.bench").get() == "each") vmArg("-Daller.dev.benchEach=true")
     }
 }
+// The wardrobe looks up past skins for this account instead of the (offline) development one.
+providers.gradleProperty("aller.skinUuid").orNull?.let { id ->
+    loom.runs.named("client") { vmArg("-Daller.dev.skinUuid=$id") }
+}
+// Runs the harness's pocket dimension script instead of the usual walk through the screens.
+if (providers.gradleProperty("aller.pocket").isPresent) {
+    loom.runs.named("client") { vmArg("-Daller.dev.pocket=true") }
+}
 if (providers.gradleProperty("aller.noWorld").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.noWorld=true") }
 }
@@ -76,7 +84,33 @@ tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
 }
 
+// The browser's native library (wry over the system webview) is a Rust crate in native/. It is
+// built with cargo and packed into the jar; without a Rust toolchain the build still works and the
+// browser reports itself unavailable.
+val nativeDir = rootProject.file("native")
+val nativeLib = nativeDir.resolve("target/release/aller_webview.dll")
+// One task on the root project, shared by every version: they all pack the same file.
+val cargoBuild = if ("cargoBuild" in rootProject.tasks.names) rootProject.tasks.named("cargoBuild") else rootProject.tasks.register("cargoBuild") {
+    inputs.files(fileTree(nativeDir) { include("src/**", "Cargo.toml", "Cargo.lock") })
+    outputs.file(nativeLib).optional()
+    onlyIf { System.getProperty("os.name").lowercase().contains("win") }
+    val dir = nativeDir
+    doLast {
+        try {
+            val process = ProcessBuilder("cargo", "build", "--release").directory(dir).inheritIO().start()
+            if (process.waitFor() != 0) logger.warn("cargo build failed: the jar will have no web browser")
+        } catch (e: java.io.IOException) {
+            logger.warn("cargo not found: the jar will have no web browser (install Rust from rustup.rs)")
+        }
+    }
+}
+
 tasks.processResources {
+    dependsOn(cargoBuild)
+    from(nativeDir.resolve("target/release")) {
+        include("aller_webview.dll")
+        into("natives/windows-x64")
+    }
     val props = mapOf(
         "id" to prop("mod.id"),
         "name" to prop("mod.name"),

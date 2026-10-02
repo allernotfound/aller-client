@@ -5,6 +5,7 @@ import dev.aller.module.Module;
 import dev.aller.platform.Mc;
 import dev.aller.platform.ScreenHost;
 import dev.aller.screen.HudEditorScreen;
+import dev.aller.screen.LauncherScreen;
 import dev.aller.screen.MainMenuScreen;
 import dev.aller.screen.PaletteScreen;
 import dev.aller.ui.AllerScreen;
@@ -47,6 +48,10 @@ public final class DevHarness {
         dir = Path.of(out);
         if (Boolean.getBoolean("aller.dev.bench")) {
             bench();
+            return;
+        }
+        if (System.getProperty("aller.dev.pocket") != null) {
+            pocket();
             return;
         }
 
@@ -93,6 +98,100 @@ public final class DevHarness {
                 if (AllerClient.modules().in(dev.aller.module.Category.values()[i]).isEmpty()) continue;
                 key(GLFW.GLFW_KEY_TAB);
             }
+        });
+
+        // The launcher over the main menu: suggestions, a value on one line, a value step, the action list.
+        run(0.1f, () -> key(GLFW.GLFW_KEY_ESCAPE));
+        until(() -> Mc.current() instanceof MainMenuScreen, 5);
+        run(0.3f, () -> {
+            home = Mc.screen();
+            Mc.setScreen(new ScreenHost(new LauncherScreen(home)));
+        });
+        shot(0.8f, "launcher-menu");
+        run(0.1f, () -> type("fov 90"));
+        shot(0.6f, "launcher-inline");
+        run(0.1f, () -> {
+            key(GLFW.GLFW_KEY_ESCAPE);
+            type("brightness");
+            key(GLFW.GLFW_KEY_ENTER);
+        });
+        shot(0.6f, "launcher-value");
+        run(0.1f, () -> {
+            key(GLFW.GLFW_KEY_ESCAPE);
+            key(GLFW.GLFW_KEY_ESCAPE);
+            type(">");
+        });
+        shot(0.6f, "launcher-actions");
+        run(0.1f, () -> {
+            key(GLFW.GLFW_KEY_ESCAPE);
+            type("64*27+5");
+        });
+        shot(0.6f, "launcher-calc");
+        run(0.1f, () -> Mc.setScreen(home));
+
+        run(0.1f, () -> Mc.setScreen(new ScreenHost(new dev.aller.screen.WardrobeScreen(home))));
+        shot(4.0f, "wardrobe");
+        run(0.1f, () -> {
+            key(GLFW.GLFW_KEY_DOWN);
+            key(GLFW.GLFW_KEY_TAB);
+        });
+        shot(1.5f, "wardrobe-picked");
+        run(0.1f, () -> Mc.setScreen(home));
+
+        // The browser. A live page is a native window the capture cannot see, so the page is
+        // checked through the still drawn in its place while the address bar's suggestions are open.
+        if (dev.aller.feature.Browser.usable()) {
+            run(0.1f, () -> dev.aller.feature.Browser.open(home, null));
+            shot(1.2f, "browser-start");
+            run(0.1f, () -> dev.aller.feature.Browser.open(home, "https://example.com"));
+            shot(5.0f, "browser-live");
+            run(0.1f, () -> {
+                var tab = dev.aller.feature.Browser.active();
+                AllerClient.LOG.info("BROWSER view={} loading={} title='{}' url={}", tab.view, tab.loading, tab.title, tab.url);
+                key(GLFW.GLFW_KEY_F6);
+            });
+            run(0.6f, () -> type("exa"));
+            shot(0.8f, "browser-still");
+            run(0.1f, () -> {
+                key(GLFW.GLFW_KEY_ESCAPE);
+                AllerScreen s = Mc.current();
+                if (s != null) s.keyDown(GLFW.GLFW_KEY_N, GLFW.GLFW_MOD_CONTROL | GLFW.GLFW_MOD_SHIFT);
+            });
+            shot(1.0f, "browser-private");
+            run(0.1f, () -> {
+                AllerScreen s = Mc.current();
+                if (s != null) s.keyDown(GLFW.GLFW_KEY_H, GLFW.GLFW_MOD_CONTROL);
+            });
+            shot(1.0f, "browser-history");
+            run(0.1f, () -> {
+                dev.aller.feature.Browser.setIncognito(true);
+                dev.aller.feature.Browser.close(dev.aller.feature.Browser.active());
+                Mc.setScreen(home);
+            });
+        }
+
+        // Vanilla and other mods' menus, restyled in place.
+        menuShot("vanilla-options", dev.aller.platform.Nav::options);
+        run(0.1f, () -> {
+            Mc.setScreen(new ScreenHost(new LauncherScreen(Mc.screen())));
+            type("volume");
+        });
+        shot(0.8f, "launcher-over-options");
+        menuShot("vanilla-video", home -> Mc.setScreen(new net.minecraft.client.gui.screens.options.VideoSettingsScreen(home, Mc.mc(), Mc.mc().options)));
+        menuShot("vanilla-language", home -> Mc.setScreen(new net.minecraft.client.gui.screens.options.LanguageSelectScreen(home, Mc.mc().options, Mc.mc().getLanguageManager())));
+        menuShot("vanilla-worlds", dev.aller.platform.Nav::singleplayer);
+        menuShot("vanilla-multiplayer", dev.aller.platform.Nav::multiplayer);
+        var loader = net.fabricmc.loader.api.FabricLoader.getInstance();
+        if (loader.isModLoaded("sodium")) {
+            menuShot("sodium-video", home -> openStatic(home, "createScreen",
+                    "net.caffeinemc.mods.sodium.client.gui.VideoSettingsScreen", "net.caffeinemc.mods.sodium.client.gui.SodiumOptionsGUI"));
+        }
+        if (loader.isModLoaded("iris")) {
+            menuShot("iris-shaders", home -> openStatic(home, null, "net.irisshaders.iris.gui.screen.ShaderPackScreen"));
+        }
+        if (dev.aller.platform.Nav.hasModMenu()) menuShot("modmenu", dev.aller.platform.Nav::mods);
+        run(0.1f, () -> {
+            if (home != null) Mc.setScreen(home);
         });
 
         if (canEnterWorld()) {
@@ -151,7 +250,46 @@ public final class DevHarness {
             shot(1.0f, "hud-editor");
             run(0.1f, () -> key(GLFW.GLFW_KEY_E));
             shot(0.8f, "hud-editor-drawer");
-            run(0.1f, () -> Mc.open(new PaletteScreen()));
+            run(0.1f, () -> Mc.setScreen(new ScreenHost(new LauncherScreen(null))));
+            shot(0.8f, "launcher-world");
+            run(0.1f, () -> {
+                type("render");
+                key(GLFW.GLFW_KEY_ENTER);
+            });
+            shot(0.6f, "launcher-world-value");
+            run(0.1f, () -> {
+                key(GLFW.GLFW_KEY_ESCAPE);
+                key(GLFW.GLFW_KEY_ESCAPE);
+                type("new custom");
+                key(GLFW.GLFW_KEY_ENTER);
+            });
+            shot(0.6f, "launcher-text");
+            run(0.1f, () -> {
+                key(GLFW.GLFW_KEY_ESCAPE);
+                key(GLFW.GLFW_KEY_ESCAPE);
+                type("quit");
+                key(GLFW.GLFW_KEY_ENTER);
+            });
+            shot(0.6f, "launcher-confirm");
+            run(0.1f, () -> Mc.setScreen(null));
+            // The pixel look: Minecraft's font and stepped corners, then back to how it was.
+            var look = dev.aller.AllerClient.options();
+            var face = look.typeface.get();
+            var corners = look.pixelate.get();
+            run(0.3f, () -> {
+                look.typeface.set(dev.aller.ClientOptions.Typeface.MINECRAFT);
+                look.pixelate.set(dev.aller.ClientOptions.Pixelate.EVERYTHING);
+                Mc.setScreen(new ScreenHost(new PaletteScreen(null, dev.aller.screen.palette.SettingsPage.ui())));
+            });
+            shot(1.0f, "pixel-ui-settings");
+            run(0.1f, () -> Mc.setScreen(new ScreenHost(new dev.aller.screen.PauseMenuScreen())));
+            shot(1.0f, "pixel-pause");
+            run(0.1f, () -> {
+                look.typeface.set(face);
+                look.pixelate.set(corners);
+                Mc.setScreen(null);
+            });
+            run(0.3f, () -> Mc.open(new PaletteScreen()));
             shot(1.2f, "palette-world");
             run(0.1f, () -> {
                 type("coordinates");
@@ -169,9 +307,42 @@ public final class DevHarness {
             shot(0.9f, "palette-stats");
             run(0.1f, () -> {
                 Mc.setScreen(null);
+                // Chat mods: a plain line, a mention, a repeat, a private message and the player's own line.
+                String me = dev.aller.platform.Nav.playerName();
+                String[] lines = {"<Sam> anyone seen the new spawn?", "[VIP] Alex » hey " + me + " are you coming", "<Sam> gg", "<Sam> gg", "<Sam> gg",
+                        "Robin whispers to you: meet at the portal", "<" + me + "> on my way, " + me + " out", me + " joined the game"};
+                for (String line : lines) dev.aller.platform.ChatView.add(net.minecraft.network.chat.Component.literal(line));
+            });
+            shot(1.2f, "chat");
+            run(0.1f, () -> Mc.setScreen(new ScreenHost(new dev.aller.screen.ChatHistoryScreen(null))));
+            shot(1.5f, "chat-history");
+            run(0.1f, () -> type("gg"));
+            shot(1.2f, "chat-history-search");
+            run(0.1f, () -> Mc.setScreen(new ScreenHost(new PaletteScreen(null, new dev.aller.screen.palette.ChatFormatsPage()))));
+            run(0.3f, () -> {
+                // Type into the "Try a line" box at the bottom of the page.
+                AllerScreen s = Mc.current();
+                if (s == null) return;
+                float scale = s.scale(), zoom = AllerClient.options().paletteZoom.get();
+                float w = Mc.mc().getWindow().getGuiScaledWidth() / scale, h = Mc.mc().getWindow().getGuiScaledHeight() / scale;
+                float ph = Math.min(330 / zoom, h - 24), py = (h - ph) / 2;
+                s.mouseScroll(w / 2, h / 2, -20);
+                harnessClickY = py + ph - 22 - 8 - 26 - 5 - 10;
+            });
+            run(0.6f, () -> {
+                AllerScreen s = Mc.current();
+                if (s == null) return;
+                s.mouseDown(Mc.mc().getWindow().getGuiScaledWidth() / s.scale() / 2, harnessClickY, 0);
+                type("[Mod] Jamie -> me: hello there");
+            });
+            shot(0.9f, "palette-chat-formats");
+            run(0.1f, () -> {
+                Mc.setScreen(null);
                 Mc.mc().pauseGame(false);
             });
             shot(1.2f, "pause");
+            run(0.1f, () -> dev.aller.platform.Nav.options(Mc.screen()));
+            shot(1.0f, "vanilla-options-world");
             run(0.1f, () -> {
                 savedState.forEach(Module::setEnabled);
                 AllerClient.config().save();
@@ -224,6 +395,67 @@ public final class DevHarness {
         run(0.5f, () -> Mc.mc().stop());
     }
 
+    /**
+     * The pocket dimension ({@code -Paller.pocket}): from the test world, step in, send chat and a
+     * pocket command, leave through the door, come back to check the build was kept, leave by key.
+     * The test world stands in for a server, so two integrated servers run side by side.
+     */
+    private static void pocket() {
+        var mod = dev.aller.module.Modules.POCKET;
+        until(() -> Mc.current() instanceof MainMenuScreen && !Mc.loadingOverlay());
+        run(1f, DevHarness::enterWorld);
+        until(() -> Mc.mc().player != null && Mc.mc().level != null && !Mc.loadingOverlay() && Mc.screen() == null, 90);
+        run(4f, () -> {
+            savedState.put(mod, mod.enabled());
+            mod.setEnabled(true);
+            pocketLog("before");
+            dev.aller.feature.Pocket.toggle();
+        });
+        shot(0.5f, "pocket-sealing");
+        until(() -> dev.aller.feature.Pocket.state().equals("INSIDE"), 60);
+        shot(1.0f, "pocket-inside");
+        run(0.1f, () -> {
+            pocketLog("inside");
+            dev.aller.platform.Game.send("hello from the pocket");
+            dev.aller.platform.Game.send(mod.prefix.get() + "setblock 16 64 12 minecraft:chest");
+            dev.aller.platform.Game.send(mod.prefix.get() + "summon minecraft:pig 13 64 12");
+        });
+        shot(2.0f, "pocket-built");
+        run(0.1f, () -> dev.aller.platform.Game.send(mod.prefix.get() + "tp @s 16 64 31.5 0 0"));
+        shot(1.0f, "pocket-door");
+        run(0.1f, () -> dev.aller.platform.Game.send(mod.prefix.get() + "tp @s 16 64 33.2 0 0"));
+        until(() -> !dev.aller.feature.Pocket.active(), 30);
+        shot(1.0f, "pocket-back");
+        run(0.1f, () -> pocketLog("back"));
+        until(dev.aller.platform.PocketServer::idle, 60);
+        run(0.5f, dev.aller.feature.Pocket::toggle);
+        until(() -> dev.aller.feature.Pocket.state().equals("INSIDE"), 60);
+        shot(1.5f, "pocket-again");
+        run(0.1f, () -> {
+            pocketLog("again");
+            dev.aller.feature.Pocket.toggle();
+        });
+        until(() -> !dev.aller.feature.Pocket.active(), 30);
+        shot(1.0f, "pocket-out");
+        run(0.1f, () -> {
+            pocketLog("out");
+            savedState.forEach(Module::setEnabled);
+            AllerClient.config().save();
+        });
+        run(1.5f, () -> Mc.mc().stop());
+    }
+
+    private static void pocketLog(String at) {
+        var mc = Mc.mc();
+        var server = mc.getSingleplayerServer();
+        AllerClient.LOG.info("POCKET {}: state={} enabled={} level={} pos={} local={} world='{}' mode={}", at,
+                dev.aller.feature.Pocket.state(), dev.aller.module.Modules.POCKET.enabled(),
+                mc.level == null ? null : dev.aller.platform.Game.dimensionId(),
+                mc.player == null ? null : mc.player.blockPosition().toShortString(), mc.isLocalServer(),
+                server == null ? null : server.getWorldData().getLevelName(),
+                mc.gameMode == null ? null : mc.gameMode.getPlayerMode());
+    }
+
     private static boolean benchWasFullscreen;
     private static long benchStart;
     private static int benchFrames;
@@ -238,6 +470,34 @@ public final class DevHarness {
         });
         run(5f, () -> AllerClient.LOG.info("BENCH {}: {} fps", name,
                 Math.round(benchFrames / ((System.nanoTime() - benchStart) / 1e9))));
+    }
+
+    private static net.minecraft.client.gui.screens.Screen home;
+    private static float harnessClickY;
+
+    /** Opens a menu from the main menu (which it returns to on back) and captures it. */
+    private static void menuShot(String name, java.util.function.Consumer<net.minecraft.client.gui.screens.Screen> open) {
+        run(0.1f, () -> {
+            if (home == null) home = Mc.screen();
+            open.accept(home);
+        });
+        shot(1.0f, name);
+    }
+
+    /** Opens another mod's screen by name: a static factory taking the parent, or (null method) a constructor. */
+    private static void openStatic(net.minecraft.client.gui.screens.Screen parent, String method, String... classes) {
+        for (String name : classes) {
+            try {
+                Class<?> type = Class.forName(name);
+                Object screen = method != null
+                        ? type.getMethod(method, net.minecraft.client.gui.screens.Screen.class).invoke(null, parent)
+                        : type.getConstructor(net.minecraft.client.gui.screens.Screen.class).newInstance(parent);
+                Mc.setScreen((net.minecraft.client.gui.screens.Screen) screen);
+                return;
+            } catch (ReflectiveOperationException e) {
+                AllerClient.LOG.debug("Harness could not open {}", name, e);
+            }
+        }
     }
 
     private static void until(BooleanSupplier ready) {

@@ -106,6 +106,20 @@ public final class Waypoints {
         return w;
     }
 
+    /** Adds a waypoint at block coordinates in the current dimension. */
+    public static Waypoint addAt(String name, double x, double y, double z, int color) {
+        Waypoint w = new Waypoint();
+        w.name = name;
+        w.x = Math.floor(x) + 0.5;
+        w.y = Math.floor(y);
+        w.z = Math.floor(z) + 0.5;
+        w.dimension = Game.dimensionId();
+        w.color = color;
+        all().add(w);
+        save();
+        return w;
+    }
+
     public static void remove(Waypoint w) {
         all().remove(w);
         save();

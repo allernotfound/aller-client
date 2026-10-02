@@ -8,7 +8,9 @@ import dev.aller.platform.Mc;
 import dev.aller.platform.Nav;
 import dev.aller.platform.ScreenHost;
 import dev.aller.platform.Skins;
+import dev.aller.screen.palette.SettingsPage;
 import dev.aller.screen.palette.StatsPage;
+import dev.aller.screen.palette.WaypointsPage;
 import dev.aller.ui.AllerScreen;
 import dev.aller.ui.Colors;
 import dev.aller.ui.Icons;
@@ -29,9 +31,14 @@ import java.util.List;
  * the column.
  */
 public final class PauseMenuScreen extends AllerScreen {
-    private static final float COLUMN = 232, CARD_H = 74, ROW = 26, BUTTON_H = 22, ICON = 20, ICON_GAP = 5, STRIP = 28;
+    private static final float COLUMN = 232, CARD_H = 74, ROW = 26, BUTTON_H = 22, ICON = 20, ICON_GAP = 5, STRIP = 28, SEGMENT_GAP = 4;
 
     private final List<Button> buttons = new ArrayList<>();
+    /** The button stack, a line at a time: most lines hold one button, the mods line is split. */
+    private final List<Button[]> rows = new ArrayList<>();
+    private final List<float[]> shares = new ArrayList<>();
+    /** Fades the menu out before handing over to a vanilla screen. */
+    private final Handover handover = new Handover();
     private final List<IconButton> icons = new ArrayList<>();
     private final List<Tween> buttonIn = new ArrayList<>();
     private final Tween cardIn = new Tween(0.45f, Easing.OUT_EXPO);
@@ -40,21 +47,24 @@ public final class PauseMenuScreen extends AllerScreen {
     public PauseMenuScreen() {
         boolean local = Mc.mc().isLocalServer();
         add("Back to game", this::close).style(Button.Style.PRIMARY).hint("esc");
-        add("Mods", () -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen()))))
-                .hint(Mc.keyName(AllerClient.options().menuKey.get()));
-        add("HUD", () -> Mc.setScreen(new ScreenHost(new HudEditorScreen(Mc.screen())))).hint("edit layout");
-        add("Statistics", () -> Nav.statistics(Mc.screen()));
-        add("Options", () -> Nav.options(Mc.screen()));
-        add(local ? "Save and quit to title" : "Disconnect", Nav::disconnect).style(Button.Style.DANGER);
+        row(new float[] {0.3f, 0.26f, 0.22f, 0.22f},
+                segment("Mods", () -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen())))),
+                segment("Layout", () -> Mc.setScreen(new ScreenHost(new HudEditorScreen(Mc.screen())))),
+                segment("Client", () -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen(), new SettingsPage())))).icon(Icons.SETTINGS),
+                segment("UI", () -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen(), SettingsPage.ui())))).icon(Icons.SETTINGS));
+        add("Waypoints", () -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen(), new WaypointsPage()))));
+        add("Statistics", () -> handover.go(() -> Nav.statistics(Mc.screen())));
+        add("Options", () -> handover.go(() -> Nav.options(Mc.screen())));
+        add(dev.aller.feature.Pocket.inside() ? "Leave the pocket" : local ? "Save and quit to title" : "Disconnect", Nav::disconnect).style(Button.Style.DANGER);
 
-        icons.add(new IconButton(Icons.ADVANCEMENTS, "Advancements", () -> Nav.advancements(Mc.screen())));
-        if (Nav.canOpenLan()) icons.add(new IconButton(Icons.LAN, "Open to LAN", () -> Nav.lan(Mc.screen())));
-        if (!local) icons.add(new IconButton(Icons.REPORT, "Player reporting", () -> Nav.playerReporting(Mc.screen())));
-        if (Nav.hasModMenu()) icons.add(new IconButton(Icons.MODS, "Installed mods", () -> Nav.mods(Mc.screen())));
-        icons.add(new IconButton(Icons.FEEDBACK, "Give feedback", () -> Nav.feedback(Mc.screen())));
-        icons.add(new IconButton(Icons.BUG, "Report a bug", () -> Nav.reportBug(Mc.screen())));
+        icons.add(new IconButton(Icons.ADVANCEMENTS, "Advancements", () -> handover.go(() -> Nav.advancements(Mc.screen()))));
+        if (Nav.canOpenLan()) icons.add(new IconButton(Icons.LAN, "Open to LAN", () -> handover.go(() -> Nav.lan(Mc.screen()))));
+        if (!local) icons.add(new IconButton(Icons.REPORT, "Player reporting", () -> handover.go(() -> Nav.playerReporting(Mc.screen()))));
+        if (Nav.hasModMenu()) icons.add(new IconButton(Icons.MODS, "Installed mods", () -> handover.go(() -> Nav.mods(Mc.screen()))));
+        icons.add(new IconButton(Icons.FEEDBACK, "Give feedback", () -> handover.go(() -> Nav.feedback(Mc.screen()))));
+        icons.add(new IconButton(Icons.BUG, "Report a bug", () -> handover.go(() -> Nav.reportBug(Mc.screen()))));
 
-        for (int i = 0; i < buttons.size(); i++) {
+        for (int i = 0; i < rows.size(); i++) {
             buttonIn.add(new Tween(0.4f, Easing.OUT_EXPO).delay(0.05f + i * 0.035f));
         }
     }
@@ -62,13 +72,37 @@ public final class PauseMenuScreen extends AllerScreen {
     private Button add(String label, Runnable action) {
         Button b = new Button(label, action).left();
         b.textSize = 9.2f;
-        buttons.add(b);
+        row(new float[] {1f}, b);
         return b;
+    }
+
+    /** One of several buttons sharing a line. */
+    private static Button segment(String label, Runnable action) {
+        Button b = new Button(label, action);
+        b.textSize = 8.2f;
+        return b;
+    }
+
+    private void row(float[] share, Button... line) {
+        rows.add(line);
+        shares.add(share);
+        buttons.addAll(List.of(line));
+    }
+
+    @Override
+    public void opened() {
+        super.opened();
+        handover.reset();
+    }
+
+    @Override
+    public void reshown() {
+        handover.back();
     }
 
     @Override
     protected void layout() {
-        float columnH = 30 + CARD_H + 10 + buttons.size() * ROW;
+        float columnH = 30 + CARD_H + 10 + rows.size() * ROW;
         k = Math.clamp(Math.min(height / (columnH + 30), width / 360f), 0.5f, 1f);
         float vw = width / k, vh = height / k;
         colW = Math.min(COLUMN, vw - 40 - STRIP);
@@ -84,18 +118,21 @@ public final class PauseMenuScreen extends AllerScreen {
     @Override
     protected void draw(Canvas c, float mx, float my) {
         float fade = fade(), open = openness();
+        float lv = handover.update(this);
+        Theme.veil(c, width, height, fade, 0.30f);
         // Darken towards the column so it has contrast over any scene.
-        c.rect(0, 0, width, height, 0, Colors.withAlpha(0xFF050409, 0.30f * fade));
-        c.gradientH(0, 0, width * 0.65f, height, 0, Colors.withAlpha(0xFF07060B, 0.75f * fade), 0x0007060B);
+        if (AllerClient.options().background.get() != dev.aller.ClientOptions.Background.NONE) {
+            c.gradientH(0, 0, width * 0.65f, height, 0, Colors.withAlpha(0xFF07060B, 0.75f * fade), 0x0007060B);
+        }
 
         c.push();
         c.scale(k, 0, 0);
         mx /= k;
         my /= k;
-        if (isClosing()) mx = -1000;
-        c.pushAlpha(fade);
+        if (isClosing() || handover.leaving()) mx = -1000;
+        c.pushAlpha(fade * (1 - lv));
         c.push();
-        c.translate(-18 * (1 - open), 0);
+        c.translate(-18 * (1 - open) - 14 * lv, 0);
 
         float y = topY;
         c.text(Fonts.BOLD, "Paused", leftX, y, 20, Theme.TEXT);
@@ -111,19 +148,24 @@ public final class PauseMenuScreen extends AllerScreen {
         y += CARD_H + 10;
 
         float buttonsTop = y;
-        for (int i = 0; i < buttons.size(); i++) {
+        for (int i = 0; i < rows.size(); i++) {
             float t = buttonIn.get(i).update();
-            Button b = buttons.get(i);
-            b.bounds(leftX - (1 - t) * 22, y, colW, BUTTON_H);
+            Button[] line = rows.get(i);
+            float room = colW - SEGMENT_GAP * (line.length - 1), bx = leftX - (1 - t) * 22;
             c.pushAlpha(t);
-            b.draw(c, mx, my);
+            for (int j = 0; j < line.length; j++) {
+                float bw = room * shares.get(i)[j];
+                line[j].bounds(bx, y, bw, BUTTON_H);
+                line[j].draw(c, mx, my);
+                bx += bw + SEGMENT_GAP;
+            }
             c.popAlpha();
             y += ROW;
         }
 
         // Icon strip, centred against the button stack.
         float stripH = icons.size() * ICON + (icons.size() - 1) * ICON_GAP;
-        float iy = buttonsTop + (buttons.size() * ROW - (ROW - BUTTON_H) - stripH) / 2;
+        float iy = buttonsTop + (rows.size() * ROW - (ROW - BUTTON_H) - stripH) / 2;
         for (int i = 0; i < icons.size(); i++) {
             float t = buttonIn.get(Math.min(i, buttonIn.size() - 1)).get();
             IconButton b = icons.get(i);
@@ -172,7 +214,7 @@ public final class PauseMenuScreen extends AllerScreen {
 
     @Override
     public boolean mouseDown(float x, float y, int button) {
-        if (isClosing()) return false;
+        if (isClosing() || handover.leaving()) return false;
         for (Button b : buttons) if (b.mouseDown(x / k, y / k, button)) return true;
         for (IconButton b : icons) if (b.mouseDown(x / k, y / k, button)) return true;
         return false;

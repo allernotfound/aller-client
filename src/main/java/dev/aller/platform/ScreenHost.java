@@ -37,20 +37,50 @@ public final class ScreenHost extends Screen {
 
     private void layout() {
         screen.resize(width / scale, height / scale);
-        AllerScreen under = screen.underlay();
-        if (under != null) under.resize(width / under.scale(), height / under.scale());
+        for (AllerScreen under = screen.underlay(); under != null; under = under.underlay()) {
+            under.resize(width / under.scale(), height / under.scale());
+        }
+        Screen vanilla = screen.vanillaUnderlay();
+        if (vanilla != null && (vanilla.width != width || vanilla.height != height)) Mc.resize(vanilla, width, height);
     }
 
-    private void background(Canvas c) {
+    /** Set if the menu underneath could not be drawn while it is not the current screen; it is left out from then on. */
+    private boolean vanillaFailed;
+
+    /** Draws a stack of underlays bottom-up: the menu a palette was opened from, then the palette. */
+    private static void drawUnder(Canvas c, AllerScreen under) {
+        AllerScreen deeper = under.underlay();
+        if (deeper != null) drawUnder(c, deeper);
+        c.beginScale(under.scale());
+        under.drawUnder(c);
+        c.endScale();
+    }
+
+    private void background(Canvas c, float delta) {
+        Screen vanilla = screen.vanillaUnderlay();
+        if (vanilla != null && !vanillaFailed) {
+            // The menu paints its own background and blur; blurring again in the same frame is not allowed.
+            try {
+                //? if <26.1 {
+                /*vanilla.renderWithTooltip(c.raw(), -1, -1, delta);
+                *///?} else {
+                vanilla.extractRenderStateWithTooltipAndSubtitles(c.raw(), -1, -1, delta);
+                //?}
+            } catch (RuntimeException e) {
+                vanillaFailed = true;
+                AllerClient.LOG.warn("Could not draw {} beneath an Aller screen", vanilla.getClass().getName(), e);
+            }
+            c.layer();
+            return;
+        }
         AllerScreen under = screen.underlay();
         if (under != null) {
-            c.beginScale(under.scale());
-            under.drawUnder(c);
-            c.endScale();
+            drawUnder(c, under);
             c.layer();
         }
         boolean something = under != null || minecraft.level != null;
-        if (something && screen.blurBehind() && AllerClient.options().blur.get() && minecraft.options.getMenuBackgroundBlurriness() >= 1) {
+        boolean wanted = AllerClient.options().background.get() == dev.aller.ClientOptions.Background.BLUR;
+        if (something && screen.blurBehind() && wanted && screen.blurAmount() > 0.05f && minecraft.options.getMenuBackgroundBlurriness() >= 1) {
             c.blurBehind();
         }
     }
@@ -70,6 +100,12 @@ public final class ScreenHost extends Screen {
             opened = true;
             screen.opened();
         }
+    }
+
+    @Override
+    public void added() {
+        super.added();
+        if (opened) screen.reshown();
     }
 
     @Override
@@ -93,6 +129,11 @@ public final class ScreenHost extends Screen {
     }
 
     @Override
+    public void onFilesDrop(java.util.List<java.nio.file.Path> files) {
+        screen.filesDropped(files);
+    }
+
+    @Override
     public boolean isPauseScreen() {
         return screen.pausesGame();
     }
@@ -101,7 +142,7 @@ public final class ScreenHost extends Screen {
     /*@Override
     public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
         if (screen.vanillaBackground()) super.renderBackground(g, mouseX, mouseY, delta);
-        else background(new Canvas(g));
+        else background(new Canvas(g), delta);
     }
 
     @Override
@@ -137,7 +178,7 @@ public final class ScreenHost extends Screen {
     @Override
     public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         if (screen.vanillaBackground()) super.extractBackground(g, mouseX, mouseY, delta);
-        else background(new Canvas(g));
+        else background(new Canvas(g), delta);
     }
 
     @Override

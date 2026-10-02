@@ -16,6 +16,10 @@ public abstract class Module extends Configurable {
     public String[] keywords = {};
     /** Set for features some servers restrict; the UI shows a badge and a one-time warning. */
     public String fairPlayNote;
+    /** Set for features that may not work everywhere yet; the UI shows a badge and warns when it is switched on. */
+    public String experimentalNote;
+    /** Set by a module that reads its key itself (the browser opens with it); the manager then leaves it alone. */
+    public boolean ownKey;
     private boolean enabled;
 
     protected Module(String id, String name, String description, Category category) {
@@ -33,6 +37,11 @@ public abstract class Module extends Configurable {
 
     protected Module restricted(String note) {
         fairPlayNote = note;
+        return this;
+    }
+
+    protected Module experimental(String note) {
+        experimentalNote = note;
         return this;
     }
 

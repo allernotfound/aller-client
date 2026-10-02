@@ -52,6 +52,13 @@ public final class Toasts {
         while (toasts.size() > 5) toasts.remove(0);
     }
 
+    private static float bottom;
+
+    /** How far down the screen the toasts reached when last drawn, for things that must keep out of their way. */
+    public static float bottom() {
+        return toasts.isEmpty() ? 0 : bottom;
+    }
+
     public static void draw(Canvas c) {
         if (dev.aller.ui.AllerScreen.drawingUnderlay) return;
         float slot = 8;
@@ -86,5 +93,6 @@ public final class Toasts {
             c.popAlpha();
             slot += (H + GAP) * Math.clamp(s, 0f, 1f);
         }
+        bottom = slot;
     }
 }

@@ -36,7 +36,8 @@ public final class IconButton extends Widget {
         tip.target(over ? 1 : 0).update();
         float r = Math.min(6, w * 0.3f);
         c.push();
-        c.scale(1f + 0.06f * hv - 0.08f * pr, x + w / 2, y + h / 2);
+        c.pixel(true);
+        if (!c.pixelated()) c.scale(1f + 0.06f * hv - 0.08f * pr, x + w / 2, y + h / 2);
         c.pushAlpha(enabled ? 1f : 0.4f);
         int tint = danger ? Theme.DANGER : Theme.accent();
         if (active) {
@@ -46,6 +47,7 @@ public final class IconButton extends Widget {
             c.rect(x, y, w, h, r, Colors.mix(Theme.RAISED, Colors.withAlpha(tint, 0.22f), hv));
             c.stroke(x, y, w, h, r, 1, Colors.mix(Theme.BORDER, Colors.withAlpha(tint, 0.6f), hv));
         }
+        c.pixel(false);
         int color = active ? Theme.onAccent() : Colors.mix(Theme.TEXT_DIM, danger ? Colors.lighten(Theme.DANGER, 0.3f) : Theme.TEXT, hv);
         icon.draw(c, x + w / 2, y + h / 2, Math.min(w, h) * 0.56f, color);
         c.popAlpha();

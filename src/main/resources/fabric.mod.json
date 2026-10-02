@@ -12,7 +12,7 @@
     "client": ["dev.aller.AllerClient"],
     "modmenu": ["dev.aller.compat.ModMenuCompat"]
   },
-  "mixins": ["aller.mixins.json"],
+  "mixins": ["aller.mixins.json", "aller.pocket.mixins.json"],
   "depends": {
     "fabricloader": ">=0.18.4",
     "minecraft": "${mc_dep}",

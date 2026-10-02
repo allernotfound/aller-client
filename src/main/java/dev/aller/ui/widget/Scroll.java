@@ -16,6 +16,10 @@ public final class Scroll {
     public float update(float contentHeight, float viewHeight) {
         max = Math.max(0, contentHeight - viewHeight);
         target = Math.clamp(target, 0, max);
+        if (snapNext) {
+            offset.snap(target);
+            snapNext = false;
+        }
         idle += dev.aller.ui.anim.Motion.delta();
         return offset.target(target).update();
     }
@@ -30,6 +34,24 @@ public final class Scroll {
         if (rowTop < target) target = rowTop;
         else if (rowTop + rowHeight > target + viewHeight) target = rowTop + rowHeight - viewHeight;
         idle = 0;
+    }
+
+    private boolean snapNext;
+
+    /** Moves content and view together, without animating, when rows are added or removed above the view. */
+    public void shift(float dy) {
+        target += dy;
+        offset.snap(offset.get() + dy);
+    }
+
+    /** Jumps to the bottom of the content as it is measured on the next {@link #update}. */
+    public void toEnd() {
+        target = Float.MAX_VALUE;
+        snapNext = true;
+    }
+
+    public boolean atEnd() {
+        return target >= max - 1;
     }
 
     public void reset() {

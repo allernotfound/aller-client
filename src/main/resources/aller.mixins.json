@@ -6,12 +6,19 @@
   "client": [
     "AbstractClientPlayerMixin",
     "CameraMixin",
+    "ChatComponentAccessor",
     "ChatComponentMixin",
+    "ClientPacketListenerMixin",
     "ConnectScreenAccessor",
     "ClientTimeMixin",
     "EntityMixin",
+    "FontMixin",
     "GameRendererMixin",
+    "GuiGraphicsMixin",
+    "GuiRenderStateMixin",
+    "GuiTextRenderStateAccessor",
     "HudMixin",
+    "IrisGuiMixin",
     "ItemInHandRendererMixin",
     "LevelLoadingScreenAccessor",
     "LevelMixin",
@@ -23,7 +30,10 @@
     "ProgressScreenAccessor",
     "ScreenEffectRendererMixin",
     "ScreenMixin",
-    "SetScreenMixin"
+    "SelectionListMixin",
+    "SetScreenMixin",
+    "SodiumWidgetMixin",
+    "UtilOsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

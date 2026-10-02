@@ -55,8 +55,13 @@ public final class AllerClient implements ClientModInitializer {
         CONFIG.load();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
-        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> CONFIG.save());
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            dev.aller.feature.Pocket.close(true);
+            CONFIG.save();
+            dev.aller.feature.Browser.shutdown();
+        });
         dev.aller.feature.Combat.init();
+        dev.aller.feature.Pocket.init();
         DevHarness.init();
         LOG.info("{} {} ready with {} modules", NAME, VERSION, MODULES.all().size());
     }
@@ -68,6 +73,7 @@ public final class AllerClient implements ClientModInitializer {
         dev.aller.feature.Combat.tick();
         dev.aller.feature.Session.tick();
         dev.aller.feature.AutoProfiles.tick();
+        dev.aller.feature.Pocket.tick();
         MODULES.tick();
         CONFIG.tick();
 

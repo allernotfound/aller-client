@@ -82,6 +82,29 @@ public final class Game {
         return server == null ? null : server.ip;
     }
 
+    /** Sends one chat line, or one command when it starts with a slash, exactly as typing it in chat would. */
+    public static void send(String message) {
+        var p = player();
+        if (p == null || message.isBlank()) return;
+        String text = message.strip();
+        if (text.startsWith("/")) p.connection.sendCommand(text.substring(1));
+        else p.connection.sendChat(text);
+    }
+
+    /** The world seed, known only in singleplayer (a server never sends it); otherwise null. */
+    public static Long seed() {
+        var server = Mc.mc().getSingleplayerServer();
+        return server == null ? null : server.overworld().getSeed();
+    }
+
+    /** The singleplayer world's name, or the server's name in the server list; null if neither is known. */
+    public static String worldName() {
+        var server = Mc.mc().getSingleplayerServer();
+        if (server != null) return server.getWorldData().getLevelName();
+        var data = Mc.mc().getCurrentServer();
+        return data == null ? null : data.name;
+    }
+
     /** A stable name for the current world or server, used to key per-world data such as waypoints. */
     public static String worldKey() {
         String address = serverAddress();
@@ -89,6 +112,15 @@ public final class Game {
         var server = Mc.mc().getSingleplayerServer();
         if (server != null) return "sp_" + server.getWorldData().getLevelName().replaceAll("[^A-Za-z0-9._-]", "_");
         return "unknown";
+    }
+
+    /** Black concrete, which the pocket dimension is built from. */
+    public static net.minecraft.world.level.block.state.BlockState blackConcrete() {
+        //? if <26.1 {
+        /*return net.minecraft.world.level.block.Blocks.BLACK_CONCRETE.defaultBlockState();
+        *///?} else {
+        return net.minecraft.world.level.block.Blocks.CONCRETE.pick(net.minecraft.world.item.DyeColor.BLACK).defaultBlockState();
+        //?}
     }
 
     /** "snake_case" -> "Snake Case". */

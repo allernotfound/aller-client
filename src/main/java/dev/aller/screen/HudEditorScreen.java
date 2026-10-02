@@ -50,6 +50,8 @@ public final class HudEditorScreen extends AllerScreen {
     private float grabX, grabY, dragX, dragY;
     private float guideX, guideY;
     private boolean drawerOpen, moved;
+    private HudModule lastClicked;
+    private long lastClick;
 
     public HudEditorScreen(Screen parent) {
         this.parent = parent;
@@ -130,8 +132,10 @@ public final class HudEditorScreen extends AllerScreen {
             float x = mx - grabX, y = my - grabY;
             if (Math.abs(x - dragX) > 0.5f || Math.abs(y - dragY) > 0.5f) moved = true;
             float[] snapped = snap(dragging, x, y);
-            dragX = Math.clamp(snapped[0], 0, Math.max(0, width - dragging.scaledW()));
-            dragY = Math.clamp(snapped[1], 0, Math.max(0, height - dragging.scaledH()));
+            // Nothing sits right against the edge of the screen.
+            float edge = HudModule.EDGE;
+            dragX = Math.clamp(snapped[0], edge, Math.max(edge, width - dragging.scaledW() - edge));
+            dragY = Math.clamp(snapped[1], edge, Math.max(edge, height - dragging.scaledH() - edge));
             float gx = guideXAlpha.update(), gy = guideYAlpha.update();
             // Guides span just the things being lined up, so it is clear what the element snapped to.
             if (gx > 0.02f) c.rect(guideX - 0.5f, guideFromY - 4, 1, guideToY - guideFromY + 8, 0, Colors.withAlpha(Theme.accent(), 0.9f * gx));
@@ -150,7 +154,7 @@ public final class HudEditorScreen extends AllerScreen {
                 ? "Snaps to edges and neighbours  ·  hold Shift to place freely"
                 : selected != null
                 ? selected.name + "  ·  arrows nudge  ·  R resets  ·  Del removes"
-                : "Drag to move  ·  scroll to resize  ·  right-click for settings";
+                : "Drag to move  ·  scroll to resize  ·  right-click for background  ·  double-click for settings";
         float hw = Fonts.MEDIUM.width(hint, 7.5f) + 20;
         float hy = height - 58 + (1 - openness()) * 30;
         c.rect((width - hw) / 2, hy, hw, 17, 8.5f, 0xD2100E18);
@@ -334,8 +338,19 @@ public final class HudEditorScreen extends AllerScreen {
         selected = hit;
         if (hit == null) return true;
         if (button == 1) {
-            Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen(), hit)));
+            // The bubble behind the element, on or off.
+            hit.background.toggle();
+            Sounds.toggle(hit.background.get());
+            AllerClient.config().markDirty();
         } else if (button == 0) {
+            long now = System.currentTimeMillis();
+            boolean twice = hit == lastClicked && now - lastClick < 350;
+            lastClicked = hit;
+            lastClick = now;
+            if (twice) {
+                Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen(), hit)));
+                return true;
+            }
             dragging = hit;
             dragX = hit.x(width);
             dragY = hit.y(height);

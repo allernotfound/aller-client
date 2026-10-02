@@ -105,6 +105,35 @@ public final class UtilityMods {
         }
     }
 
+    /** The web browser. Its key opens the window rather than switching the mod on and off; see {@code feature/Browser}. */
+    public static final class WebBrowser extends Module {
+        public final Settings.Choice<dev.aller.feature.Browser.Engine> engine = choice("engine", "Search engine", dev.aller.feature.Browser.Engine.GOOGLE)
+                .describe("Where the address bar and the start page search");
+        public final Settings.Bool chatLinks = bool("chat_links", "Open chat links here", true)
+                .describe("Links clicked in chat open in this browser instead of your system one");
+        public final Settings.Bool restore = bool("restore_tabs", "Reopen tabs from last time", true);
+        public final Settings.Bool background = bool("background_audio", "Keep playing when closed", true)
+                .describe("Music and videos carry on while you play. Off silences every page when the browser is shut");
+
+        public WebBrowser() {
+            super("browser", "Web browser", "Tabs, bookmarks and search in a panel over the game, using the system's own web engine", Category.UTILITY);
+            keywords("internet", "web", "google", "wiki", "tabs", "bookmarks", "search", "incognito", "private");
+            onByDefault();
+            ownKey = true;
+            keybind.chord();
+            keybind.describe("Opens and closes the browser. With Ctrl or Alt in it, it works on menus too");
+            // Not Ctrl+B: that is Minecraft's narrator key, which cannot be rebound.
+            bind(Settings.Key.pack(GLFW.GLFW_KEY_B, GLFW.GLFW_MOD_ALT));
+        }
+
+        @Override
+        public void load(com.google.gson.JsonObject o) {
+            super.load(o);
+            // Profiles saved while the default was still Ctrl+B move to the new one.
+            if (keybind.get() == Settings.Key.pack(GLFW.GLFW_KEY_B, GLFW.GLFW_MOD_CONTROL)) keybind.reset();
+        }
+    }
+
     public static final class ReplayMod extends Module {
         public final Settings.Key saveKey = key("save_key", "Save clip", GLFW.GLFW_KEY_F8);
         public final Settings.Num seconds = num("seconds", "Clip length", 30f, 10f, 90f, 5f).suffix("s");

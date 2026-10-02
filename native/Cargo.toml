@@ -1,0 +1,32 @@
+[package]
+name = "aller_webview"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Aller Client's bridge to the system webview (WebView2 through wry), loaded over JNI"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+jni = "0.21"
+
+[target.'cfg(windows)'.dependencies]
+wry = { version = "0.53", default-features = false, features = ["os-webview"] }
+# The same versions wry itself uses, so the COM types are shared.
+webview2-com = "0.38"
+raw-window-handle = "0.6"
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
