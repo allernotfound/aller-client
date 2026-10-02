@@ -52,32 +52,6 @@ Optional but recommended: [Sodium](https://modrinth.com/mod/sodium) for performa
 
 ---
 
-## Your first launch
-
-The first time you start the game, Aller Client plays a short intro and walks you through setup.
-
-**The intro** is a 3D flight: a point of light, a winding tunnel of shaded panels that bends with your
-mouse, out over a dark floor of monoliths towards a **black hole**. The camera swings round it while
-a disc of lit, tumbling shards spirals in to the beat. Then it stops and waits for you: **mash any key
-or click** to crack the eclipse open. The shards collapse into the Aller Client wordmark, which glides
-up into the header, and setup begins.
-
-Everything starts out grey. Setup then asks you, one step at a time:
-
-1. **Accent colour.** The colour used for every highlight, toggle and slider in the client.
-2. **Look.** *Smooth* (Inter, rounded corners) or *Pixel* (Minecraft's font, stepped corners). Pick
-   one and colour washes out across the screen from the card you chose.
-3. **The palette key** (Right Shift). You press it for real; the palette opens; you come back.
-4. **The launcher key** (Ctrl+K). Same again, so you know it works. Either key can be rebound right there.
-5. **The HUD,** and how to move it.
-6. **Starter mods,** a sensible set switched on for you.
-7. **Fair play,** what the restricted badge means.
-
-Want to see it again? Open the launcher and type `onboarding` ("Replay onboarding"). On a replay you
-can hold Escape to skip.
-
----
-
 ## The two keys to know
 
 | Key | Opens | What it is for |
