@@ -95,6 +95,10 @@ if (providers.gradleProperty("aller.skin").isPresent) {
 if (providers.gradleProperty("aller.store").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.store=true") }
 }
+// Runs the harness's onboarding script: moments of the intro, then each step.
+if (providers.gradleProperty("aller.onboarding").isPresent) {
+    loom.runs.named("client") { vmArg("-Daller.dev.onboarding=true") }
+}
 if (providers.gradleProperty("aller.noWorld").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.noWorld=true") }
 }

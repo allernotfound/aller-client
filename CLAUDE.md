@@ -52,6 +52,10 @@ minute.
   project's page, gallery and versions, a real download (deleted again), the installed list and the
   pack list with the download pinned, then the same in short for shader packs when Iris is loaded
   (`store-*`, `STORE` lines in the log). Needs the network.
+- `-Paller.onboarding` runs the onboarding script instead: the intro once at speed (its frame rate is
+  logged as an `ONBOARDING` line), then stills of its moments and of every step (`onboarding-*`),
+  driven by `OnboardingScreen.dev`. So the intro is seen twice in the window, the second time silent
+  and in jumps. The accent, font and corners it changes are put back.
 - `-Paller.bench` measures average FPS in the test world with Aller idle, at defaults and with
   heavier module sets, and logs `BENCH` lines (`-Paller.bench=each` also times every non-HUD mod
   alone). It runs windowed: a fullscreen window that loses focus is minimised and vanilla then caps
@@ -104,7 +108,8 @@ command/           the launcher's model: Command, Step (Num/Text/Pick), Commands
 screen/            MainMenuScreen, PaletteScreen (+ palette/* pages), LauncherScreen, HudEditorScreen,
                    PauseMenuScreen, ChatHistoryScreen, WardrobeScreen, BrowserScreen, Screens (which vanilla screens get replaced),
                    Splash (startup overlay), LoadingSkin (paints over vanilla loading screens),
-                   MenuSkin (restyles the vanilla and other mods' menus in place)
+                   MenuSkin (restyles the vanilla and other mods' menus in place),
+                   OnboardingScreen (+ onboarding/Intro), the first run
 feature/store/     Kind, Modrinth (the API), Store (pages, installed files, downloads), Images, Text
 ui/doc/            Doc (Markdown and HTML to blocks) and DocView (lays them out and draws them)
 screen/store/      StoreScreen (+ BrowsePane, DetailPane, InstalledPane), PackListExtras
@@ -215,6 +220,34 @@ To restyle another vanilla piece, add its sprite id to `MenuSkin.sprite`.
   through `VanillaText`, and plain fills by redrawing them through the canvas. Items and entity
   models are not faded. `Screens.replace` starts it for every menu (`MenuKind.of` not null), restyled
   or not; between two Minecraft menus it is the quicker, smaller version.
+
+### Onboarding
+
+`OnboardingScreen` takes the title screen's place (`Screens.choose`) until `client.json` has
+`extras.onboarded`, never during a harness run, and "Replay onboarding" in the launcher or the
+palette search runs it again. Stages, forward only: INTRO, HELLO, ACCENT, THEME, PALETTE, LAUNCHER,
+HUD, MODS, FAIR, DONE. Holding Escape for a second ends it from HELLO on; the intro cannot be skipped.
+
+- `onboarding/Intro` is ten seconds as a function of one clock (`seek` jumps anywhere): a point of
+  light, a tunnel of polygon outlines, a tilted disc of shards that tightens on a row of beats, the
+  collapse of the small shards into the letters (their places are sampled from Inter Bold's distance
+  field), the hit, and the glide of the wordmark up into the header. Its sounds are Minecraft's own,
+  listed with their times in `CUES` and played by `Sounds.cue(id, pitch, volume)`.
+- It is grey until a look is chosen. `Canvas.grade(saturation, dim)` drains every colour handed to
+  the canvas (a vertex at a time; pictures and items are not touched) until `Canvas.ungrade()`, and
+  `c.wave(x, y, radius, soft)` keeps the colour inside a circle. The wave from the chosen card is
+  that circle growing; the backdrop is drawn in tiles while it crosses so the front shows on it too.
+  The swatches, the full stop of the wordmark and the ember under it are drawn ungraded.
+- `Theme.look` overrides the font and corner options while something is drawn (`Fonts.vanilla`,
+  `Canvas.pixelated`, `pixelIcons`): onboarding is smooth until the choice whatever the options
+  say, the two cards preview one look each, and during the wave each piece takes the chosen look
+  once the front has passed it (`look(x, y)`), with a jolt (`kick`).
+- Pixel sets the font to Minecraft and "Pixelated corners" to everything; Smooth sets Inter and off.
+- The key steps use the real thing: the palette key is read in the step and opens `PaletteScreen`
+  over it; the launcher's own polling opens the launcher (`capturing()` is true on every other
+  stage, which is what keeps it shut there). Coming back (`reshown`) is the pass. Each can be
+  rebound in place or skipped.
+- Starter mods are the ids in `STARTERS`, switched with `setEnabled` (no toasts, no warning).
 
 ### Essential
 
@@ -562,6 +595,14 @@ filters, sorting, endless scrolling, links, updates and "Update all", switching 
 a pack that is switched on, deleting, a failed or slow connection, a non-Latin description, tables,
 and the store opened from a world. The GUI-scale lock on Aller's menus compiles on both versions
 and has not been run at any scale.
+
+Onboarding is checked through `-Paller.onboarding` on both versions (stills of the intro and every
+step, the wave part way, both looks; the intro ran at about 127 fps on 26.2 with Sodium and Iris
+loaded, captures included). Untried by hand: the first launch itself (the start held behind the
+loading screen, the hand-over to the main menu), how the intro and its sounds feel at speed, every
+click, the custom colour bars, the real key presses and what comes back from the palette and the
+launcher, rebinding, hold Escape, a narrow or small window, reduce motion, and a replay from inside
+a world.
 
 Not built yet: README, more novel features (quick wheel, notes).
 

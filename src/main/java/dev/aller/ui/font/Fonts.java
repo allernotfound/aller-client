@@ -20,6 +20,7 @@ public enum Fonts {
 
     /** Whether text is set in Minecraft's own font rather than Inter (the "Font" option). */
     public static boolean vanilla() {
+        if (dev.aller.ui.Theme.look != null) return dev.aller.ui.Theme.look == dev.aller.ui.Theme.Look.PIXEL && Mc.fontReady();
         return AllerClient.options().typeface.get() == dev.aller.ClientOptions.Typeface.MINECRAFT && Mc.fontReady();
     }
 

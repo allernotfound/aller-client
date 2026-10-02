@@ -19,6 +19,7 @@ import dev.aller.platform.Mc;
 import dev.aller.platform.Nav;
 import dev.aller.platform.ScreenHost;
 import dev.aller.screen.HudEditorScreen;
+import dev.aller.screen.OnboardingScreen;
 import dev.aller.screen.PaletteScreen;
 import dev.aller.screen.WardrobeScreen;
 import dev.aller.screen.ChatHistoryScreen;
@@ -145,6 +146,9 @@ public final class Commands {
                 .keywords("find messages log regex past").suggest(true, false).hidePalette().after()
                 .run(parent -> Mc.setScreen(new ScreenHost(new ChatHistoryScreen(parent)))));
 
+        c.add(new Command("go.onboarding", "Replay onboarding", Group.NAVIGATE).detail("The intro and the first-run setup, from the start")
+                .keywords("welcome tutorial intro setup first run tour guide animation").after()
+                .run(parent -> Mc.setScreen(new ScreenHost(new OnboardingScreen(parent)))));
         c.add(new Command("go.wardrobe", "Skin wardrobe", Group.NAVIGATE).detail("Change skin, arm width, and see the skins you wore before")
                 .keywords("skins upload slim classic alex steve outfit history namemc").suggest(false, true).hidePalette().after()
                 .run(parent -> Mc.setScreen(new ScreenHost(new WardrobeScreen(parent)))));

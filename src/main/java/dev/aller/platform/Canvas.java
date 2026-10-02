@@ -156,6 +156,11 @@ public final class Canvas {
         g.pose().translate(pivotX, pivotY).scale(factor, factor).translate(-pivotX, -pivotY);
     }
 
+    /** Scales each axis by its own factor around a pivot: a circle drawn after this is an ellipse. */
+    public void stretch(float fx, float fy, float pivotX, float pivotY) {
+        g.pose().translate(pivotX, pivotY).scale(fx, fy).translate(-pivotX, -pivotY);
+    }
+
     /** Rotates clockwise by {@code radians} around a pivot. */
     public void rotate(float radians, float pivotX, float pivotY) {
         g.pose().translate(pivotX, pivotY).rotate(radians).translate(-pivotX, -pivotY);
@@ -204,8 +209,67 @@ public final class Canvas {
 
     /** Whether rounded shapes drawn now come out pixelated. */
     public boolean pixelated() {
+        if (dev.aller.ui.Theme.look != null) return dev.aller.ui.Theme.look == dev.aller.ui.Theme.Look.PIXEL;
         var mode = dev.aller.AllerClient.options().pixelate.get();
         return mode == dev.aller.ClientOptions.Pixelate.EVERYTHING || chunky && mode == dev.aller.ClientOptions.Pixelate.BUTTONS;
+    }
+
+    // ---- grading -------------------------------------------------------------------------------
+
+    private static float gradeSat = 1f, gradeDim = 1f;
+    private static float waveX, waveY, waveR = -1, waveSoft = 1;
+
+    /**
+     * Drains the colour from everything drawn until {@link #ungrade()}: shapes, text, icons and the
+     * backdrop (not pictures or items). It is done to the colours handed in, a vertex at a time.
+     *
+     * @param saturation 0 for greys, 1 for no change
+     * @param dim        brightness kept by what has lost its colour, 0 to 1
+     */
+    public static void grade(float saturation, float dim) {
+        gradeSat = Math.clamp(saturation, 0f, 1f);
+        gradeDim = dim;
+        waveR = -1;
+    }
+
+    /** While grading: everything within {@code radius} of a point keeps its colour, easing out over {@code soft}. */
+    public void wave(float cx, float cy, float radius, float soft) {
+        Matrix3x2fStack m = g.pose();
+        float zoom = (float) Math.sqrt(m.m00() * m.m00() + m.m01() * m.m01());
+        waveX = m.m00() * cx + m.m10() * cy + m.m20();
+        waveY = m.m01() * cx + m.m11() * cy + m.m21();
+        waveR = radius * zoom;
+        waveSoft = Math.max(1f, soft * zoom);
+    }
+
+    public static void ungrade() {
+        gradeSat = 1f;
+        waveR = -1;
+    }
+
+    public static boolean grading() {
+        return gradeSat < 1f;
+    }
+
+    /** A colour as it comes out at a place on screen (GUI pixels) under the grading in force. */
+    private static int graded(int color, float x, float y) {
+        if (gradeSat >= 1f) return color;
+        float keep = gradeSat;
+        if (waveR >= 0) {
+            float d = (float) Math.sqrt((x - waveX) * (x - waveX) + (y - waveY) * (y - waveY));
+            keep += (1 - keep) * Math.clamp((waveR - d) / waveSoft, 0f, 1f);
+        }
+        if (keep >= 1f) return color;
+        int grey = Math.round(Colors.luminance(color) * 255 * gradeDim);
+        return Colors.mix((color & 0xFF000000) | grey << 16 | grey << 8 | grey, color, keep);
+    }
+
+    /** One colour per vertex of a mesh under grading, or the single colour when there is none. */
+    private static int[] graded(int color, float[] verts) {
+        if (gradeSat >= 1f) return new int[] {color};
+        int[] out = new int[verts.length / 4];
+        for (int i = 0; i < out.length; i++) out[i] = graded(color, verts[i * 4], verts[i * 4 + 1]);
+        return out;
     }
 
     // ---- shapes --------------------------------------------------------------------------------
@@ -310,6 +374,7 @@ public final class Canvas {
             v[i * 4 + 1] = ty;
             v[i * 4 + 2] = lx;
             v[i * 4 + 3] = ly;
+            colors[i] = graded(colors[i], tx, ty);
             minX = Math.min(minX, tx);
             minY = Math.min(minY, ty);
             maxX = Math.max(maxX, tx);
@@ -377,7 +442,7 @@ public final class Canvas {
         if (n > 0) {
             float[] verts = n == v.length ? v : java.util.Arrays.copyOf(v, n);
             submit(new Mesh(Pipelines.TEXT, font.texture().setup(), g.scissorStack.peek(), bounds(minX, minY, maxX, maxY),
-                    verts, new int[] {c}, 0, 0, 0, 0, 0f, 0f, 0f));
+                    verts, graded(c, verts), 0, 0, 0, 0, 0f, 0f, 0f));
         }
         return pen * s;
     }
@@ -396,6 +461,7 @@ public final class Canvas {
             x = (Math.round((m.m00() * x + m.m20()) * px) / px - m.m20()) / m.m00();
             y = (Math.round((m.m11() * y + m.m21()) * px) / px - m.m21()) / m.m11();
         }
+        c = graded(c, m.m00() * x + m.m10() * y + m.m20(), m.m01() * x + m.m11() * y + m.m21());
         // Vanilla treats a nearly transparent colour as opaque, so leave those out.
         if (c >>> 24 >= 4) {
             g.pose().pushMatrix();
@@ -444,6 +510,7 @@ public final class Canvas {
 
     /** Whether icons come out as 24 by 24 pixel art: whenever "Pixelated corners" is on at all. */
     public static boolean pixelIcons() {
+        if (dev.aller.ui.Theme.look != null) return dev.aller.ui.Theme.look == dev.aller.ui.Theme.Look.PIXEL;
         return dev.aller.AllerClient.options().pixelate.get() != dev.aller.ClientOptions.Pixelate.OFF;
     }
 
@@ -487,7 +554,7 @@ public final class Canvas {
             maxY = Math.max(maxY, ty);
         }
         submit(new Mesh(Pipelines.TEXT, dev.aller.ui.Icons.texture(chunky).setup(), g.scissorStack.peek(), bounds(minX, minY, maxX, maxY),
-                v, new int[] {c}, 0, 0, 0, 0, 0f, 0f, 0f));
+                v, graded(c, v), 0, 0, 0, 0, 0f, 0f, 0f));
     }
 
     // ---- pictures ------------------------------------------------------------------------------
@@ -550,7 +617,7 @@ public final class Canvas {
         int cs = (int) (seconds * 100) & 0x3FFFFFFF;
         int color = Colors.withAlpha(accent, intensity * alpha);
         submit(new Mesh(Pipelines.BACKDROP, TextureSetup.noTexture(), g.scissorStack.peek(), bounds(x, y, x + w, y + h),
-                v, new int[] {color}, cs & 0x7FFF, cs >> 15, Math.max(4, Math.round(cellGuiPx * sc)), 0, 0f, 0f, 0f));
+                v, graded(color, v), cs & 0x7FFF, cs >> 15, Math.max(4, Math.round(cellGuiPx * sc)), 0, 0f, 0f, 0f));
     }
 
     /** A plain vanilla rectangle; usable before Aller's shaders have loaded (startup overlay). */

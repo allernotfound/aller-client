@@ -30,6 +30,15 @@ public final class Theme {
     public static final float R_MD = 8f;
     public static final float R_LG = 12f;
 
+    /** The two looks the font and corner options add up to. */
+    public enum Look { SMOOTH, PIXEL }
+
+    /**
+     * Set while something is drawn in a look other than the one chosen in the options (onboarding,
+     * before the player has picked one, and its previews of each); null to follow the options.
+     */
+    public static Look look;
+
     public static int accent() {
         return AllerClient.options().accent.get() | 0xFF000000;
     }

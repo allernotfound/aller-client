@@ -25,15 +25,14 @@ public final class Screens {
     private static Screen choose(Screen screen) {
         if (passThrough) return screen;
         var opt = AllerClient.options();
+        // Vanilla falls back to the title screen when asked to show "nothing" outside a world.
+        boolean title = screen instanceof TitleScreen || screen == null && Mc.mc().level == null;
+        if (title && OnboardingScreen.due()) return new ScreenHost(new OnboardingScreen(null));
         if (opt.customPauseMenu.get() && screen instanceof PauseScreen pause && pause.showsPauseMenu()) {
             return new ScreenHost(new PauseMenuScreen());
         }
         if (opt.customMainMenu.get()) {
-            // Vanilla falls back to the title screen when asked to show "nothing" outside a world.
-            boolean impliedTitle = screen == null && Mc.mc().level == null;
-            if (impliedTitle || screen instanceof TitleScreen) {
-                return new ScreenHost(new MainMenuScreen());
-            }
+            if (title) return new ScreenHost(new MainMenuScreen());
         }
         return screen;
     }

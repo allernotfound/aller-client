@@ -63,6 +63,10 @@ public final class DevHarness {
             store();
             return;
         }
+        if (Boolean.getBoolean("aller.dev.onboarding")) {
+            onboarding();
+            return;
+        }
 
         until(Mc::loadingOverlay);
         shot(0.7f, "splash");
@@ -615,6 +619,70 @@ public final class DevHarness {
     }
 
     /**
+     * Onboarding ({@code -Paller.onboarding}): stills from through the intro, then every step, with
+     * the colour wave caught part way for each look. What it changes (accent, font, corners) is put back.
+     */
+    private static void onboarding() {
+        var o = AllerClient.options();
+        Object[] was = new Object[3];
+        until(() -> Mc.current() instanceof MainMenuScreen && !Mc.loadingOverlay());
+        run(1.0f, () -> {
+            was[0] = o.accent.get();
+            was[1] = o.typeface.get();
+            was[2] = o.pixelate.get();
+            home = Mc.screen();
+            introFrames = benchFrames;
+            introStart = System.nanoTime();
+            Mc.setScreen(new ScreenHost(new dev.aller.screen.OnboardingScreen(home)));
+        });
+        // The intro once at speed, for the log and the frame rate, then stills of its moments.
+        shot(1.2f, "onboarding-intro-live-1");
+        shot(1.6f, "onboarding-intro-live-3");
+        shot(2.6f, "onboarding-intro-live-5");
+        shot(1.9f, "onboarding-intro-live-7");
+        shot(0.55f, "onboarding-intro-live-8");
+        run(0.05f, () -> AllerClient.LOG.info("ONBOARDING intro ran at {} fps", Math.round((benchFrames - introFrames) / ((System.nanoTime() - introStart) / 1e9))));
+        String[] moments = {"1.2", "1.75", "2.6", "3.8", "4.8", "5.9", "6.9", "7.4", "7.72", "7.9", "8.6", "9.9"};
+        for (String at : moments) {
+            run(0.05f, () -> dev.aller.screen.OnboardingScreen.dev("intro:" + at));
+            shot(0.1f, "onboarding-intro-" + at.replace('.', '_'));
+        }
+        run(0.05f, () -> dev.aller.screen.OnboardingScreen.dev("hello"));
+        shot(2.6f, "onboarding-hello");
+        run(0.05f, () -> dev.aller.screen.OnboardingScreen.dev("accent"));
+        shot(1.4f, "onboarding-accent");
+        run(0.05f, () -> dev.aller.screen.OnboardingScreen.dev("accent:pick"));
+        shot(0.6f, "onboarding-accent-picked");
+        run(0.05f, () -> dev.aller.screen.OnboardingScreen.dev("theme"));
+        shot(1.4f, "onboarding-theme");
+        run(0.05f, () -> dev.aller.screen.OnboardingScreen.dev("pixel"));
+        shot(0.3f, "onboarding-wave-1");
+        shot(0.25f, "onboarding-wave-2");
+        shot(0.3f, "onboarding-wave-3");
+        shot(1.6f, "onboarding-theme-pixel");
+        run(0.05f, () -> dev.aller.screen.OnboardingScreen.dev("smooth"));
+        shot(0.8f, "onboarding-theme-smooth");
+        for (String step : new String[] {"palette", "launcher", "hud", "mods", "fair"}) {
+            run(0.05f, () -> dev.aller.screen.OnboardingScreen.dev(step));
+            shot(1.6f, "onboarding-" + step);
+            if (step.equals("palette")) {
+                run(0.05f, () -> dev.aller.screen.OnboardingScreen.dev("pass"));
+                shot(0.5f, "onboarding-palette-passed");
+            }
+        }
+        run(0.05f, () -> dev.aller.screen.OnboardingScreen.dev("done"));
+        shot(0.7f, "onboarding-done-burst");
+        shot(1.6f, "onboarding-done");
+        run(0.2f, () -> {
+            o.accent.set((Integer) was[0]);
+            o.typeface.set((dev.aller.ClientOptions.Typeface) was[1]);
+            o.pixelate.set((dev.aller.ClientOptions.Pixelate) was[2]);
+            AllerClient.config().save();
+        });
+        run(0.5f, () -> Mc.mc().stop());
+    }
+
+    /**
      * The pack store ({@code -Paller.store}): the button on the pack list, then a search, a project's
      * page with its gallery and versions, a download, the installed list, and the pack list again
      * with the download pinned and marked. It needs the network; what it downloads is deleted again.
@@ -745,6 +813,7 @@ public final class DevHarness {
     }
 
     private static net.minecraft.client.gui.screens.Screen home;
+    private static long introFrames, introStart;
     private static float harnessClickY;
 
     /** Opens a menu from the main menu (which it returns to on back) and captures it. */

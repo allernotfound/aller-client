@@ -15,9 +15,18 @@ public final class Ids {
     /*public static ResourceLocation of(String path) {
         return ResourceLocation.fromNamespaceAndPath(AllerClient.ID, path);
     }
+
+    public static ResourceLocation vanilla(String path) {
+        return ResourceLocation.withDefaultNamespace(path);
+    }
     *///?} else {
     public static Identifier of(String path) {
         return Identifier.fromNamespaceAndPath(AllerClient.ID, path);
+    }
+
+    /** One of Minecraft's own ids ("block.beacon.activate"). */
+    public static Identifier vanilla(String path) {
+        return Identifier.withDefaultNamespace(path);
     }
     //?}
 }
