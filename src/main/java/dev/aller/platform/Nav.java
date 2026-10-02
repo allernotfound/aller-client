@@ -105,6 +105,28 @@ public final class Nav {
         //?}
     }
 
+    /** Whether {@link #rejoin} applies: on a multiplayer server that can be joined again by its address. */
+    public static boolean canRejoin() {
+        var mc = Mc.mc();
+        var server = mc.getCurrentServer();
+        return mc.level != null && server != null && !mc.isLocalServer() && !server.isRealm()
+                && !dev.aller.feature.Pocket.inside() && !mc.getReportingContext().hasDraftReport();
+    }
+
+    /** Leaves the server and connects to it again, as a fresh join. */
+    public static void rejoin() {
+        var mc = Mc.mc();
+        var server = mc.getCurrentServer();
+        if (server == null) return;
+        //? if <26.1 {
+        /*PauseScreen.disconnectFromWorld(mc, ClientLevel.DEFAULT_QUIT_MESSAGE);
+        *///?} else {
+        mc.disconnectFromWorld(ClientLevel.DEFAULT_QUIT_MESSAGE);
+        //?}
+        net.minecraft.client.gui.screens.ConnectScreen.startConnecting(new JoinMultiplayerScreen(new net.minecraft.client.gui.screens.TitleScreen()),
+                mc, net.minecraft.client.multiplayer.resolver.ServerAddress.parseString(server.ip), server, false, null);
+    }
+
     // The options sub-screens, for jumping straight to one from the launcher.
 
     public static void video(Screen parent) {

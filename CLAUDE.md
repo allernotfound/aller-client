@@ -293,8 +293,9 @@ Message text there is drawn with `Canvas.vanillaText`, since chat is full of gly
 
 ### Wardrobe
 
-`WardrobeScreen` (the hanger button on the main menu's profile card, or "Skin wardrobe" in the
-launcher) shows one skin on a player model beside a grid of tiles. `feature/Wardrobe` holds the data:
+`WardrobeScreen` (the shirt button on the profile card of the main menu and the pause menu, or
+"Skin wardrobe" in the launcher) is a full page like the pack store, not a panel: one skin on a
+player model beside a grid of tiles. `feature/Wardrobe` holds the data:
 
 - The library is the PNG files in `<game dir>/aller-skins` (added by the file picker, by dropping a
   file on the window through `AllerScreen.filesDropped`, or by copying a player's skin by name).
@@ -311,7 +312,10 @@ launcher) shows one skin on a player model beside a grid of tiles. `feature/Ward
 - `platform/SkinTex` draws a skin: `model` goes through vanilla's GUI skin renderer, which holds one
   picture per frame, so only one 3D model may be drawn a frame and it cannot fade; tiles use `flat`.
 - After a change `Skins.wear` overrides the local player's skin for the session (the game only
-  fetches its own at startup); other players see it after a rejoin.
+  fetches its own at startup); other players see it after a rejoin. So on a multiplayer server
+  (`Nav.canRejoin`: not a Realm, not in the pocket) the wardrobe then asks "Rejoin now" or "Later";
+  `Nav.rejoin` disconnects and connects straight back. The model shrinks away while the question
+  is up, since nothing can be drawn over it.
 
 ### Browser
 
@@ -516,8 +520,10 @@ real Ctrl+K press, rebinding the chord, mouse use, pins, custom actions being se
 or opening a world from it, and its look over Sodium, Iris and Mod Menu screens are untried.
 
 The wardrobe is checked through the harness on an offline dev account (model, tiles, laby.net
-history for another account). Untried: wearing a skin with a real sign-in, the file picker,
-dropping a file, copying by player name, and the changed skin showing in a world.
+history for another account; as a full page over the main menu and over a world, and the rejoin
+question drawn by `WardrobeScreen.dev("ask")`, on 26.2 only). Untried: wearing a skin with a real
+sign-in, the file picker, dropping a file, copying by player name, the changed skin showing in a
+world, and the rejoin itself on a real server (it has never run).
 
 The chat mods are checked through the harness with made-up lines in singleplayer (mention, private
 message, repeats, own line, the history screen and the formats page). Untried: a real server's

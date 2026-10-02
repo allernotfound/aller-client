@@ -145,6 +145,10 @@ public final class DevHarness {
             key(GLFW.GLFW_KEY_TAB);
         });
         shot(1.5f, "wardrobe-picked");
+        run(0.1f, () -> {
+            if (Mc.current() instanceof dev.aller.screen.WardrobeScreen w) w.dev("ask");
+        });
+        shot(0.8f, "wardrobe-rejoin");
         run(0.1f, () -> Mc.setScreen(home));
 
         // The browser. A live page is a native window the capture cannot see, so the page is
@@ -377,6 +381,13 @@ public final class DevHarness {
                 Mc.mc().pauseGame(false);
             });
             shot(1.2f, "pause");
+            run(0.1f, () -> Mc.setScreen(new ScreenHost(new dev.aller.screen.WardrobeScreen(Mc.screen()))));
+            shot(2.0f, "wardrobe-world");
+            run(0.1f, () -> {
+                AllerScreen s = Mc.current();
+                if (s != null) s.close();
+            });
+            until(() -> Mc.current() instanceof dev.aller.screen.PauseMenuScreen, 5);
             run(0.1f, () -> dev.aller.platform.Nav.options(Mc.screen()));
             shot(1.0f, "vanilla-options-world");
             run(0.1f, () -> {

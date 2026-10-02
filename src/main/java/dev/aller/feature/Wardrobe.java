@@ -91,6 +91,7 @@ public final class Wardrobe {
     private static final Map<String, SkinTex> textures = new HashMap<>();
     private static Outfit current;
     private static Outfit fresh;
+    private static boolean changed;
     private static Lookup lookup = Lookup.IDLE;
     private static String busy;
     private static boolean offline;
@@ -134,6 +135,13 @@ public final class Wardrobe {
         Outfit o = fresh;
         fresh = null;
         return o;
+    }
+
+    /** True once after a skin change went through, for the wardrobe to offer a rejoin. */
+    public static boolean takeChanged() {
+        boolean was = changed;
+        changed = false;
+        return was;
     }
 
     public static boolean wearing(Outfit o) {
@@ -468,6 +476,7 @@ public final class Wardrobe {
                 o.slim = slim;
                 rememberArms(o.hash, slim);
                 Skins.wear(o.tex, slim);
+                changed = true;
                 Toasts.info("Skin changed", Mc.mc().level != null ? "Others see it once you rejoin." : "It is on for your next world or server.");
             });
         });

@@ -7,7 +7,6 @@ import dev.aller.feature.Wardrobe.Source;
 import dev.aller.platform.Canvas;
 import dev.aller.platform.Mc;
 import dev.aller.platform.Nav;
-import dev.aller.platform.ScreenHost;
 import dev.aller.platform.SkinTex;
 import dev.aller.platform.Sounds;
 import dev.aller.ui.AllerScreen;
@@ -37,10 +36,11 @@ import java.util.Map;
 /**
  * The skin wardrobe: the chosen skin on a player model that can be turned, beside a grid of the
  * skins in the library and the ones worn before. Picking a tile only tries it on; nothing is sent
- * to Minecraft services until "Wear this skin" is pressed.
+ * to Minecraft services until "Wear this skin" is pressed. It is a full page, like the pack store.
+ * On a server a change only shows once the player joins again, so it then offers to rejoin.
  */
 public final class WardrobeScreen extends AllerScreen {
-    private static final float HEADER = 32, FOOTER = 20, PAD = 12, STAGE = 164, CONTROLS = 100, TOOL = 22, GAP = 6;
+    private static final float HEADER = 34, FOOTER = 20, MARGIN = 10, CONTROLS = 100, TOOL = 22, GAP = 6;
     private static final float TILE_W = 50, TILE_H = 84, HEADING = 18;
 
     private record Tile(Outfit outfit, float x, float y) {}
@@ -55,6 +55,12 @@ public final class WardrobeScreen extends AllerScreen {
     private final Button extra = new Button("Save to library", this::extra).style(Button.Style.GHOST);
     private final IconButton folder = new IconButton(Icons.FOLDER, "Open the skins folder", () -> Mc.openFolder(Wardrobe.dir()));
     private final IconButton closeButton = new IconButton(Icons.CLOSE, "Close", this::close);
+    private final IconButton back = new IconButton(Icons.BACK, "Back", this::close);
+    /** The question asked after a change on a server: join again now, so everyone sees it? */
+    private boolean asking;
+    private final Spring ask = Spring.snappy(0);
+    private final Button rejoin = new Button("Rejoin now", this::rejoin).style(Button.Style.PRIMARY);
+    private final Button later = new Button("Later", () -> asking = false).style(Button.Style.GHOST);
     private final Map<Outfit, Spring> hovers = new IdentityHashMap<>();
     private final List<Tile> tiles = new ArrayList<>();
     private final List<Heading> headings = new ArrayList<>();
@@ -66,8 +72,7 @@ public final class WardrobeScreen extends AllerScreen {
     private boolean dragging, turned, removeArmed;
     private float lastX, lastY;
     private volatile boolean choosing;
-    private float px, py, pw, ph;
-    private float stageX, stageY, wellH, armsY;
+    private float stageX, stageY, stageW, wellH, armsY;
     private float gridX, gridY, gridW, gridH, tileW, contentH, noteY;
     private int columns = 1;
 
@@ -78,16 +83,15 @@ public final class WardrobeScreen extends AllerScreen {
         upload.textSize = 8.2f;
         wear.textSize = 9f;
         extra.textSize = 7.5f;
-    }
-
-    @Override
-    public AllerScreen underlay() {
-        return parent instanceof ScreenHost host ? host.screen : null;
+        rejoin.textSize = 8.5f;
+        later.textSize = 8.5f;
     }
 
     @Override
     public void opened() {
         super.opened();
+        // A change that finished while the wardrobe was shut is not asked about now.
+        Wardrobe.takeChanged();
         Wardrobe.refresh();
     }
 
@@ -122,6 +126,7 @@ public final class WardrobeScreen extends AllerScreen {
 
     /** Keeps the selection pointing at something that still exists: the lists are rebuilt when they are read again. */
     private void sync() {
+        if (Wardrobe.takeChanged() && Nav.canRejoin() && !isClosing()) asking = true;
         Outfit added = Wardrobe.takeFresh();
         if (added != null) select(added);
         Outfit current = Wardrobe.current();
@@ -157,6 +162,17 @@ public final class WardrobeScreen extends AllerScreen {
 
     private void wear() {
         if (selected != null) Wardrobe.wear(selected, slim);
+    }
+
+    /** Leaves the server and joins it again, which is when it reads the player's skin. */
+    private void rejoin() {
+        asking = false;
+        if (Nav.canRejoin()) AllerClient.defer(Nav::rejoin);
+    }
+
+    /** Stands in for the change on a server the self-test cannot make. */
+    public void dev(String action) {
+        if (action.equals("ask")) asking = true;
     }
 
     private void extra() {
@@ -213,17 +229,14 @@ public final class WardrobeScreen extends AllerScreen {
 
     @Override
     protected void layout() {
-        pw = Math.min(548, width - 24);
-        ph = Math.min(336, height - 24);
-        px = (width - pw) / 2;
-        py = (height - ph) / 2;
-        stageX = px + PAD;
-        stageY = py + HEADER + 8;
-        wellH = Math.max(50, ph - HEADER - FOOTER - 16 - CONTROLS);
-        gridX = stageX + STAGE + 12;
+        stageX = MARGIN;
+        stageY = HEADER + 4;
+        stageW = Math.clamp(width * 0.3f, 164f, 220f);
+        wellH = Math.max(50, height - stageY - FOOTER - 10 - CONTROLS);
+        gridX = stageX + stageW + 14;
         gridY = stageY + TOOL + 8;
-        gridW = px + pw - PAD - gridX;
-        gridH = py + ph - FOOTER - 4 - gridY;
+        gridW = width - MARGIN - 6 - gridX;
+        gridH = height - FOOTER - 4 - gridY;
         columns = Math.max(1, (int) ((gridW + GAP) / (TILE_W + GAP)));
         tileW = (gridW - GAP * (columns - 1)) / columns;
     }
@@ -232,32 +245,62 @@ public final class WardrobeScreen extends AllerScreen {
     protected void draw(Canvas c, float mx, float my) {
         sync();
         float open = openness(), fade = fade();
-        if (Mc.mc().level == null && underlay() == null) Theme.scene(c, width, height);
-        Theme.veil(c, width, height, fade, 0.42f);
+        if (Mc.mc().level == null) Theme.scene(c, width, height);
+        Theme.veil(c, width, height, fade, 0.5f);
         c.pushAlpha(fade);
         c.push();
-        c.scale(0.94f + 0.06f * open, width / 2, height / 2);
-        c.translate(0, (1 - open) * 10);
-        Theme.panel(c, px, py, pw, ph, Theme.R_LG);
+        c.translate(0, (1 - open) * 12);
+        // The page takes no pointer while the question is up.
+        float qx = mx, qy = my;
+        if (asking) mx = my = -10000;
 
-        float tw = c.text(Fonts.BOLD, "Wardrobe", px + 14, py + 10, 12, Theme.TEXT);
-        c.text(Fonts.REGULAR, Nav.playerName(), px + 14 + tw + 8, py + 13.2f, 8.5f, Theme.TEXT_MUTED);
-        closeButton.bounds(px + pw - 8 - 18, py + 7, 18, 18);
+        float cy = 7, bh = 20;
+        back.bounds(MARGIN, cy, bh, bh);
+        back.draw(c, mx, my);
+        float tx = MARGIN + bh + 8;
+        float tw = c.text(Fonts.BOLD, "Wardrobe", tx, cy + 4.2f, 12, Theme.TEXT);
+        c.text(Fonts.REGULAR, Nav.playerName(), tx + tw + 8, cy + 7.4f, 8.5f, Theme.TEXT_MUTED);
+        closeButton.bounds(width - MARGIN - bh, cy, bh, bh);
         closeButton.draw(c, mx, my);
-        c.rect(px + 1, py + HEADER - 0.5f, pw - 2, 0.5f, 0, Theme.BORDER);
 
         drawStage(c, mx, my, fade);
         drawTools(c, mx, my);
         drawGrid(c, mx, my);
         drawFooter(c);
         folder.drawTip(c, false);
+        closeButton.drawTip(c, false);
+        back.drawTip(c, true);
+        drawAsk(c, qx, qy);
         c.pop();
         c.popAlpha();
         Toasts.draw(c);
     }
 
+    /** The offer to rejoin, over the dimmed page. */
+    private void drawAsk(Canvas c, float mx, float my) {
+        float a = Math.clamp(ask.target(asking ? 1 : 0).update(), 0f, 1f);
+        if (a < 0.01f) return;
+        float w = Math.min(250, width - 24), h = 96, x = (width - w) / 2, y = (height - h) / 2 + (1 - a) * 8;
+        c.pushAlpha(a);
+        c.rect(0, 0, width, height, 0, 0x73000000);
+        Theme.panel(c, x, y, w, h, Theme.R_LG);
+        c.text(Fonts.BOLD, "Rejoin to show your new skin?", x + 14, y + 12, 10.5f, Theme.TEXT);
+        float ty = y + 30;
+        String body = "This server shows your old skin until you join again. Rejoining disconnects you and connects straight back.";
+        for (String line : Fonts.REGULAR.wrap(body, 7.8f, w - 28)) {
+            c.text(Fonts.REGULAR, line, x + 14, ty, 7.8f, Theme.TEXT_DIM);
+            ty += 11;
+        }
+        rejoin.bounds(x + w - 14 - 84, y + h - 32, 84, 20);
+        later.bounds(x + w - 14 - 84 - 6 - 56, y + h - 32, 56, 20);
+        if (!asking) mx = my = -10000;
+        later.draw(c, mx, my);
+        rejoin.draw(c, mx, my);
+        c.popAlpha();
+    }
+
     private void drawStage(Canvas c, float mx, float my, float fade) {
-        float x = stageX, y = stageY, w = STAGE;
+        float x = stageX, y = stageY, w = stageW;
         c.rect(x, y, w, wellH, Theme.R_MD, 0x3D000000);
         c.stroke(x, y, w, wellH, Theme.R_MD, 1, Theme.BORDER);
 
@@ -272,7 +315,8 @@ public final class WardrobeScreen extends AllerScreen {
             }
         }
         boolean ready = selected.tex != null;
-        float grown = Math.max(0, pop.target(ready && fade > 0.6f && !isClosing() ? 1 : 0).update());
+        // The model cannot be dimmed or covered, so it steps out while the question is asked.
+        float grown = Math.max(0, pop.target(ready && fade > 0.6f && !isClosing() && !asking ? 1 : 0).update());
         float zoom = grown < 0.02f ? 0 : 0.6f + 0.4f * grown;
         float drift = idle.target(turned || Motion.reduced() ? 0 : 1).update();
         float time = Motion.time();
@@ -395,7 +439,7 @@ public final class WardrobeScreen extends AllerScreen {
             }
         }
         c.unclip();
-        scroll.drawBar(c, px + pw - 6, gridY + 2, gridH - 4);
+        scroll.drawBar(c, width - MARGIN - 3, gridY + 2, gridH - 4);
     }
 
     private void drawTile(Canvas c, Outfit o, float x, float y, boolean over) {
@@ -430,15 +474,14 @@ public final class WardrobeScreen extends AllerScreen {
     }
 
     private void drawFooter(Canvas c) {
-        float fy = py + ph - FOOTER;
-        c.rect(px + 1, fy, pw - 2, 0.5f, 0, Theme.BORDER);
+        float fy = height - FOOTER, pw = width - MARGIN * 2;
         String credit = "Past skins from laby.net";
         float cw = Fonts.REGULAR.width(credit, 7.2f);
-        c.textRight(Fonts.REGULAR, credit, px + pw - 12, fy + (FOOTER - Fonts.REGULAR.height(7.2f)) / 2 + 0.5f, 7.2f, Theme.TEXT_MUTED);
+        c.textRight(Fonts.REGULAR, credit, width - MARGIN, fy + (FOOTER - Fonts.REGULAR.height(7.2f)) / 2 + 0.5f, 7.2f, Theme.TEXT_MUTED);
         boolean offline = Wardrobe.offline();
         String hint = offline ? "Not signed in to Minecraft: skins can be tried on here, but not worn."
                 : "Drop a PNG onto the window to add it. Drag the model to turn it.";
-        c.textMiddle(Fonts.REGULAR, Fonts.REGULAR.truncate(hint, 7.2f, pw - 36 - cw), px + 12, fy + 0.5f, FOOTER, 7.2f,
+        c.textMiddle(Fonts.REGULAR, Fonts.REGULAR.truncate(hint, 7.2f, pw - 12 - cw), MARGIN, fy + 0.5f, FOOTER, 7.2f,
                 offline ? Theme.WARN : Theme.TEXT_MUTED);
     }
 
@@ -447,24 +490,29 @@ public final class WardrobeScreen extends AllerScreen {
     @Override
     public boolean mouseDown(float x, float y, int button) {
         if (isClosing()) return false;
-        if (!inside(x, y, px, py, pw, ph)) {
+        if (asking) {
+            if (!rejoin.mouseDown(x, y, button)) later.mouseDown(x, y, button);
+            return true;
+        }
+        // The mouse's own back button.
+        if (button == 3) {
             close();
             return true;
         }
         player.mouseDown(x, y, button);
         if (button != 0) return true;
-        if (closeButton.mouseDown(x, y, button) || upload.mouseDown(x, y, button) || folder.mouseDown(x, y, button)
-                || wear.mouseDown(x, y, button) || extra.mouseDown(x, y, button)) return true;
+        if (back.mouseDown(x, y, button) || closeButton.mouseDown(x, y, button) || upload.mouseDown(x, y, button)
+                || folder.mouseDown(x, y, button) || wear.mouseDown(x, y, button) || extra.mouseDown(x, y, button)) return true;
         if (!extra.hit(x, y)) removeArmed = false;
-        if (inside(x, y, stageX, stageY, STAGE, wellH)) {
+        if (inside(x, y, stageX, stageY, stageW, wellH)) {
             dragging = true;
             turned = true;
             lastX = x;
             lastY = y;
             return true;
         }
-        if (inside(x, y, stageX, armsY, STAGE, 18)) {
-            setArms(x >= stageX + STAGE / 2);
+        if (inside(x, y, stageX, armsY, stageW, 18)) {
+            setArms(x >= stageX + stageW / 2);
             return true;
         }
         if (inside(x, y, gridX, gridY, gridW, gridH)) {
@@ -484,6 +532,9 @@ public final class WardrobeScreen extends AllerScreen {
     public boolean mouseUp(float x, float y, int button) {
         dragging = false;
         boolean used = closeButton.mouseUp(x, y, button);
+        used |= back.mouseUp(x, y, button);
+        used |= rejoin.mouseUp(x, y, button);
+        used |= later.mouseUp(x, y, button);
         used |= upload.mouseUp(x, y, button);
         used |= folder.mouseUp(x, y, button);
         used |= wear.mouseUp(x, y, button);
@@ -493,7 +544,7 @@ public final class WardrobeScreen extends AllerScreen {
 
     @Override
     public boolean mouseScroll(float x, float y, float amount) {
-        scroll.scroll(amount * 1.5f);
+        if (!asking) scroll.scroll(amount * 1.5f);
         return true;
     }
 
@@ -512,6 +563,11 @@ public final class WardrobeScreen extends AllerScreen {
     public boolean keyDown(int key, int mods) {
         if (isClosing()) return false;
         boolean enter = key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER;
+        if (asking) {
+            if (key == GLFW.GLFW_KEY_ESCAPE) asking = false;
+            else if (enter) rejoin();
+            return true;
+        }
         if (player.focused) {
             if (key == GLFW.GLFW_KEY_ESCAPE) {
                 player.focused = false;
@@ -545,6 +601,6 @@ public final class WardrobeScreen extends AllerScreen {
 
     @Override
     public boolean charTyped(int codepoint) {
-        return !isClosing() && player.charTyped(codepoint);
+        return !isClosing() && !asking && player.charTyped(codepoint);
     }
 }

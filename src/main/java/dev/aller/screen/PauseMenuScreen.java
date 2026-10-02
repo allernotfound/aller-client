@@ -31,7 +31,7 @@ import java.util.List;
  * the column.
  */
 public final class PauseMenuScreen extends AllerScreen {
-    private static final float COLUMN = 232, CARD_H = 74, ROW = 26, BUTTON_H = 22, ICON = 20, ICON_GAP = 5, STRIP = 28, SEGMENT_GAP = 4;
+    private static final float COLUMN = 232, CARD_H = 74, ROW = 26, BUTTON_H = 22, ICON = 20, ICON_GAP = 5, STRIP = 28, SEGMENT_GAP = 4, CARD_ICON = 15;
 
     private final List<Button> buttons = new ArrayList<>();
     /** The button stack, a line at a time: most lines hold one button, the mods line is split. */
@@ -42,6 +42,8 @@ public final class PauseMenuScreen extends AllerScreen {
     private final List<IconButton> icons = new ArrayList<>();
     /** Another mod's destinations (Essential's), in a strip on the other side of the column. */
     private final List<IconButton> extras = new ArrayList<>();
+    /** In the corner of the card, as on the main menu. */
+    private final IconButton wardrobe = new IconButton(Icons.WARDROBE, "Wardrobe", () -> Mc.setScreen(new ScreenHost(new WardrobeScreen(Mc.screen()))));
     private final List<Tween> buttonIn = new ArrayList<>();
     private final Tween cardIn = new Tween(0.45f, Easing.OUT_EXPO);
     private float leftX, topY, colW, k = 1;
@@ -154,7 +156,7 @@ public final class PauseMenuScreen extends AllerScreen {
 
         float cd = cardIn.update();
         c.pushAlpha(cd);
-        drawCard(c, leftX - (1 - cd) * 22, y);
+        drawCard(c, leftX - (1 - cd) * 22, y, mx, my);
         c.popAlpha();
         y += CARD_H + 10;
 
@@ -187,6 +189,7 @@ public final class PauseMenuScreen extends AllerScreen {
         }
         drawExtras(c, buttonsTop, mx, my);
         for (IconButton b : icons) b.drawTip(c, true);
+        wardrobe.drawTip(c, true);
         for (IconButton b : extras) b.drawTip(c, true);
         c.pop();
         c.popAlpha();
@@ -208,7 +211,7 @@ public final class PauseMenuScreen extends AllerScreen {
         }
     }
 
-    private void drawCard(Canvas c, float x, float y) {
+    private void drawCard(Canvas c, float x, float y, float mx, float my) {
         Theme.panel(c, x, y, colW, CARD_H, Theme.R_LG);
         int face = 28;
         float fx = x + 11, fy = y + 10;
@@ -217,7 +220,9 @@ public final class PauseMenuScreen extends AllerScreen {
         float tx = fx + face + 10;
         String address = Game.serverAddress();
         String where = address != null ? address : "Singleplayer";
-        c.text(Fonts.BOLD, Fonts.BOLD.truncate(Nav.playerName(), 12, x + colW - tx - 10), tx, y + 9, 12, Theme.TEXT);
+        c.text(Fonts.BOLD, Fonts.BOLD.truncate(Nav.playerName(), 12, x + colW - tx - 16 - CARD_ICON), tx, y + 9, 12, Theme.TEXT);
+        wardrobe.bounds(x + colW - 9 - CARD_ICON, y + 9, CARD_ICON, CARD_ICON);
+        wardrobe.draw(c, mx, my);
         c.text(Fonts.REGULAR, Fonts.REGULAR.truncate(where + "  •  " + Game.pretty(Game.dimensionId()), 7.5f, x + colW - tx - 10),
                 tx, y + 25, 7.5f, Theme.TEXT_DIM);
 
@@ -242,6 +247,7 @@ public final class PauseMenuScreen extends AllerScreen {
         if (isClosing() || handover.leaving()) return false;
         for (Button b : buttons) if (b.mouseDown(x / k, y / k, button)) return true;
         for (IconButton b : icons) if (b.mouseDown(x / k, y / k, button)) return true;
+        if (wardrobe.mouseDown(x / k, y / k, button)) return true;
         for (IconButton b : extras) if (b.mouseDown(x / k, y / k, button)) return true;
         return false;
     }
@@ -251,6 +257,7 @@ public final class PauseMenuScreen extends AllerScreen {
         boolean used = false;
         for (Button b : buttons) used |= b.mouseUp(x / k, y / k, button);
         for (IconButton b : icons) used |= b.mouseUp(x / k, y / k, button);
+        used |= wardrobe.mouseUp(x / k, y / k, button);
         for (IconButton b : extras) used |= b.mouseUp(x / k, y / k, button);
         return used;
     }
