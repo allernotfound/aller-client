@@ -46,8 +46,9 @@ public final class OnboardingScreen extends AllerScreen {
     public enum Stage { INTRO, HELLO, ACCENT, THEME, PALETTE, LAUNCHER, HUD, MODS, FAIR, DONE }
 
     private static final String FLAG = "onboarded";
+    private static final boolean HARNESS = System.getProperty("aller.dev.shots") != null;
     private static final float HEAD_TOP = 20, HEAD_SIZE = 15, TAU = 6.2831855f;
-    private static final float WAVE_HOLD = 0.12f, WAVE_RUN = 1.15f;
+    private static final float WAVE_HOLD = 0.45f, WAVE_RUN = 1.5f;
 
     private record Swatch(String name, int color) {}
 
@@ -118,6 +119,14 @@ public final class OnboardingScreen extends AllerScreen {
     private boolean keyOpened, keyPassed, keyArmed, keyWasDown;
     private float holdEsc;
     private boolean finished;
+    /** Seen before: only then may the intro be skipped. */
+    private final boolean replay = !due();
+    /** The key that last hit the eclipse, until it is let go. */
+    private int mashKey;
+    private float mashClock;
+    /** The ending's fireworks let off so far, and its fanfare notes played. */
+    private int rockets, fanfare;
+    private float rain;
 
     public OnboardingScreen(Screen parent) {
         this.parent = parent;
@@ -211,7 +220,7 @@ public final class OnboardingScreen extends AllerScreen {
     private boolean primaryReady() {
         return switch (stage) {
             case INTRO -> false;
-            case THEME -> picked != null && waveT > 1.0f;
+            case THEME -> picked != null && waveT > WAVE_HOLD + 1.0f;
             case PALETTE, LAUNCHER -> keyPassed;
             default -> since > 0.3f;
         };
@@ -257,7 +266,13 @@ public final class OnboardingScreen extends AllerScreen {
                     started = true;
                     intro.seek(Math.max(intro.time(), 0));
                 }
-                intro.advance(dt);
+                if (mashKey != 0 && !Mc.isDown(mashKey)) mashKey = 0;
+                // The harness has no hands: it mashes for itself.
+                if (HARNESS && intro.waiting() && (mashClock += dt) > 0.1f) {
+                    mashClock = 0;
+                    intro.strike();
+                }
+                intro.advance(dt, mx * k / Math.max(1f, width) * 2 - 1, my * k / Math.max(1f, height) * 2 - 1);
             }
             Canvas.grade(0f, 0.85f);
             float back = Math.min(1f, intro.backdrop());
@@ -265,6 +280,13 @@ public final class OnboardingScreen extends AllerScreen {
             if (back > 0.01f) backdrop(c, intro.backdrop() * 0.8f);
             shade(c, back);
             intro.draw(c, width, height, width / 2, HEAD_TOP * k, HEAD_SIZE * k);
+            if (replay) {
+                c.push();
+                c.scale(k, 0, 0);
+                escHint(c);
+                c.pop();
+                if (live) hold(dt);
+            }
             if (intro.done()) go(Stage.HELLO);
             return;
         }
@@ -273,6 +295,7 @@ public final class OnboardingScreen extends AllerScreen {
         // Something has opened over this: on a key step, that is the key doing its job.
         if (drawingUnderlay && (stage == Stage.PALETTE || stage == Stage.LAUNCHER)) keyOpened = true;
         if (waveT >= 0 && !drawingUnderlay) wave(dt);
+        if (stage == Stage.DONE && !drawingUnderlay) finale(dt);
         if (!coloured) {
             Canvas.grade(0f, 0.85f);
             if (waveT >= 0) c.wave(waveX * k, waveY * k, radius() * k, 46 * k);
@@ -285,7 +308,8 @@ public final class OnboardingScreen extends AllerScreen {
 
         c.push();
         c.scale(k, 0, 0);
-        float shake = waveT >= WAVE_HOLD ? 6 * (float) Math.exp(-(waveT - WAVE_HOLD) * 5) : 0;
+        float shake = waveT >= WAVE_HOLD ? 11 * (float) Math.exp(-(waveT - WAVE_HOLD) * 4) : waveT >= 0 ? 1.5f * waveT / WAVE_HOLD : 0;
+        if (stage == Stage.DONE) shake += 5 * (float) Math.exp(-since * 5);
         if (shake > 0.05f) c.translate((float) Math.sin(clock * 91) * shake, (float) Math.cos(clock * 77) * shake);
         c.pushAlpha(fade());
 
@@ -560,7 +584,7 @@ public final class OnboardingScreen extends AllerScreen {
         }
         look(cx, vh - 60);
         primary.label = "Continue";
-        primaryAt = chosen ? Easing.OUT_BACK.apply(Math.clamp((waveT - 1.0f) / 0.5f, 0f, 1f)) : 0;
+        primaryAt = chosen ? Easing.OUT_BACK.apply(Math.clamp((waveT - WAVE_HOLD - 1.0f) / 0.5f, 0f, 1f)) : 0;
     }
 
     /** One look, shown as a few pieces of interface drawn in it. */
@@ -637,9 +661,21 @@ public final class OnboardingScreen extends AllerScreen {
             Sounds.cue("block.beacon.activate", 1.1f, 0.9f);
             Sounds.cue("entity.player.levelup", 1.25f, 0.5f);
             Sounds.cue("block.amethyst_cluster.break", 1.1f, 0.9f);
-            burst(waveX, waveY, 130, 420);
+            Sounds.cue("entity.lightning_bolt.thunder", 1.3f, 0.2f);
+            for (int n : new int[] {3, 10, 15, 19, 22}) chord(n, 0.45f);
+            burst(waveX, waveY, 260, 520);
         }
-        if (waveThrown && waveT - dt < WAVE_HOLD + 0.45f && waveT >= WAVE_HOLD + 0.45f) Sounds.cue("entity.firework_rocket.twinkle", 1.1f, 0.5f);
+        // Three more go off along the front as it crosses.
+        for (int i = 1; i <= 3; i++) {
+            float at = WAVE_HOLD + 0.3f * i;
+            if (!waveThrown || waveT - dt >= at || waveT < at) continue;
+            float ang = random.nextFloat() * TAU, r = radius() * 0.8f;
+            float x = Math.clamp(waveX + (float) Math.cos(ang) * r, 30f, vw - 30), y = Math.clamp(waveY + (float) Math.sin(ang) * r, 30f, vh - 30);
+            burst(x, y, 50, 260);
+            flare(x, y, 90);
+            chord(15 + 2 * i + (i == 3 ? 3 : 0), 0.4f);
+            Sounds.cue(i == 3 ? "entity.firework_rocket.twinkle" : "entity.firework_rocket.blast", 1f + 0.1f * i, 0.4f);
+        }
         if (waveT >= WAVE_HOLD + WAVE_RUN + 0.05f) coloured = true;
     }
 
@@ -961,6 +997,19 @@ public final class OnboardingScreen extends AllerScreen {
         c.pushAlpha(Math.min(1f, a));
         c.push();
         c.scale(0.6f + 0.4f * a, cx, y + 20);
+        // Light turning behind the face, and rings going out from it.
+        for (int i = 0; i < 14; i++) {
+            float wide = 7 + 9 * ((i * 5) % 4) / 3f;
+            c.push();
+            c.rotate(i * TAU / 14 + clock * 0.22f, cx, y + 20);
+            c.gradientH(cx + 24, y + 20 - wide / 2, 170, wide, 0,
+                    Colors.withAlpha(Theme.accent(), 0.14f + 0.1f * (float) Math.sin(clock * 1.4f + i * 1.9f)), Colors.withAlpha(Theme.accent(), 0f));
+            c.pop();
+        }
+        for (int i = 0; i < 3; i++) {
+            float p = (clock * 0.45f + i / 3f) % 1f;
+            c.ring(cx, y + 20, 26 + 80 * p, 1.4f, Colors.withAlpha(Theme.accent2(), 0.4f * (1 - p)));
+        }
         c.oval(cx, y + 20, 46, 46, 0.95f, Colors.withAlpha(Theme.accent(), 0.35f));
         Skins.drawFramedFace(c, cx - 20, y, 40);
         c.pop();
@@ -1037,6 +1086,10 @@ public final class OnboardingScreen extends AllerScreen {
             c.rect(px - w / 2, py, w, 3.2f, 1.6f, color);
         }
 
+        escHint(c);
+    }
+
+    private void escHint(Canvas c) {
         float show = Math.max(0.55f, Math.min(1f, holdEsc * 4));
         c.pushAlpha(show);
         float hx = 22, hy = vh - 22.4f;
@@ -1055,7 +1108,7 @@ public final class OnboardingScreen extends AllerScreen {
 
     /** Holding Escape for a second ends the whole thing, keeping what was chosen so far. */
     private void hold(float dt) {
-        boolean down = listening == null && Mc.isDown(GLFW.GLFW_KEY_ESCAPE) && since > 0.3f;
+        boolean down = listening == null && Mc.isDown(GLFW.GLFW_KEY_ESCAPE) && (stage == Stage.INTRO ? intro.time() > 0.5f : since > 0.3f);
         holdEsc = Math.clamp(holdEsc + (down ? Motion.realDelta() / 1.0f : -Motion.realDelta() * 2.5f), 0f, 1f);
         if (holdEsc >= 1f) finish();
     }
@@ -1067,13 +1120,22 @@ public final class OnboardingScreen extends AllerScreen {
         int accent = Theme.accent(), accent2 = Theme.accent2();
         if (waveT >= 0 && waveT < WAVE_HOLD) {
             // Drawing breath: the screen darkens round the card.
-            c.rect(-20, -20, vw + 40, vh + 40, 0, Colors.withAlpha(Colors.BLACK, 0.4f * waveT / WAVE_HOLD));
-            c.oval(waveX, waveY, 120, 120, 0.95f, Colors.withAlpha(accent, 0.5f * waveT / WAVE_HOLD));
+            float in = waveT / WAVE_HOLD;
+            c.rect(-20, -20, vw + 40, vh + 40, 0, Colors.withAlpha(Colors.BLACK, 0.6f * in));
+            c.oval(waveX, waveY, 150 - 50 * in, 150 - 50 * in, 0.95f, Colors.withAlpha(accent, 0.6f * in));
+            // And everything is pulled towards it.
+            for (int i = 0; i < 32; i++) {
+                float ang = i * 2.399f, q = (in * 1.6f + i * 0.37f) % 1f;
+                float head = 20 + waveFar * 0.7f * (1 - q * q), tail = head + 16 + 50 * q;
+                c.line(waveX + (float) Math.cos(ang) * head, waveY + (float) Math.sin(ang) * head,
+                        waveX + (float) Math.cos(ang) * tail, waveY + (float) Math.sin(ang) * tail,
+                        1f, Colors.withAlpha(i % 3 == 0 ? Colors.WHITE : accent, 0.6f * in * (float) Math.sin(q * Math.PI)));
+            }
         }
         if (waveT >= WAVE_HOLD && waveT < WAVE_HOLD + WAVE_RUN + 0.6f) {
             float s = waveT - WAVE_HOLD, p = Math.min(1f, s / WAVE_RUN), r = radius();
             float gone = 1 - p * p;
-            for (int i = 0; i < 30; i++) {
+            for (int i = 0; i < 56; i++) {
                 float ang = i * 2.399f + s * (i % 2 == 0 ? 0.5f : -0.35f);
                 float inner = r * 0.2f, outer = r * (0.5f + 0.45f * ((i * 37) % 10) / 10f);
                 c.line(waveX + (float) Math.cos(ang) * inner, waveY + (float) Math.sin(ang) * inner,
@@ -1083,8 +1145,13 @@ public final class OnboardingScreen extends AllerScreen {
             c.ring(waveX, waveY, r * 0.8f, 2 + 5 * (1 - p), Colors.withAlpha(accent2, 0.5f * gone));
             c.ring(waveX, waveY, r, 4 + 16 * (1 - p), Colors.withAlpha(accent, 0.9f * gone));
             c.ring(waveX, waveY, r + 5, 1.6f, Colors.withAlpha(Colors.WHITE, 0.9f * gone));
+            // Two echoes follow the front out.
+            for (int e = 1; e <= 2; e++) {
+                float er = waveFar * Easing.OUT_CUBIC.apply(Math.clamp((s - 0.22f * e) / WAVE_RUN, 0f, 1f));
+                if (er > 1) c.ring(waveX, waveY, er, 2.5f, Colors.withAlpha(e == 1 ? Colors.WHITE : accent2, 0.4f * gone));
+            }
             c.oval(waveX, waveY, 90 + r * 0.3f, 90 + r * 0.3f, 0.95f, Colors.withAlpha(accent, 0.4f * (float) Math.exp(-s * 3)));
-            float flash = 0.7f * (float) Math.exp(-s * 7);
+            float flash = 0.85f * (float) Math.exp(-s * 6);
             if (flash > 0.01f) c.rect(-20, -20, vw + 40, vh + 40, 0, Colors.withAlpha(Colors.lighten(accent, 0.6f), flash));
         }
         for (Iterator<Piece> it = pieces.iterator(); it.hasNext(); ) {
@@ -1103,7 +1170,8 @@ public final class OnboardingScreen extends AllerScreen {
             float a = Math.min(1f, (p.life - p.age) / (p.life * 0.4f));
             c.push();
             c.rotate(p.rot, p.x, p.y);
-            if (p.sides == 1) c.star(p.x, p.y, p.size * 1.3f, Colors.fade(p.color, a));
+            if (p.sides == 0) c.ring(p.x, p.y, 4 + p.size * Easing.OUT_CUBIC.apply(p.age / p.life), 3 * (1 - p.age / p.life) + 0.5f, Colors.fade(p.color, a));
+            else if (p.sides == 1) c.star(p.x, p.y, p.size * 1.3f, Colors.fade(p.color, a));
             else if (p.sides == 2) c.rect(p.x - p.size, p.y - p.size * 0.4f, p.size * 2, p.size * 0.8f, p.size * 0.2f, Colors.fade(p.color, a));
             else c.polygon(p.x, p.y, p.size, p.sides, p.size * 0.14f, Colors.fade(p.color, a));
             c.pop();
@@ -1132,12 +1200,66 @@ public final class OnboardingScreen extends AllerScreen {
         }
     }
 
-    /** The ending: confetti from both lower corners. */
+    /** A bell and a chime together, a note block note {@code semitone} above its lowest. */
+    private static void chord(int semitone, float volume) {
+        float pitch = (float) Math.pow(2, (Math.clamp(semitone, 0, 24) - 12) / 12.0);
+        Sounds.cue("block.note_block.bell", pitch, volume);
+        Sounds.cue("block.note_block.chime", pitch, volume * 0.8f);
+    }
+
+    /** A ring thrown out from a point, growing to {@code reach}. */
+    private void flare(float x, float y, float reach) {
+        Piece p = new Piece();
+        p.x = x;
+        p.y = y;
+        p.size = reach;
+        p.life = 0.7f;
+        p.color = Colors.lighten(Theme.accent(), 0.4f);
+        pieces.add(p);
+    }
+
+    /** The ending's fanfare: when each note falls, and which. */
+    private static final float[][] FANFARE = {{0f, 3}, {0.14f, 7}, {0.28f, 10}, {0.42f, 15}, {0.72f, 15}, {0.86f, 19}, {1.14f, 22}, {1.14f, 15}, {1.14f, 10}, {1.14f, 3}};
+
+    /** What goes on through the ending: the fanfare, a string of fireworks, and confetti coming down for a while. */
+    private void finale(float dt) {
+        while (fanfare < FANFARE.length && FANFARE[fanfare][0] <= since) chord((int) FANFARE[fanfare++][1], 0.45f);
+        while (rockets < 10 && since >= 0.5f + rockets * 0.34f) {
+            rockets++;
+            float x = vw * (0.1f + 0.8f * random.nextFloat()), y = vh * (0.12f + 0.42f * random.nextFloat());
+            burst(x, y, 54, 250);
+            flare(x, y, 70 + 50 * random.nextFloat());
+            Sounds.cue(rockets % 3 == 0 ? "entity.firework_rocket.large_blast" : "entity.firework_rocket.blast", 0.9f + 0.4f * random.nextFloat(), 0.35f);
+            if (rockets % 2 == 0) Sounds.cue("entity.firework_rocket.twinkle", 1f + 0.3f * random.nextFloat(), 0.3f);
+        }
+        if (since > 6) return;
+        int[] palette = {Theme.accent(), Theme.accent2(), Colors.lighten(Theme.accent(), 0.5f), Colors.WHITE};
+        for (rain += dt * 36; rain >= 1; rain--) {
+            Piece p = new Piece();
+            p.x = vw * random.nextFloat();
+            p.y = -6;
+            p.vx = (random.nextFloat() - 0.5f) * 60;
+            p.vy = 40 + 70 * random.nextFloat();
+            p.spin = (random.nextFloat() - 0.5f) * 14;
+            p.size = 1.8f + 2.6f * random.nextFloat();
+            p.life = 3.5f + 2 * random.nextFloat();
+            p.drag = 0.5f;
+            p.gravity = 70;
+            p.color = palette[random.nextInt(palette.length)];
+            p.sides = random.nextFloat() < 0.7f ? 2 : 1;
+            pieces.add(p);
+        }
+    }
+
+    /** The ending: confetti from both lower corners, and the finale starts over. */
     private void celebrate() {
+        rockets = fanfare = 0;
+        rain = 0;
+        flare(vw / 2, Math.max(54, vh / 2 - 104) + 20, Math.max(vw, vh) * 0.7f);
         Sounds.cue("ui.toast.challenge_complete", 1f, 0.5f);
         Sounds.cue("entity.firework_rocket.twinkle", 1f, 0.5f);
         int[] palette = {Theme.accent(), Theme.accent2(), Colors.lighten(Theme.accent(), 0.5f), Colors.WHITE, Theme.SUCCESS, Theme.WARN};
-        for (int i = 0; i < 170; i++) {
+        for (int i = 0; i < 260; i++) {
             Piece p = new Piece();
             boolean left = i % 2 == 0;
             float ang = (left ? -1.05f : -2.09f) + (random.nextFloat() - 0.5f) * 0.8f, v = 260 + 380 * random.nextFloat();
@@ -1158,6 +1280,7 @@ public final class OnboardingScreen extends AllerScreen {
 
     @Override
     public boolean mouseDown(float x, float y, int button) {
+        if (stage == Stage.INTRO && !isClosing()) intro.strike();
         if (stage == Stage.INTRO || isClosing() || leaving != null) return true;
         x /= k;
         y /= k;
@@ -1194,7 +1317,15 @@ public final class OnboardingScreen extends AllerScreen {
 
     @Override
     public boolean keyDown(int key, int mods) {
-        if (stage == Stage.INTRO || isClosing()) return true;
+        if (isClosing()) return true;
+        if (stage == Stage.INTRO) {
+            // A held key repeats: only a fresh press counts as a hit.
+            if (key != GLFW.GLFW_KEY_ESCAPE && key != mashKey) {
+                mashKey = key;
+                intro.strike();
+            }
+            return true;
+        }
         if (listening != null) {
             if (key == GLFW.GLFW_KEY_ESCAPE && (mods & (GLFW.GLFW_MOD_CONTROL | GLFW.GLFW_MOD_SHIFT | GLFW.GLFW_MOD_ALT)) == 0) {
                 listening = null;
@@ -1219,7 +1350,12 @@ public final class OnboardingScreen extends AllerScreen {
      */
     public static void dev(String action) {
         if (!(Mc.current() instanceof OnboardingScreen s)) return;
-        if (action.startsWith("intro:")) {
+        if (action.equals("intro:gate")) {
+            s.stage = Stage.INTRO;
+            s.started = true;
+            s.intro.seek(Intro.GATE);
+            s.intro.press(0.6f);
+        } else if (action.startsWith("intro:")) {
             s.stage = Stage.INTRO;
             s.started = true;
             s.intro.seek(Float.parseFloat(action.substring(6)));

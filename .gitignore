@@ -10,3 +10,6 @@ versions/*/.gradle/
 bin/
 versions/*/run/
 *.log
+CLAUDE.md
+TODO.md
+dev_order.md

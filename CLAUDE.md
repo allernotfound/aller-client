@@ -56,6 +56,11 @@ minute.
   logged as an `ONBOARDING` line), then stills of its moments and of every step (`onboarding-*`),
   driven by `OnboardingScreen.dev`. So the intro is seen twice in the window, the second time silent
   and in jumps. The accent, font and corners it changes are put back.
+- `-Paller.gallery` runs the screenshots script instead: three real screenshots in the test world (the
+  second while the card is up), the card and its copy, delete and undo, then the screen's grid,
+  favourites, a picture full size, zoomed and renamed, delete and undo (`gallery-*`, `GALLERY` lines
+  in the log). What it takes ends in the recycle bin; the card only appears once the PNG is saved,
+  about a second after the key.
 - `-Paller.bench` measures average FPS in the test world with Aller idle, at defaults and with
   heavier module sets, and logs `BENCH` lines (`-Paller.bench=each` also times every non-HUD mod
   alone). It runs windowed: a fullscreen window that loses focus is minimised and vanilla then caps
@@ -110,6 +115,8 @@ screen/            MainMenuScreen, PaletteScreen (+ palette/* pages), LauncherSc
                    Splash (startup overlay), LoadingSkin (paints over vanilla loading screens),
                    MenuSkin (restyles the vanilla and other mods' menus in place),
                    OnboardingScreen (+ onboarding/Intro), the first run
+feature/Shots      the screenshots folder: index, thumbnails, delete with undo; ui/ShotCard is the
+                   slide-in, screen/shots/ShotsScreen the full page
 feature/store/     Kind, Modrinth (the API), Store (pages, installed files, downloads), Images, Text
 ui/doc/            Doc (Markdown and HTML to blocks) and DocView (lays them out and draws them)
 screen/store/      StoreScreen (+ BrowsePane, DetailPane, InstalledPane), PackListExtras
@@ -226,13 +233,22 @@ To restyle another vanilla piece, add its sprite id to `MenuSkin.sprite`.
 `OnboardingScreen` takes the title screen's place (`Screens.choose`) until `client.json` has
 `extras.onboarded`, never during a harness run, and "Replay onboarding" in the launcher or the
 palette search runs it again. Stages, forward only: INTRO, HELLO, ACCENT, THEME, PALETTE, LAUNCHER,
-HUD, MODS, FAIR, DONE. Holding Escape for a second ends it from HELLO on; the intro cannot be skipped.
+HUD, MODS, FAIR, DONE. Holding Escape for a second ends it from HELLO on; the intro can only be
+skipped that way on a replay (`replay`: the flag was already set), never on the first run.
 
-- `onboarding/Intro` is ten seconds as a function of one clock (`seek` jumps anywhere): a point of
-  light, a tunnel of polygon outlines, a tilted disc of shards that tightens on a row of beats, the
-  collapse of the small shards into the letters (their places are sampled from Inter Bold's distance
-  field), the hit, and the glide of the wordmark up into the header. Its sounds are Minecraft's own,
-  listed with their times in `CUES` and played by `Sounds.cue(id, pitch, volume)`.
+- `onboarding/Intro` is 27 seconds as a function of one clock (`seek` jumps anywhere), plus a wait:
+  a point of light, a tunnel of polygon outlines, out over a perspective floor with monoliths
+  towards an eclipse on the horizon, a tilted disc of shards round the eclipse that tightens on a
+  row of beats, the gate, the collapse of the small shards into the letters (their places are
+  sampled from Inter Bold's distance field), the hit, a held shot, and the glide of the wordmark up
+  into the header. The pointer bends the tunnel and tips the disc.
+- The gate (`Intro.GATE`): the clock stops until the player has mashed the eclipse open. Any fresh
+  key press or click is `strike()`; pressure leaks (`STRIKE`, `LEAK`), and it waits for ever. What
+  moves meanwhile runs on `gateT` and `whirl`. The harness mashes for itself; `intro:gate` is a
+  still of it part way.
+- Its sounds are Minecraft's own: `score()` builds `CUES`, effects on the moments and a note-block
+  piece in F sharp minor on a half-second beat, which is why the moments up to the gate sit on
+  half seconds. Played by `Sounds.cue(id, pitch, volume)`.
 - It is grey until a look is chosen. `Canvas.grade(saturation, dim)` drains every colour handed to
   the canvas (a vertex at a time; pictures and items are not touched) until `Canvas.ungrade()`, and
   `c.wave(x, y, radius, soft)` keeps the colour inside a circle. The wave from the chosen card is
@@ -424,6 +440,34 @@ page (description, gallery with a full-size view, versions with changelogs) that
   `PackEntryMixin` marks fresh rows. `PackList.is` tells resource packs from a world's data packs.
 - The libraries are nested with Loom's `include`, which is not transitive: list each one's own.
 
+### Screenshots
+
+`ScreenshotMixin` hooks the one `Screenshot.grab` every saved screenshot ends in (F2, the launcher's
+command, Essential's own key handling), and `feature/Shots` takes it from there.
+
+- The callback is wrapped (`Shots.report`): from the "screenshot.success" message it learns the file,
+  adds it to the list with where it was taken, and shows `ui/ShotCard`. With "Hide the chat message"
+  on, that message goes no further.
+- A screenshot taken while the card is on screen is cancelled and taken again from `Frame.end` one
+  frame later, with the card gone (`Shots.hold`), so the card is never in a picture.
+- The card is drawn once a frame by whoever gets there: `Toasts.draw` (Aller screens, and the HUD
+  with no screen), `Frame.hud` when the HUD is hidden, `Hooks.screenExtras` on the game's own screens.
+  Its keys (Ctrl+O, C, Delete, E, and Z after a delete) come from `KeyboardHandlerMixin`, which
+  cancels the press so the game never sees it; `ShotCard.claiming()` keeps polled keys (module
+  binds, the pocket) quiet meanwhile. Clicks come from `MouseHandlerMixin`. Keys follow
+  `Launcher.allowed`, so not in chat or a text box; never while `ShotsScreen` is in front.
+- What Aller Client knows about a file (place, favourite) is in `aller-screenshots/index.json`, keyed
+  by file name; thumbnails are JPEGs in `aller-screenshots/thumbs`, keyed by name, size and time.
+  Renaming renames the file.
+- Delete moves the file to `aller-screenshots/trash`; for `Shots.UNDO` seconds it can be taken back,
+  then it is moved back and sent to the recycle bin from there. Java is headless in Minecraft, so
+  the recycle bin and the image clipboard go through `platform/Os`, which runs PowerShell (or
+  osascript, gio, wl-copy, xclip). Imgur upload was asked for and then dropped by the user.
+- Essential: `EssentialCompat.screenshots` switches its "Essential screenshots" setting off as a
+  screenshot is taken while Aller Client's preview is on (remembered in `extras`, and switched back
+  when the preview is turned off), and its Pictures button is left off the strip meanwhile.
+  Essential still files the picture in its own browser and plays its own sound.
+
 ### Pocket dimension
 
 A private world on a real integrated server, entered (key O) while the connection to the multiplayer
@@ -595,13 +639,22 @@ a pack that is switched on, deleting, a failed or slow connection, a non-Latin d
 and the store opened from a world. The GUI-scale lock on Aller's menus compiles on both versions
 and has not been run at any scale.
 
-Onboarding is checked through `-Paller.onboarding` on both versions (stills of the intro and every
-step, the wave part way, both looks; the intro ran at about 127 fps on 26.2 with Sodium and Iris
-loaded, captures included). Untried by hand: the first launch itself (the start held behind the
+Onboarding was checked through `-Paller.onboarding` on both versions (stills of the intro and every
+step, the wave part way, both looks), but that was the ten second intro. The long intro (floor,
+eclipse, the mash gate, the score), the bigger colour wave and the bigger ending compile on both
+versions and have not been run, seen or heard at all. Untried by hand: the first launch itself (the start held behind the
 loading screen, the hand-over to the main menu), how the intro and its sounds feel at speed, every
 click, the custom colour bars, the real key presses and what comes back from the palette and the
 launcher, rebinding, hold Escape, a narrow or small window, reduce motion, and a replay from inside
 a world.
+
+Screenshots are checked through `-Paller.gallery` on both versions (26.2 with Essential, Sodium and
+Iris): the card, copy to the clipboard, delete and undo, the held second screenshot coming out
+without the card in it, the grid, places, favourites, the full-size view, zoom, the rename box, the
+recycle bin at the end, Essential's preview switched off. Untried by hand: the real F2 and Ctrl
+keys, clicking the card, a vanilla toast in the same corner (it covers the card), dragging and the
+wheel in the viewer, double click, search, a rename actually committed, hundreds of screenshots,
+non-Windows systems, and Essential's own key with a signed-in account.
 
 Not built yet: README, more novel features (quick wheel, notes).
 

@@ -640,13 +640,14 @@ public final class DevHarness {
             Mc.setScreen(new ScreenHost(new dev.aller.screen.OnboardingScreen(home)));
         });
         // The intro once at speed, for the log and the frame rate, then stills of its moments.
-        shot(1.2f, "onboarding-intro-live-1");
-        shot(1.6f, "onboarding-intro-live-3");
-        shot(2.6f, "onboarding-intro-live-5");
-        shot(1.9f, "onboarding-intro-live-7");
-        shot(0.55f, "onboarding-intro-live-8");
+        shot(2.0f, "onboarding-intro-live-2");
+        shot(4.0f, "onboarding-intro-live-6");
+        shot(5.0f, "onboarding-intro-live-11");
+        shot(5.0f, "onboarding-intro-live-16");
+        shot(4.0f, "onboarding-intro-live-gate");
+        shot(4.0f, "onboarding-intro-live-held");
         run(0.05f, () -> AllerClient.LOG.info("ONBOARDING intro ran at {} fps", Math.round((benchFrames - introFrames) / ((System.nanoTime() - introStart) / 1e9))));
-        String[] moments = {"1.2", "1.75", "2.6", "3.8", "4.8", "5.9", "6.9", "7.4", "7.72", "7.9", "8.6", "9.9"};
+        String[] moments = {"1.8", "2.8", "3.4", "5.5", "8.0", "8.7", "10.5", "12.8", "13.6", "14.5", "17.5", "gate", "19.6", "20.2", "20.33", "20.6", "22.5", "24.5", "26.3"};
         for (String at : moments) {
             run(0.05f, () -> dev.aller.screen.OnboardingScreen.dev("intro:" + at));
             shot(0.1f, "onboarding-intro-" + at.replace('.', '_'));
