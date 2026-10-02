@@ -146,7 +146,9 @@ public final class HudEditorScreen extends AllerScreen {
         }
 
         // Hint and toolbar.
-        String hint = selected != null
+        String hint = dragging != null
+                ? "Snaps to edges and neighbours  ·  hold Shift to place freely"
+                : selected != null
                 ? selected.name + "  ·  arrows nudge  ·  R resets  ·  Del removes"
                 : "Drag to move  ·  scroll to resize  ·  right-click for settings";
         float hw = Fonts.MEDIUM.width(hint, 7.5f) + 20;
@@ -311,12 +313,18 @@ public final class HudEditorScreen extends AllerScreen {
         if (drawerOpen && x >= drawerX()) {
             float ly = 8 + 32, cy = ly + 2 - drawerScroll.get();
             for (HudModule m : Hud.modules()) {
-                if (button == 0 && y >= cy && y < cy + ROW && y >= ly) {
-                    m.toggle();
-                    Sounds.toggle(m.enabled());
-                    AllerClient.config().markDirty();
-                    if (m.enabled()) selected = m;
-                    else if (selected == m) selected = null;
+                if (y >= cy && y < cy + ROW && y >= ly) {
+                    if (button == 1) {
+                        Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen(), m)));
+                        return true;
+                    }
+                    if (button == 0) {
+                        m.toggle();
+                        Sounds.toggle(m.enabled());
+                        AllerClient.config().markDirty();
+                        if (m.enabled()) selected = m;
+                        else if (selected == m) selected = null;
+                    }
                 }
                 cy += ROW;
             }

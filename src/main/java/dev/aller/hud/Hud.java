@@ -37,6 +37,15 @@ public final class Hud {
         return hud.measure(editing);
     }
 
+    /** Draws an already measured element at an arbitrary size, for the preview in its settings. */
+    public static void drawPreview(Canvas c, HudModule hud, float x, float y, float size) {
+        c.push();
+        c.translate(x, y);
+        c.scale(size, 0, 0);
+        hud.render(c, true);
+        c.pop();
+    }
+
     public static void drawOne(Canvas c, HudModule hud, float x, float y, float appear, boolean editing) {
         float s = hud.scale.get();
         c.push();

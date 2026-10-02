@@ -66,6 +66,16 @@ public final class Game {
         return info == null ? -1 : info.getLatency();
     }
 
+    /**
+     * How far the attack cooldown has recharged, 0..1. Reports 1 unless vanilla's attack indicator
+     * is set to "Crosshair", the same condition under which vanilla draws its own.
+     */
+    public static float attackCharge() {
+        var p = player();
+        if (p == null || Mc.mc().options.attackIndicator().get() != net.minecraft.client.AttackIndicatorStatus.CROSSHAIR) return 1f;
+        return Math.clamp(p.getAttackStrengthScale(0f), 0f, 1f);
+    }
+
     /** The multiplayer server address, or null in singleplayer. */
     public static String serverAddress() {
         var server = Mc.mc().getCurrentServer();

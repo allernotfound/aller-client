@@ -14,10 +14,15 @@ public final class WorldMods {
     public static final class WaypointsMod extends Module {
         public final Settings.Key addKey = key("add_key", "Quick-add waypoint", GLFW.GLFW_KEY_B);
         public final Settings.Bool deathMarkers = bool("death_markers", "Mark where you die", true);
-        public final Settings.Num deathsKept = num("deaths_kept", "Death markers kept", 3f, 1f, 10f, 1f);
+        public final Settings.Num deathsKept = num("deaths_kept", "Death markers kept", 3f, 1f, 10f, 1f)
+                .visibleWhen(() -> this.deathMarkers.get());
         public final Settings.Bool edgeMarkers = bool("edge_markers", "Show off-screen markers at the edge", true);
-        public final Settings.Bool alwaysLabel = bool("always_label", "Always show names", false);
-        public final Settings.Num maxDistance = num("max_distance", "Hide beyond (0 = never)", 0f, 0f, 5000f, 100f).suffix("m");
+        public final Settings.Bool alwaysLabel = bool("always_label", "Always show names", false)
+                .describe("Otherwise a name appears when you look towards its marker");
+        public final Settings.Bool showDistance = bool("show_distance", "Show distance in names", true);
+        public final Settings.Num maxDistance = num("max_distance", "Hide beyond", 0f, 0f, 5000f, 100f)
+                .format(v -> v <= 0 ? "Never" : Math.round(v) + "m")
+                .describe("Death markers always stay visible");
         public final Settings.Num markerScale = num("marker_scale", "Marker size", 1f, 0.6f, 2f, 0.1f).suffix("x");
         private boolean addWasDown;
         private int counter;
@@ -35,7 +40,7 @@ public final class WorldMods {
             if (down && !addWasDown) {
                 int n = Waypoints.all().size();
                 var w = Waypoints.addHere("Waypoint " + (n + 1), Waypoints.PALETTE[counter++ % Waypoints.PALETTE.length]);
-                Toasts.info("Waypoint added", w.name + " at " + (int) w.x + ", " + (int) w.y + ", " + (int) w.z);
+                Toasts.info("Waypoint added", w.name + " at " + Waypoints.coords(w));
             }
             addWasDown = down;
         }

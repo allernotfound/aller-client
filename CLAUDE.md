@@ -136,6 +136,13 @@ working on the Vulkan backend and alongside Sodium and Iris.
    with both version branches, and list the mixin in `aller.mixins.json`.
 4. It appears in the palette and gets a settings page automatically.
 
+Settings conventions: give a default key with `bind(key)` (or `holdKey(key)` for a hold-style mod,
+which also adds the hold/toggle choice), never `keybind.set`, so resets and new profiles keep it.
+Use `.describe(...)` for a line of small print under the name, `.visibleWhen(...)` for settings
+that depend on another, and `Num.format(...)` when a bare number reads badly ("Never", "12:30").
+A HUD element's shared look settings come from `appearance()` and are listed after its own;
+`section("Title")` in a `Configurable` starts a headed group.
+
 Mixin notes: `@Inject` handlers must take either all of the target's parameters or none (use
 `@Local(argsOnly = true)` from MixinExtras to grab one). `Level` and `Entity` are shared with the
 integrated server, so guard with `instanceof ClientLevel` / `LocalPlayer`.

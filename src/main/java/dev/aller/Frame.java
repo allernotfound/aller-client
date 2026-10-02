@@ -19,6 +19,7 @@ public final class Frame {
     public static void begin() {
         Motion.frame();
         Clicks.frame();
+        AllerClient.modules().pollKeys();
     }
 
     public static void end() {

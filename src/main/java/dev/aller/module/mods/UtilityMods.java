@@ -13,7 +13,8 @@ public final class UtilityMods {
     private UtilityMods() {}
 
     public static final class ToggleSprint extends Module {
-        public final Settings.Bool sneak = bool("sneak", "Also toggle sneak", false);
+        public final Settings.Bool sneak = bool("sneak", "Also toggle sneak", false)
+                .describe("Tap your sneak key once to stay crouched, again to stand");
         private boolean sneakLatched, sneakKeyWas;
 
         public ToggleSprint() {
@@ -28,10 +29,12 @@ public final class UtilityMods {
             // Hold the sprint key down for the player; vanilla still decides whether sprinting is possible.
             options.keySprint.setDown(true);
             if (sneak.get()) {
-                boolean physical = Mc.isDown(GLFW.GLFW_KEY_LEFT_SHIFT);
+                boolean physical = Mc.isDown(Mc.boundCode(options.keyShift));
                 if (physical && !sneakKeyWas) sneakLatched = !sneakLatched;
                 sneakKeyWas = physical;
                 if (sneakLatched) options.keyShift.setDown(true);
+            } else {
+                sneakLatched = false;
             }
         }
 
@@ -51,6 +54,9 @@ public final class UtilityMods {
     }
 
     public static final class Freelook extends Module {
+        public enum View { BEHIND, FRONT }
+
+        public final Settings.Choice<View> view = choice("view", "Camera", View.BEHIND);
         public final Settings.Bool invert = bool("invert_pitch", "Invert vertical", false);
         private float yaw, pitch;
         private CameraType restore;
@@ -59,12 +65,7 @@ public final class UtilityMods {
             super("freelook", "Freelook", "Hold to look around in third person without turning your character", Category.UTILITY);
             keywords("perspective", "360", "camera");
             restricted("Freelook is not allowed on some servers, including Hypixel.");
-            keybind.set(GLFW.GLFW_KEY_LEFT_ALT);
-        }
-
-        @Override
-        public boolean holdToActivate() {
-            return true;
+            holdKey(GLFW.GLFW_KEY_LEFT_ALT);
         }
 
         public boolean active() {
@@ -80,7 +81,7 @@ public final class UtilityMods {
                 yaw = player.getYRot();
                 pitch = player.getXRot();
                 restore = options.getCameraType();
-                options.setCameraType(CameraType.THIRD_PERSON_BACK);
+                options.setCameraType(view.get() == View.FRONT ? CameraType.THIRD_PERSON_FRONT : CameraType.THIRD_PERSON_BACK);
             } else if (restore != null) {
                 options.setCameraType(restore);
                 restore = null;
@@ -108,12 +109,15 @@ public final class UtilityMods {
         public final Settings.Key saveKey = key("save_key", "Save clip", GLFW.GLFW_KEY_F8);
         public final Settings.Num seconds = num("seconds", "Clip length", 30f, 10f, 90f, 5f).suffix("s");
         public final Settings.Num fps = num("fps", "Frame rate", 20f, 10f, 30f, 5f).suffix(" fps");
-        public final Settings.Num height = num("height", "Minimum height", 480f, 360f, 1080f, 120f).suffix("p");
-        public final Settings.Num quality = num("quality", "Quality", 70f, 40f, 95f, 5f).suffix("%");
+        public final Settings.Num height = num("height", "Resolution", 480f, 360f, 1080f, 120f).suffix("p")
+                .describe("The clip is at least this tall. Higher uses more memory and frame time");
+        public final Settings.Num quality = num("quality", "Quality", 70f, 40f, 95f, 5f).suffix("%")
+                .describe("JPEG quality of each frame. Higher means larger clips");
         private boolean saveWasDown;
 
         public ReplayMod() {
             super("replay", "Instant replay", "Keep the last moments of gameplay in memory and save them as a video with one key", Category.UTILITY);
+            seconds.describe("How far back a saved clip reaches");
             keywords("clip", "record", "video", "highlight", "capture");
         }
 

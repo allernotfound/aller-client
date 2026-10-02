@@ -89,6 +89,26 @@ public final class Mc {
         return GLFW.glfwGetKey(window(), code) == GLFW.GLFW_PRESS;
     }
 
+    /** The key a vanilla binding is set to, in the same encoding as {@link #isDown}. */
+    public static int boundCode(net.minecraft.client.KeyMapping mapping) {
+        //? if <26.1 {
+        /*var key = net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper.getBoundKeyOf(mapping);
+        *///?} else {
+        var key = net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper.getBoundKeyOf(mapping);
+        //?}
+        if (key.getValue() < 0) return -1;
+        return key.getType() == com.mojang.blaze3d.platform.InputConstants.Type.MOUSE ? -2 - key.getValue() : key.getValue();
+    }
+
+    /** Name of the vanilla control bound to this key ("Sprint"), or null if none is. */
+    public static String vanillaUse(int code) {
+        if (code == -1) return null;
+        for (var mapping : mc().options.keyMappings) {
+            if (boundCode(mapping) == code) return net.minecraft.network.chat.Component.translatable(mapping.getName()).getString();
+        }
+        return null;
+    }
+
     public static boolean shiftDown() {
         return isDown(GLFW.GLFW_KEY_LEFT_SHIFT) || isDown(GLFW.GLFW_KEY_RIGHT_SHIFT);
     }

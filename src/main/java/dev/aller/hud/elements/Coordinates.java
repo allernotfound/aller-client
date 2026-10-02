@@ -13,6 +13,7 @@ public final class Coordinates extends HudModule {
     public final Settings.Choice<Layout> layout = choice("layout", "Layout", Layout.VERTICAL);
     public final Settings.Bool decimals = bool("decimals", "Decimals", false);
     public final Settings.Bool otherDimension = bool("other_dimension", "Show Nether/Overworld equivalent", false);
+    public final Settings.Bool accentLabel = bool("accent_label", "Accent-coloured labels", true);
     public final Settings.Color textColor = color("text_color", "Text colour", 0xFFF5F3FB);
 
     private static final float SIZE = 8f, PAD = 6f, LINE = 11f;
@@ -24,6 +25,11 @@ public final class Coordinates extends HudModule {
         super("coordinates", "Coordinates", "Your position in the world", AnchorH.LEFT, AnchorV.TOP, 6, 26);
         keywords("xyz", "position", "coords", "location");
         onByDefault();
+    }
+
+    @Override
+    public java.util.List<dev.aller.setting.Setting<?>> appearance() {
+        return java.util.List.of(scale, background, accentLabel, textColor);
     }
 
     private String fmt(double v) {
@@ -69,16 +75,17 @@ public final class Coordinates extends HudModule {
     @Override
     protected void render(Canvas c, boolean editing) {
         chip(c, layout.get() == Layout.HORIZONTAL ? h / 2.6f : Theme.R_MD);
+        int labelColor = accentLabel.get() ? Theme.accent() : Theme.TEXT_DIM;
         if (layout.get() == Layout.HORIZONTAL) {
             float x = PAD;
             for (int i = 0; i < lines; i++) {
-                x += c.textMiddle(Fonts.MEDIUM, labels[i], x, 0.3f, h, SIZE * 0.82f, Theme.accent()) + 3;
+                x += c.textMiddle(Fonts.MEDIUM, labels[i], x, 0.3f, h, SIZE * 0.82f, labelColor) + 3;
                 x += c.textMiddle(Fonts.SEMIBOLD, values[i], x, 0, h, SIZE, textColor.get()) + 8;
             }
         } else {
             float y = PAD - 1;
             for (int i = 0; i < lines; i++) {
-                c.textMiddle(Fonts.MEDIUM, labels[i], PAD, y + 0.3f, LINE, SIZE * 0.82f, Theme.accent());
+                c.textMiddle(Fonts.MEDIUM, labels[i], PAD, y + 0.3f, LINE, SIZE * 0.82f, labelColor);
                 c.textMiddle(Fonts.SEMIBOLD, values[i], PAD + 14, y, LINE, SIZE, textColor.get());
                 y += LINE;
             }

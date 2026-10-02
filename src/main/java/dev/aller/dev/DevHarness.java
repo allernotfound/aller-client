@@ -154,6 +154,15 @@ public final class DevHarness {
             run(0.1f, () -> Mc.open(new PaletteScreen()));
             shot(1.2f, "palette-world");
             run(0.1f, () -> {
+                type("coordinates");
+                key(GLFW.GLFW_KEY_RIGHT);
+            });
+            shot(0.9f, "palette-hud-module");
+            run(0.1f, () -> {
+                key(GLFW.GLFW_KEY_ESCAPE);
+                key(GLFW.GLFW_KEY_ESCAPE);
+            });
+            run(0.1f, () -> {
                 type("session stats");
                 key(GLFW.GLFW_KEY_ENTER);
             });

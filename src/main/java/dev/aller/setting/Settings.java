@@ -30,6 +30,7 @@ public final class Settings {
     public static final class Num extends Setting<Float> {
         public final float min, max, step;
         public String suffix = "";
+        private java.util.function.Function<Float, String> format;
 
         public Num(String id, String name, float def, float min, float max, float step) {
             super(id, name, def);
@@ -43,10 +44,18 @@ public final class Settings {
             return this;
         }
 
+        /** Replaces the plain number shown beside the slider ("12:30" for a time, "Never" for zero). */
+        public Num format(java.util.function.Function<Float, String> f) {
+            format = f;
+            return this;
+        }
+
         @Override
         public void set(Float v) {
+            if (v.isNaN()) return;
             float snapped = step > 0 ? Math.round(v / step) * step : v;
-            super.set(Math.clamp(snapped, min, max));
+            // Trim float noise so 0.3 is saved as 0.3 rather than 0.3000001.
+            super.set(Math.clamp(Math.round(snapped * 10000f) / 10000f, min, max));
         }
 
         public int asInt() {
@@ -54,6 +63,7 @@ public final class Settings {
         }
 
         public String display() {
+            if (format != null) return format.apply(value);
             String num = step >= 1 ? Integer.toString(asInt()) : String.format(step >= 0.1f ? "%.1f" : "%.2f", value);
             return num + suffix;
         }
@@ -86,7 +96,11 @@ public final class Settings {
         @Override
         public void load(JsonElement json) {
             try {
-                set((int) Long.parseLong(json.getAsString().replace("#", ""), 16));
+                String hex = json.getAsString().replace("#", "").trim();
+                int argb = (int) Long.parseLong(hex, 16);
+                // "#RRGGBB" written by hand has no alpha digits; treat it as opaque rather than invisible.
+                if (hex.length() <= 6 || !alpha) argb |= 0xFF000000;
+                set(argb);
             } catch (RuntimeException ignored) {
                 // keep current value
             }

@@ -1,6 +1,7 @@
 package dev.aller.screen.palette;
 
 import dev.aller.AllerClient;
+import dev.aller.hud.Hud;
 import dev.aller.hud.HudModule;
 import dev.aller.module.Module;
 import dev.aller.module.mods.VisualMods;
@@ -9,8 +10,10 @@ import dev.aller.platform.Game;
 import dev.aller.platform.Mc;
 import dev.aller.screen.HudEditorScreen;
 import dev.aller.setting.Setting;
+import dev.aller.setting.Settings;
 import dev.aller.ui.Colors;
 import dev.aller.ui.Theme;
+import dev.aller.ui.Toasts;
 import dev.aller.ui.font.Fonts;
 import dev.aller.ui.widget.Button;
 import dev.aller.ui.widget.Scroll;
@@ -35,18 +38,45 @@ public final class SettingsPage extends Page {
         this.module = module;
         this.title = module.name;
         this.blurb = module.description;
-        List<Setting<?>> ordered = new ArrayList<>(module.settings());
-        // The keybind is created first by the base class but reads better at the end.
-        if (ordered.remove(module.keybind)) ordered.add(module.keybind);
-        view.set(ordered);
+        // What the mod itself does comes first, then the look shared by every HUD element, then its keys.
+        List<Setting<?>> appearance = module instanceof HudModule hud ? hud.appearance() : List.of();
+        for (Setting<?> s : module.settings()) {
+            if (s != module.keybind && s != module.activation && !appearance.contains(s)) view.add(s);
+        }
+        if (!appearance.isEmpty()) {
+            view.header("Appearance");
+            for (Setting<?> s : appearance) view.add(s);
+        }
+        if (!view.isEmpty()) view.header("Controls");
+        if (module.activation != null) view.add(module.activation);
+        view.add(module.keybind);
         view.onChange = AllerClient.config()::markDirty;
+        view.conflict = this::conflict;
         if (module instanceof HudModule && Game.inWorld() && !(Mc.current() instanceof HudEditorScreen)) {
             buttons.add(new Button("Move on screen", () -> Mc.open(new HudEditorScreen(Mc.screen()))));
         }
         buttons.add(new Button("Reset to defaults", () -> {
             module.resetToDefaults();
             AllerClient.config().markDirty();
+            Toasts.info(module.name + " reset", "Its settings are back to their defaults");
         }).style(Button.Style.GHOST));
+    }
+
+    /** What else answers to the key a setting is bound to, or null. */
+    private String conflict(Settings.Key key) {
+        int code = key.get();
+        for (Module m : AllerClient.modules().all()) {
+            for (Setting<?> s : m.settings()) {
+                if (s != key && s instanceof Settings.Key other && other.get() == code) {
+                    return s == m.keybind ? m.name : m.name + " (" + s.name.toLowerCase() + ")";
+                }
+            }
+        }
+        var opt = AllerClient.options();
+        if (key != opt.menuKey && opt.menuKey.get() == code) return "the palette";
+        if (key != opt.hudEditorKey && opt.hudEditorKey.get() == code) return "the HUD editor";
+        String vanilla = Mc.vanillaUse(code);
+        return vanilla == null ? null : "Minecraft's " + vanilla;
     }
 
     /** Client options. */
@@ -56,9 +86,11 @@ public final class SettingsPage extends Page {
         this.blurb = "Look, motion and behaviour of Aller itself. These apply to every profile.";
         view.set(AllerClient.options().settings());
         view.onChange = AllerClient.config()::markDirty;
+        view.conflict = this::conflict;
         buttons.add(new Button("Reset to defaults", () -> {
             AllerClient.options().resetSettings();
             AllerClient.config().markDirty();
+            Toasts.info("Client settings reset", "Everything here is back to its default");
         }).style(Button.Style.GHOST));
     }
 
@@ -103,7 +135,10 @@ public final class SettingsPage extends Page {
                 ? Fonts.REGULAR.wrap(module.fairPlayNote + " Aller never blocks it; the choice is yours.", 7.5f, cw - 30)
                 : List.of();
         boolean preview = module instanceof VisualMods.Crosshair;
-        float previewH = preview ? 58 : 0;
+        // A HUD element shows itself, sharp, since the real one is blurred behind the palette.
+        HudModule hud = module instanceof HudModule h0 && Game.inWorld() && Hud.measure(h0, true) && h0.w > 0 && h0.h > 0 ? h0 : null;
+        float hudSize = hud == null ? 1 : Math.min(1.5f, Math.min((cw - 24) / hud.w, 60 / hud.h));
+        float previewH = preview ? 58 : hud != null ? hud.h * hudSize + 24 + 8 : 0;
         float descH = lines.size() * 11f + 6 + previewH;
         float noteH = note.isEmpty() ? 0 : note.size() * 10f + 12 + 8;
         float buttonsH = 30;
@@ -128,6 +163,14 @@ public final class SettingsPage extends Page {
             VisualMods.Crosshair cross = (VisualMods.Crosshair) module;
             cross.drawAt(c, x + pad + half / 2, cy + ph / 2, 0, 0);
             cross.drawAt(c, x + pad + half * 1.5f, cy + ph / 2, 0, 0);
+            c.unclip();
+            cy += previewH;
+        } else if (hud != null) {
+            float ph = previewH - 8;
+            c.rect(x + pad, cy, cw, ph, Theme.R_MD, 0x0AFFFFFF);
+            c.stroke(x + pad, cy, cw, ph, Theme.R_MD, 1, Theme.BORDER);
+            c.clip(x + pad, cy, cw, ph);
+            Hud.drawPreview(c, hud, x + pad + (cw - hud.w * hudSize) / 2, cy + 12, hudSize);
             c.unclip();
             cy += previewH;
         }

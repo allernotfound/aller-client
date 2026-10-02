@@ -14,25 +14,45 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * Renders a list of {@link Setting}s as editable rows: switches, sliders, colour pickers, segmented
- * choices, key captures and text fields. Used by the palette's module pages, the client options
- * page and the HUD editor. The owner positions it, clips it and scrolls it.
+ * choices, key captures and text fields, under optional group headings. A setting's description
+ * sits under its name. Used by the palette's module pages and the client options page. The owner
+ * positions it, clips it and scrolls it. Right-clicking a row resets that setting.
  */
 public final class SettingsView {
     private static final float ROW = 24f;
     private static final float LABEL = 8.5f;
+    private static final float NOTE = 8f, NOTE_SIZE = 6.8f, HEADER = 22f;
 
     private final List<Row> rows = new ArrayList<>();
     private Row active;
     /** Called after any value changes, so the owner can mark the config dirty. */
     public Runnable onChange = () -> {};
+    /** Says what else a key is bound to ("Zoom"), or null if nothing; shown as a warning under the key row. */
+    public Function<Settings.Key, String> conflict = k -> null;
 
     public SettingsView set(List<? extends Setting<?>> settings) {
+        clear();
+        for (Setting<?> s : settings) add(s);
+        return this;
+    }
+
+    public void clear() {
         rows.clear();
         active = null;
-        for (Setting<?> s : settings) rows.add(make(s));
+    }
+
+    public SettingsView add(Setting<?> s) {
+        if (s.section != null) header(s.section);
+        rows.add(make(s));
+        return this;
+    }
+
+    public SettingsView header(String title) {
+        rows.add(new HeaderRow(title));
         return this;
     }
 
@@ -67,7 +87,7 @@ public final class SettingsView {
     public void draw(Canvas c, float x, float y, float w, float mx, float my, boolean hot) {
         float cy = y;
         for (Row r : rows) {
-            float vis = r.shown.target(r.setting.visible() ? 1 : 0).update();
+            float vis = r.shown.target(r.visible() ? 1 : 0).update();
             if (vis < 0.02f) {
                 r.h = 0;
                 continue;
@@ -77,12 +97,20 @@ public final class SettingsView {
             r.y = cy;
             r.w = w;
             r.h = h;
-            boolean over = hot && active == null && mx >= x && mx < x + w && my >= cy && my < cy + h;
-            float hv = r.hover.target(over || active == r ? 1 : 0).update();
             c.pushAlpha(Math.clamp(vis, 0f, 1f));
-            c.rect(x, cy + 1, w, ROW - 2, Theme.R_SM, Colors.withAlpha(Colors.WHITE, 0.045f * hv));
-            c.textMiddle(Fonts.MEDIUM, r.setting.name, x + 8, cy, ROW, LABEL, Colors.mix(Theme.TEXT_DIM, Theme.TEXT, hv));
-            r.draw(c, mx, my, over);
+            if (r.setting == null) {
+                r.draw(c, mx, my, false);
+            } else {
+                boolean over = hot && active == null && mx >= x && mx < x + w && my >= cy && my < cy + h;
+                float hv = r.hover.target(over || active == r ? 1 : 0).update();
+                c.rect(x, cy + 1, w, r.head() - 2, Theme.R_SM, Colors.withAlpha(Colors.WHITE, 0.045f * hv));
+                c.textMiddle(Fonts.MEDIUM, r.setting.name, x + 8, cy, ROW, LABEL, Colors.mix(Theme.TEXT_DIM, Theme.TEXT, hv));
+                String note = r.note();
+                if (!note.isEmpty()) {
+                    c.text(Fonts.REGULAR, Fonts.REGULAR.truncate(note, NOTE_SIZE, w - 16), x + 8, cy + ROW - 5, NOTE_SIZE, r.noteColor());
+                }
+                r.draw(c, mx, my, over);
+            }
             c.popAlpha();
             cy += h;
         }
@@ -93,7 +121,7 @@ public final class SettingsView {
         for (Row r : rows) if (r instanceof KeyRow k && k.listening) listening = true;
         Row target = null;
         for (Row r : rows) {
-            if (r.h > 0 && mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h) target = r;
+            if (r.setting != null && r.h > 0 && mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h) target = r;
         }
         if (listening) {
             // The click is consumed by the key capture (and may become the binding).
@@ -135,13 +163,32 @@ public final class SettingsView {
         final Spring shown;
         float x, y, w, h;
 
+        /** @param setting null for a heading */
         Row(Setting<?> setting) {
             this.setting = setting;
-            this.shown = Spring.smooth(setting.visible() ? 1 : 0);
+            this.shown = Spring.smooth(visible() ? 1 : 0);
+        }
+
+        boolean visible() {
+            return setting == null || setting.visible();
+        }
+
+        /** A line of small print under the name: the setting's description unless a row has something more urgent to say. */
+        String note() {
+            return setting.description;
+        }
+
+        int noteColor() {
+            return Theme.TEXT_MUTED;
+        }
+
+        /** Height of the part that holds the name and control; an expanding row adds to it. */
+        float head() {
+            return ROW + (note().isEmpty() ? 0 : NOTE);
         }
 
         float height() {
-            return ROW;
+            return head();
         }
 
         abstract void draw(Canvas c, float mx, float my, boolean over);
@@ -169,6 +216,27 @@ public final class SettingsView {
         }
     }
 
+    private static final class HeaderRow extends Row {
+        final String title;
+
+        HeaderRow(String title) {
+            super(null);
+            this.title = title.toUpperCase();
+        }
+
+        @Override
+        float head() {
+            return HEADER;
+        }
+
+        @Override
+        void draw(Canvas c, float mx, float my, boolean over) {
+            c.text(Fonts.SEMIBOLD, title, x + 8, y + 10, 6.4f, Theme.TEXT_MUTED);
+            float lx = x + 14 + Fonts.SEMIBOLD.width(title, 6.4f);
+            c.rect(lx, y + 13.5f, x + w - 8 - lx, 0.5f, 0, 0x14FFFFFF);
+        }
+    }
+
     private final class BoolRow extends Row {
         final Settings.Bool s;
         final Toggle toggle = new Toggle();
@@ -185,8 +253,9 @@ public final class SettingsView {
 
         @Override
         boolean mouseDown(float mx, float my, int button) {
-            if (button != 0) return false;
-            s.toggle();
+            if (button == 1) s.reset();
+            else if (button == 0) s.toggle();
+            else return false;
             Sounds.toggle(s.get());
             changed();
             return false;
@@ -281,7 +350,7 @@ public final class SettingsView {
 
         @Override
         float height() {
-            return ROW + extra() * Math.clamp(expand.get(), 0f, 1f);
+            return head() + extra() * Math.clamp(expand.get(), 0f, 1f);
         }
 
         /** Keeps our HSV copy unless something else changed the colour (hue would be lost at zero saturation). */
@@ -318,7 +387,7 @@ public final class SettingsView {
             c.stroke(sx, sy, sw, sh, 3.5f, 1, Theme.BORDER_STRONG);
             if (e < 0.02f) return;
 
-            float px = x + 8, pw = w - 16, py = y + ROW + GAP;
+            float px = x + 8, pw = w - 16, py = y + head() + GAP;
             if (drag == 1) {
                 sat = Math.clamp((mx - px) / pw, 0f, 1f);
                 val = 1 - Math.clamp((my - py) / PICK_H, 0f, 1f);
@@ -335,7 +404,7 @@ public final class SettingsView {
             }
 
             c.pushAlpha(Math.clamp(e, 0f, 1f));
-            c.clip(x, y + ROW, w, Math.max(0, h - ROW));
+            c.clip(x, y + head(), w, Math.max(0, h - head()));
             c.gradientH(px, py, pw, PICK_H, Theme.R_SM, Colors.WHITE, Colors.hsv(hue, 1, 1, 1));
             c.gradientV(px, py, pw, PICK_H, Theme.R_SM, 0x00000000, 0xFF000000);
             c.stroke(px, py, pw, PICK_H, Theme.R_SM, 1, Theme.BORDER);
@@ -368,19 +437,19 @@ public final class SettingsView {
 
         @Override
         boolean mouseDown(float mx, float my, int button) {
-            if (button == 1 && my < y + ROW) {
+            if (button == 1 && my < y + head()) {
                 s.reset();
                 changed();
                 return false;
             }
             if (button != 0) return false;
-            if (my < y + ROW) {
+            if (my < y + head()) {
                 open = !open;
                 Sounds.click();
                 return false;
             }
             if (!open) return false;
-            float py = y + ROW + GAP, hy = py + PICK_H + GAP, ay = hy + BAR_H + GAP;
+            float py = y + head() + GAP, hy = py + PICK_H + GAP, ay = hy + BAR_H + GAP;
             if (my >= py && my < py + PICK_H) drag = 1;
             else if (my >= hy - 3 && my < hy + BAR_H + 3) drag = 2;
             else if (s.alpha && my >= ay - 3 && my < ay + BAR_H + 3) drag = 3;
@@ -458,6 +527,7 @@ public final class SettingsView {
 
         @Override
         boolean mouseDown(float mx, float my, int button) {
+            if (button > 1) return false;
             if (button == 1) {
                 s.reset();
             } else if (segmented()) {
@@ -487,6 +557,21 @@ public final class SettingsView {
             this.s = s;
         }
 
+        private String clash() {
+            return listening || s.get() == Settings.Key.NONE ? null : conflict.apply(s);
+        }
+
+        @Override
+        String note() {
+            String other = clash();
+            return other != null ? "Also used by " + other : super.note();
+        }
+
+        @Override
+        int noteColor() {
+            return clash() != null ? Theme.WARN : super.noteColor();
+        }
+
         @Override
         void draw(Canvas c, float mx, float my, boolean over) {
             float l = listen.target(listening ? 1 : 0).update();
@@ -505,7 +590,8 @@ public final class SettingsView {
                 listening = true;
                 Sounds.click();
             } else if (button == 1) {
-                set(Settings.Key.NONE);
+                // Back to the default binding; right-click again to clear it altogether.
+                set(s.get().equals(s.defaultValue()) ? Settings.Key.NONE : s.defaultValue());
             }
             return false;
         }
@@ -563,6 +649,12 @@ public final class SettingsView {
 
         @Override
         boolean mouseDown(float mx, float my, int button) {
+            if (button == 1) {
+                s.reset();
+                field.focused = false;
+                changed();
+                return false;
+            }
             field.mouseDown(mx, my, button);
             return false;
         }

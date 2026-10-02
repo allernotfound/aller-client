@@ -162,7 +162,13 @@ public final class Session {
                 try {
                     List<Summary> loaded = GSON.fromJson(Files.readString(file, StandardCharsets.UTF_8),
                             new TypeToken<List<Summary>>() {}.getType());
-                    if (loaded != null) history.addAll(loaded);
+                    if (loaded != null) {
+                        for (Summary s : loaded) {
+                            if (s == null) continue;
+                            if (s.where == null) s.where = "";
+                            history.add(s);
+                        }
+                    }
                 } catch (Exception e) {
                     AllerClient.LOG.warn("Could not read session history", e);
                 }

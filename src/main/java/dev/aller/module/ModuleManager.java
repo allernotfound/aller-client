@@ -62,18 +62,18 @@ public final class ModuleManager {
     }
 
     public void tick() {
-        boolean inGame = Mc.mc().player != null;
-        boolean canUseKeys = inGame && Mc.screen() == null;
+        if (Mc.mc().player == null) return;
+        for (Module m : all) if (m.enabled()) m.tick();
+    }
+
+    /** Reads module keys once a frame, so a quick tap between two game ticks still counts. */
+    public void pollKeys() {
+        boolean canUseKeys = Mc.mc().player != null && Mc.screen() == null;
         for (Module m : all) {
-            int code = m.keybind.get();
-            boolean down = canUseKeys && Mc.isDown(code);
+            boolean down = canUseKeys && Mc.isDown(m.keybind.get());
             boolean was = Boolean.TRUE.equals(keyState.put(m, down));
-            if (m.holdToActivate()) {
-                m.setHeld(down);
-            } else if (down && !was) {
-                userToggle(m);
-            }
-            if (m.enabled() && inGame) m.tick();
+            if (m.holdToActivate()) m.keyInput(down, down && !was, canUseKeys);
+            else if (down && !was) userToggle(m);
         }
     }
 }

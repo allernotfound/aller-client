@@ -17,6 +17,7 @@ public final class Combat {
     private static int combo;
     private static int comboAge;
     private static double lastReach;
+    private static long lastReachAt;
     private static LivingEntity pending;
     private static int pendingAge;
     private static LivingEntity lastVictim;
@@ -40,6 +41,7 @@ public final class Combat {
         double y = Math.clamp(eye.y, box.minY, box.maxY);
         double z = Math.clamp(eye.z, box.minZ, box.maxZ);
         lastReach = eye.distanceTo(new Vec3(x, y, z));
+        lastReachAt = System.currentTimeMillis();
         if (Modules.HIT_PARTICLES.enabled()) Modules.HIT_PARTICLES.spawn(target);
         if (target instanceof LivingEntity living) {
             pending = living;
@@ -88,5 +90,10 @@ public final class Combat {
 
     public static double lastReach() {
         return lastReach;
+    }
+
+    /** Seconds since the attack {@link #lastReach()} describes. */
+    public static float reachAge() {
+        return (System.currentTimeMillis() - lastReachAt) / 1000f;
     }
 }

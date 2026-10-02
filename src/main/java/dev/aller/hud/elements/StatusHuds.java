@@ -29,6 +29,7 @@ public final class StatusHuds {
 
         public final Settings.Choice<Show> show = choice("show", "Durability", Show.DURABILITY);
         public final Settings.Bool held = bool("held", "Include held item", true);
+        public final Settings.Bool offhand = bool("offhand", "Include off-hand item", false);
         public final Settings.Bool horizontal = bool("horizontal", "Horizontal", false);
 
         private static final EquipmentSlot[] SLOTS = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
@@ -49,6 +50,7 @@ public final class StatusHuds {
             var p = Game.player();
             for (EquipmentSlot slot : SLOTS) add(p.getItemBySlot(slot));
             if (held.get()) add(p.getMainHandItem());
+            if (offhand.get()) add(p.getOffhandItem());
             if (stacks.isEmpty() && editing) {
                 add(new ItemStack(Items.DIAMOND_HELMET));
                 add(new ItemStack(Items.DIAMOND_CHESTPLATE));
@@ -83,7 +85,7 @@ public final class StatusHuds {
         @Override
         protected void render(Canvas c, boolean editing) {
             chip(c, Theme.R_MD);
-            float x = 4, y = horizontal.get() ? 3 : 3;
+            float x = 4, y = 3;
             for (int i = 0; i < stacks.size(); i++) {
                 ItemStack stack = stacks.get(i);
                 c.item(stack, x, y);
@@ -171,6 +173,8 @@ public final class StatusHuds {
     }
 
     public static final class Target extends HudModule {
+        public final Settings.Bool playersOnly = bool("players_only", "Players only", false);
+        public final Settings.Num lingerTime = num("linger", "Stay after looking away", 1.5f, 0f, 5f, 0.5f).suffix("s");
         private final Spring health = new Spring(1, 180f, 26f);
         private final Spring damageTrail = new Spring(1, 40f, 12f);
         private LivingEntity target;
@@ -184,14 +188,16 @@ public final class StatusHuds {
 
         @Override
         public void tick() {
-            if (Mc.mc().crosshairPickEntity instanceof LivingEntity living && living.isAlive()) {
+            if (Mc.mc().crosshairPickEntity instanceof LivingEntity living && living.isAlive()
+                    && (!playersOnly.get() || living instanceof net.minecraft.world.entity.player.Player)) {
                 if (living != target) {
                     target = living;
                     float f = fraction();
                     health.snap(f);
                     damageTrail.snap(f);
                 }
-                linger = 30;
+                linger = Math.round(lingerTime.get() * 20);
+                if (linger == 0) linger = 1;
             } else if (linger > 0 && --linger == 0) {
                 target = null;
             }

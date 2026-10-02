@@ -4,7 +4,6 @@ import dev.aller.module.Category;
 import dev.aller.module.Module;
 import dev.aller.module.Modules;
 import dev.aller.setting.Settings;
-import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
 import java.time.LocalTime;
@@ -16,6 +15,7 @@ public final class ChatMods {
     public static final class Timestamps extends Module {
         public final Settings.Bool twentyFour = bool("24h", "24-hour clock", true);
         public final Settings.Bool seconds = bool("seconds", "Show seconds", false);
+        public final Settings.Color color = add(new Settings.Color("color", "Colour", 0xFF7A7490, false));
 
         public Timestamps() {
             super("chat_timestamps", "Chat timestamps", "Prefix every chat message with the time it arrived", Category.CHAT);
@@ -23,10 +23,11 @@ public final class ChatMods {
         }
 
         Component stamp(Component message) {
-            String pattern = (twentyFour.get() ? "HH:mm" : "h:mm") + (seconds.get() ? ":ss" : "");
+            String pattern = (twentyFour.get() ? "HH:mm" : "h:mm") + (seconds.get() ? ":ss" : "") + (twentyFour.get() ? "" : " a");
             String time = LocalTime.now().format(DateTimeFormatter.ofPattern(pattern));
+            int rgb = color.get() & 0xFFFFFF;
             return Component.empty()
-                    .append(Component.literal("[" + time + "] ").withStyle(ChatFormatting.DARK_GRAY))
+                    .append(Component.literal("[" + time + "] ").withStyle(style -> style.withColor(rgb)))
                     .append(message);
         }
     }

@@ -1,6 +1,7 @@
 package dev.aller.module;
 
 import com.google.gson.JsonObject;
+import dev.aller.platform.Mc;
 import dev.aller.setting.Configurable;
 import dev.aller.setting.Settings;
 
@@ -41,6 +42,8 @@ public abstract class Module extends Configurable {
 
     public void setEnabled(boolean on) {
         if (on == enabled) return;
+        // Let go first, so a hold-style module restores whatever it changed while active.
+        if (!on) setHeld(false);
         enabled = on;
         if (on) onEnable();
         else onDisable();
@@ -64,9 +67,27 @@ public abstract class Module extends Configurable {
         setEnabled(enabledByDefault);
     }
 
+    public enum Activation { HOLD, TOGGLE }
+
+    /** Set for hold-style modules: whether the key must stay down or flips the effect on and off. */
+    public Settings.Choice<Activation> activation;
+
+    /** Binds a key that "Reset to defaults" and a fresh profile come back to. */
+    protected Module bind(int key) {
+        keybind.withDefault(key);
+        return this;
+    }
+
+    /** Makes this a hold-style module (zoom, freelook): its key drives the effect instead of toggling the module. */
+    protected Module holdKey(int key) {
+        activation = choice("activation", "Key mode", Activation.HOLD);
+        activation.describe("Hold the key, or press once to start and again to stop");
+        return bind(key);
+    }
+
     /** Hold-style modules (zoom, freelook) act while the key is down instead of toggling. */
     public boolean holdToActivate() {
-        return false;
+        return activation != null;
     }
 
     private boolean held;
@@ -80,6 +101,13 @@ public abstract class Module extends Configurable {
         if (down == held) return;
         held = down;
         if (enabled) onHeldChanged(down);
+    }
+
+    /** Key state fed in by the manager; {@code pressed} is true only on the frame the key went down. */
+    void keyInput(boolean down, boolean pressed, boolean usable) {
+        if (activation.get() == Activation.HOLD) setHeld(down);
+        else if (pressed) setHeld(!held);
+        else if (!usable && Mc.mc().player == null) setHeld(false);
     }
 
     protected void onHeldChanged(boolean down) {}
@@ -101,6 +129,7 @@ public abstract class Module extends Configurable {
     @Override
     public void load(JsonObject o) {
         super.load(o);
-        if (o.has("enabled")) setEnabled(o.get("enabled").getAsBoolean());
+        var on = o.get("enabled");
+        if (on != null && on.isJsonPrimitive() && on.getAsJsonPrimitive().isBoolean()) setEnabled(on.getAsBoolean());
     }
 }

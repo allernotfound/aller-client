@@ -57,7 +57,7 @@ public final class Toasts {
         float slot = 8;
         for (Iterator<Toast> it = toasts.iterator(); it.hasNext(); ) {
             Toast t = it.next();
-            t.age += Motion.delta();
+            t.age += Motion.realDelta();
             boolean leaving = t.age > t.life;
             float s = t.slide.target(leaving ? 0 : 1).update();
             if (leaving && s < 0.02f) {
@@ -76,9 +76,9 @@ public final class Toasts {
 
             c.pushAlpha(Math.clamp(s, 0f, 1f));
             Theme.panel(c, x, y, w, H, Theme.R_MD);
-            c.circle(x + 12, y + H / 2, 3, t.dot);
             c.shadow(x + 9, y + H / 2 - 3, 6, 6, 3, 6, Colors.withAlpha(t.dot, 0.6f));
-            c.text(Fonts.SEMIBOLD, t.title, x + 22, y + 5, 8.5f, Theme.TEXT);
+            c.circle(x + 12, y + H / 2, 3, t.dot);
+            c.text(Fonts.SEMIBOLD, Fonts.SEMIBOLD.truncate(t.title, 8.5f, w - 30), x + 22, y + 5, 8.5f, Theme.TEXT);
             c.text(Fonts.REGULAR, Fonts.REGULAR.truncate(t.body, bodySize, w - 30), x + 22, y + 16.5f, bodySize, Theme.TEXT_DIM);
             // Remaining-time bar.
             float left = Math.clamp(1 - t.age / t.life, 0f, 1f);

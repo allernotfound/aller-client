@@ -7,6 +7,7 @@ package dev.aller.ui.anim;
 public final class Motion {
     private static long lastNanos = System.nanoTime();
     private static float delta;
+    private static float realDelta;
     private static float time;
     private static float speed = 1f;
     private static boolean reduced;
@@ -21,12 +22,18 @@ public final class Motion {
         // Clamp so a hitch (world load, alt-tab) doesn't make springs explode.
         raw = Math.min(raw, 0.1f);
         time += raw;
+        realDelta = raw;
         delta = raw * speed;
     }
 
     /** Seconds since the previous frame, scaled by the user's animation speed. */
     public static float delta() {
         return delta;
+    }
+
+    /** Seconds since the previous frame in real time, for things that must not speed up (how long a toast stays). */
+    public static float realDelta() {
+        return realDelta;
     }
 
     /** Unscaled seconds since startup, for looping effects such as shaders. */

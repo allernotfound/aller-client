@@ -253,6 +253,9 @@ public final class InfoHuds {
     }
 
     public static final class Light extends TextHud {
+        public final Settings.Bool sky = bool("sky", "Also show sky light", false)
+                .describe("Shown second: the light the sky gives here in full daylight");
+
         public Light() {
             super("light", "Light level", "Block light where you stand (mobs spawn at 0)", AnchorH.LEFT, AnchorV.TOP, 6, 172);
             keywords("brightness", "spawn");
@@ -266,7 +269,8 @@ public final class InfoHuds {
         @Override
         protected String value(boolean editing) {
             BlockPos pos = Game.player().blockPosition();
-            return Integer.toString(Game.level().getBrightness(LightLayer.BLOCK, pos));
+            String block = Integer.toString(Game.level().getBrightness(LightLayer.BLOCK, pos));
+            return sky.get() ? block + " | " + Game.level().getBrightness(LightLayer.SKY, pos) : block;
         }
     }
 
@@ -325,6 +329,9 @@ public final class InfoHuds {
     }
 
     public static final class Reach extends TextHud {
+        public final Settings.Num linger = num("linger", "Hide after", 0f, 0f, 30f, 1f)
+                .format(v -> v <= 0 ? "Never" : Math.round(v) + "s");
+
         public Reach() {
             super("reach", "Reach display", "Distance of your last hit", AnchorH.CENTER, AnchorV.MIDDLE, 0, 58);
             keywords("distance", "range", "pvp");
@@ -338,6 +345,7 @@ public final class InfoHuds {
         @Override
         protected String value(boolean editing) {
             double reach = Combat.lastReach();
+            if (linger.get() > 0 && Combat.reachAge() > linger.get()) reach = 0;
             return reach > 0 ? String.format("%.2f", reach) : editing ? "2.87" : null;
         }
     }

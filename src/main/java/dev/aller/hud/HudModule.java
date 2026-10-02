@@ -118,6 +118,11 @@ public abstract class HudModule extends Module {
         resetPosition();
     }
 
+    /** The look-and-feel settings every element shares, listed after its own in the UI. */
+    public java.util.List<dev.aller.setting.Setting<?>> appearance() {
+        return java.util.List.of(scale, background);
+    }
+
     /** Standard chip background, honouring the Background setting. */
     protected void chip(Canvas c, float radius) {
         if (background.get()) Theme.chip(c, 0, 0, w, h, radius, Theme.GLASS_HUD);

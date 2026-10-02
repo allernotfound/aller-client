@@ -37,7 +37,7 @@ public final class Hooks {
     }
 
     public static long dayTime(long original) {
-        return Modules.TIME_CHANGER.enabled() ? Modules.TIME_CHANGER.time() : original;
+        return Modules.TIME_CHANGER.enabled() ? Modules.TIME_CHANGER.time(original) : original;
     }
 
     public static float rain(float original) {
@@ -53,7 +53,7 @@ public final class Hooks {
     }
 
     public static boolean hideScoreboard() {
-        return Modules.SCOREBOARD.enabled() && Modules.SCOREBOARD.hide.get();
+        return Modules.SCOREBOARD.enabled();
     }
 
     public static boolean replaceTabList() {
@@ -67,6 +67,11 @@ public final class Hooks {
     /** @return true if the mouse movement was consumed by freelook and must not turn the player */
     public static boolean freelookTurn(double dx, double dy) {
         return Modules.FREELOOK.turn(dx, dy);
+    }
+
+    /** Scales raw mouse movement before it turns the player (lower sensitivity while zoomed). */
+    public static double turnScale() {
+        return Modules.ZOOM.mouseScale();
     }
 
     public static float cameraYaw(float original) {
@@ -95,6 +100,6 @@ public final class Hooks {
     public static int blockOutlineColor(int original) {
         // Leave the black secondary pass of the high-contrast outline alone.
         if (!Modules.BLOCK_OUTLINE.enabled() || original == 0xFF000000) return original;
-        return Modules.BLOCK_OUTLINE.color.get();
+        return Modules.BLOCK_OUTLINE.tint();
     }
 }

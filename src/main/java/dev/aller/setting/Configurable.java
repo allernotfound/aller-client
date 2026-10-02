@@ -14,9 +14,18 @@ public abstract class Configurable {
         return settings;
     }
 
+    private String pendingSection;
+
     protected <S extends Setting<?>> S add(S setting) {
+        setting.section = pendingSection;
+        pendingSection = null;
         settings.add(setting);
         return setting;
+    }
+
+    /** Starts a titled group: the next setting added gets this heading above it. */
+    protected void section(String title) {
+        pendingSection = title;
     }
 
     protected Settings.Bool bool(String id, String name, boolean def) {

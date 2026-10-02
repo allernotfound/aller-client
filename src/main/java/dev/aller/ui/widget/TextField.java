@@ -11,7 +11,7 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.function.Consumer;
 
-/** Single-line text input with caret, word deletion, select-all and clipboard paste. */
+/** Single-line text input with a click-to-place caret, word jumps and deletion, select-all and the clipboard. */
 public class TextField extends Widget {
     public String text = "";
     public String placeholder = "";
@@ -26,6 +26,8 @@ public class TextField extends Widget {
     private final Spring focus = Spring.snappy(0);
     private final Spring caretX = new Spring(0, 900f, 50f);
     private float blink;
+    /** How far the text is shifted left so the caret stays in view when it is longer than the field. */
+    private float scrollX;
 
     public TextField(String placeholder) {
         this.placeholder = placeholder;
@@ -49,10 +51,19 @@ public class TextField extends Widget {
             c.rect(x, y, w, h, Theme.R_MD, Colors.mix(0x12FFFFFF, 0x1CFFFFFF, f));
             c.stroke(x, y, w, h, Theme.R_MD, 1, Colors.mix(Theme.BORDER, Colors.withAlpha(Theme.accent(), 0.9f), f));
         }
-        float tx = x + pad;
+        float inner = Math.max(1, w - pad * 2);
+        if (focused) {
+            float caretAt = Fonts.REGULAR.width(text.substring(0, Math.min(caret, text.length())), textSize);
+            if (caretAt - scrollX > inner - 2) scrollX = caretAt - inner + 2;
+            if (caretAt - scrollX < 0) scrollX = caretAt;
+            scrollX = Math.clamp(scrollX, 0, Math.max(0, Fonts.REGULAR.width(text, textSize) - inner + 2));
+        } else {
+            scrollX = 0;
+        }
+        float tx = x + pad - scrollX;
         float th = Fonts.REGULAR.height(textSize);
         float ty = y + (h - th) / 2;
-        c.clip(x, y, w, h);
+        c.clip(x + pad, y, inner + 1, h);
         if (text.isEmpty()) {
             c.text(Fonts.REGULAR, placeholder, tx, ty, textSize, Theme.TEXT_MUTED);
         } else {
@@ -78,7 +89,19 @@ public class TextField extends Widget {
     public boolean mouseDown(float mx, float my, int button) {
         focused = hit(mx, my);
         allSelected = false;
-        if (focused) caret = text.length();
+        if (focused) {
+            // Put the caret at the gap between characters nearest the click.
+            float local = mx - (x + (bare ? 0 : 8)) + scrollX;
+            caret = text.length();
+            for (int i = 0; i < text.length(); i++) {
+                float mid = (Fonts.REGULAR.width(text.substring(0, i), textSize) + Fonts.REGULAR.width(text.substring(0, i + 1), textSize)) / 2;
+                if (local < mid) {
+                    caret = i;
+                    break;
+                }
+            }
+            blink = 0;
+        }
         return focused;
     }
 
@@ -112,7 +135,7 @@ public class TextField extends Widget {
                 return true;
             }
             case GLFW.GLFW_KEY_RIGHT -> {
-                caret = allSelected ? text.length() : Math.min(text.length(), caret + 1);
+                caret = allSelected ? text.length() : ctrl ? wordEnd(caret) : Math.min(text.length(), caret + 1);
                 allSelected = false;
                 return true;
             }
@@ -135,6 +158,15 @@ public class TextField extends Widget {
             case GLFW.GLFW_KEY_C -> {
                 if (ctrl) {
                     if (allSelected) Mc.setClipboard(text);
+                    return true;
+                }
+            }
+            case GLFW.GLFW_KEY_X -> {
+                if (ctrl) {
+                    if (allSelected) {
+                        Mc.setClipboard(text);
+                        replaceAll("");
+                    }
                     return true;
                 }
             }
@@ -181,6 +213,13 @@ public class TextField extends Widget {
         int i = from;
         while (i > 0 && text.charAt(i - 1) == ' ') i--;
         while (i > 0 && text.charAt(i - 1) != ' ') i--;
+        return i;
+    }
+
+    private int wordEnd(int from) {
+        int i = from;
+        while (i < text.length() && text.charAt(i) == ' ') i++;
+        while (i < text.length() && text.charAt(i) != ' ') i++;
         return i;
     }
 

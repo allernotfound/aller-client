@@ -17,6 +17,8 @@ public final class Sounds {
     }
 
     private static void play(float pitch, float volume) {
+        volume *= dev.aller.AllerClient.options().uiVolume.get() / 100f;
+        if (volume <= 0) return;
         Mc.mc().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), pitch, volume));
     }
 }

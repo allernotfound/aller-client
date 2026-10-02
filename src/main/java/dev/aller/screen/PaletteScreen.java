@@ -130,7 +130,7 @@ public final class PaletteScreen extends AllerScreen {
                 Game::inWorld, () -> {
                     var w = Waypoints.addHere("Waypoint " + (Waypoints.all().size() + 1),
                             Waypoints.PALETTE[Waypoints.all().size() % Waypoints.PALETTE.length]);
-                    Toasts.info("Waypoint added", w.name + " at " + (int) w.x + ", " + (int) w.y + ", " + (int) w.z);
+                    Toasts.info("Waypoint added", w.name + " at " + Waypoints.coords(w));
                     close();
                 });
         action("Save replay clip", "Write the last moments of gameplay to a video file", "clip record video replay highlight",
@@ -214,6 +214,10 @@ public final class PaletteScreen extends AllerScreen {
                 for (String k : m.keywords) if (k.contains(q)) score = Math.max(score, 70);
                 if (m.category.label.toLowerCase().contains(q)) score = Math.max(score, 50);
                 if (m.description.toLowerCase().contains(q)) score = Math.max(score, 35);
+                // A setting's name finds the mod it belongs to ("thickness" -> Custom crosshair).
+                if (score <= 0 && q.length() >= 3) {
+                    for (var s : m.settings()) if (s != m.keybind && s.name.toLowerCase().contains(q)) score = 20;
+                }
                 if (score > 0) found.add(moduleRow(m, hits, score));
             }
             if (filter == null) {

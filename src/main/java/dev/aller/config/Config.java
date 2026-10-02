@@ -45,9 +45,13 @@ public final class Config {
     public void load() {
         JsonObject root = read(dir.resolve("client.json"));
         if (root != null) {
-            if (root.has("options")) AllerClient.options().load(root.getAsJsonObject("options"));
-            if (root.has("profile")) active = sanitise(root.get("profile").getAsString());
-            if (root.has("extras")) extras = root.getAsJsonObject("extras");
+            try {
+                if (root.has("options") && root.get("options").isJsonObject()) AllerClient.options().load(root.getAsJsonObject("options"));
+                if (root.has("profile") && root.get("profile").isJsonPrimitive()) active = sanitise(root.get("profile").getAsString());
+                if (root.has("extras") && root.get("extras").isJsonObject()) extras = root.getAsJsonObject("extras");
+            } catch (RuntimeException e) {
+                AllerClient.LOG.warn("Ignoring unreadable parts of client.json", e);
+            }
         }
         AllerClient.options().applyMotion();
         loadProfile(active);
@@ -92,7 +96,7 @@ public final class Config {
 
     private void loadProfile(String name) {
         JsonObject root = read(profiles.resolve(name + ".json"));
-        if (root == null || !root.has("modules")) return;
+        if (root == null || !root.has("modules") || !root.get("modules").isJsonObject()) return;
         JsonObject modules = root.getAsJsonObject("modules");
         for (Module m : AllerClient.modules().all()) {
             // Start from defaults so anything the file omits doesn't leak in from the previous profile.

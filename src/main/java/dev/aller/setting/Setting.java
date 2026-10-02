@@ -10,8 +10,10 @@ public abstract class Setting<T> {
     public final String id;
     public final String name;
     public String description = "";
+    /** Heading shown above this setting in the UI, starting a new group; null to continue the current one. */
+    public String section;
     protected T value;
-    protected final T defaultValue;
+    protected T defaultValue;
     private Consumer<T> onChange;
     private BooleanSupplier visible = () -> true;
 
@@ -37,6 +39,14 @@ public abstract class Setting<T> {
 
     public T defaultValue() {
         return defaultValue;
+    }
+
+    /** Sets the value and makes it what {@link #reset()} returns to (a module's own default key, say). */
+    @SuppressWarnings("unchecked")
+    public <S extends Setting<T>> S withDefault(T v) {
+        defaultValue = v;
+        set(v);
+        return (S) this;
     }
 
     @SuppressWarnings("unchecked")

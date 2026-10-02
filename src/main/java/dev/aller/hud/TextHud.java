@@ -16,9 +16,10 @@ public abstract class TextHud extends HudModule {
     protected static final float PAD_X = 6f;
     protected static final float PAD_Y = 4f;
 
-    public final Settings.Bool showLabel = bool("label", "Show label", true);
+    public final Settings.Bool showLabel = bool("label", "Show label", true).visibleWhen(() -> label() != null);
+    public final Settings.Bool accentLabel = bool("accent_label", "Accent-coloured label", true)
+            .visibleWhen(() -> label() != null && this.showLabel.get());
     public final Settings.Color textColor = color("text_color", "Text colour", 0xFFF5F3FB);
-    public final Settings.Bool accentLabel = bool("accent_label", "Accent-coloured label", true);
 
     private final Spring width = new Spring(0, 380f, 34f);
     private String sampled;
@@ -29,6 +30,11 @@ public abstract class TextHud extends HudModule {
 
     protected TextHud(String id, String name, String description, AnchorH h, AnchorV v, float x, float y) {
         super(id, name, description, h, v, x, y);
+    }
+
+    @Override
+    public java.util.List<dev.aller.setting.Setting<?>> appearance() {
+        return java.util.List.of(scale, background, showLabel, accentLabel, textColor);
     }
 
     /** Short caption shown before the value, or null for none. */

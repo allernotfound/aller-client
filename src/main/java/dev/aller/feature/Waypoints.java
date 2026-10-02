@@ -51,11 +51,16 @@ public final class Waypoints {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static List<Waypoint> list = new ArrayList<>();
     private static String loadedKey;
+    private static Object keyedLevel;
 
     private Waypoints() {}
 
     /** All waypoints for the world the player is currently in. */
     public static List<Waypoint> all() {
+        // This runs several times a frame; the world can only have changed when the level object has.
+        Object level = Game.level();
+        if (level == keyedLevel && loadedKey != null) return list;
+        keyedLevel = level;
         String key = Game.worldKey();
         if (!key.equals(loadedKey)) {
             loadedKey = key;
@@ -65,13 +70,26 @@ public final class Waypoints {
                 try {
                     List<Waypoint> loaded = GSON.fromJson(Files.readString(file, StandardCharsets.UTF_8),
                             new TypeToken<List<Waypoint>>() {}.getType());
-                    if (loaded != null) list.addAll(loaded);
+                    if (loaded != null) {
+                        for (Waypoint w : loaded) {
+                            // A hand-edited file can leave entries or fields null.
+                            if (w == null) continue;
+                            if (w.name == null) w.name = "Waypoint";
+                            if (w.dimension == null) w.dimension = "overworld";
+                            list.add(w);
+                        }
+                    }
                 } catch (Exception e) {
                     AllerClient.LOG.warn("Could not read waypoints for {}", key, e);
                 }
             }
         }
         return list;
+    }
+
+    /** Block coordinates as "x, y, z". */
+    public static String coords(Waypoint w) {
+        return String.format("%d, %d, %d", (int) Math.floor(w.x), (int) Math.floor(w.y), (int) Math.floor(w.z));
     }
 
     public static Waypoint addHere(String name, int color) {
@@ -103,7 +121,7 @@ public final class Waypoints {
         for (Waypoint each : all()) if (each.death) deaths.add(each);
         for (int i = 0; i < deaths.size() - keep; i++) all().remove(deaths.get(i));
         save();
-        Toasts.info("Death marker saved", String.format("%d, %d, %d", (int) w.x, (int) w.y, (int) w.z));
+        Toasts.info("Death marker saved", coords(w));
     }
 
     public static void save() {
@@ -192,7 +210,7 @@ public final class Waypoints {
             drawShape(c, w.shape(), x, y, r, w.color, true);
             float labelAlpha = mod.alwaysLabel.get() ? Math.max(0.6f, focus) : focus;
             if (labelAlpha > 0.02f) {
-                String label = w.name + "  " + distanceText(dist);
+                String label = mod.showDistance.get() ? w.name + "  " + distanceText(dist) : w.name;
                 float size = 7.5f * s;
                 float tw = Fonts.MEDIUM.width(label, size);
                 c.pushAlpha(labelAlpha);

@@ -16,8 +16,8 @@ public final class Keystrokes extends HudModule {
     public final Settings.Bool mouse = bool("mouse", "Mouse buttons", true);
     public final Settings.Bool space = bool("space", "Space bar", true);
     public final Settings.Bool cps = bool("cps", "CPS on mouse buttons", true);
-    public final Settings.Color pressed = color("pressed", "Pressed colour", 0xFF8B5CF6);
     public final Settings.Bool useAccent = bool("use_accent", "Use accent colour when pressed", true);
+    public final Settings.Color pressed = color("pressed", "Pressed colour", 0xFF8B5CF6).visibleWhen(() -> !this.useAccent.get());
 
     private static final float KEY = 20, GAP = 2;
     private final Spring[] press = new Spring[7];
