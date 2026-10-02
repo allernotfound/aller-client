@@ -198,6 +198,27 @@ public final class Hooks {
         return Pocket.chat(listener, text, command);
     }
 
+    // The pack store's additions to the game's own pack list.
+
+    /** A screen has drawn; the pack list gets its button to the store on top. */
+    public static void screenExtras(Canvas c, Screen screen) {
+        dev.aller.screen.store.PackListExtras.button(c, screen);
+    }
+
+    public static void packEntry(Canvas c, String packId, int x, int y, int w, int h) {
+        dev.aller.screen.store.PackListExtras.entry(c, packId, x, y, w, h);
+    }
+
+    /** Brackets the pack list reading its folder; the lists are its two columns and may be rearranged after. */
+    public static void packsReading(Object repository, java.util.List<net.minecraft.server.packs.repository.Pack> selected) {
+        dev.aller.platform.PackList.reading(repository, selected);
+    }
+
+    public static void packsRead(Object repository, java.util.List<net.minecraft.server.packs.repository.Pack> selected,
+            java.util.List<net.minecraft.server.packs.repository.Pack> unselected) {
+        dev.aller.platform.PackList.read(repository, selected, unselected);
+    }
+
     // Restyled vanilla menus. The boolean ones return true when Aller drew the piece and vanilla must not.
 
     /** Brackets every vanilla screen's drawing, for the ease-in after leaving one of Aller's menus. */

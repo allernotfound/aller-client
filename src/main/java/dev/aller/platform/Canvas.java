@@ -161,6 +161,11 @@ public final class Canvas {
         g.pose().translate(pivotX, pivotY).rotate(radians).translate(-pivotX, -pivotY);
     }
 
+    /** Leans what is drawn to the right, pivoting on a horizontal line (a baseline): a stand-in for italics. */
+    public void skew(float amount, float pivotY) {
+        g.pose().translate(0, pivotY).mul(new org.joml.Matrix3x2f(1, 0, -amount, 1, 0, 0)).translate(0, -pivotY);
+    }
+
     public void clip(float x, float y, float w, float h) {
         g.enableScissor((int) Math.floor(x), (int) Math.floor(y), (int) Math.ceil(x + w), (int) Math.ceil(y + h));
     }
@@ -406,6 +411,22 @@ public final class Canvas {
         return mc.width(line) * k;
     }
 
+    /**
+     * A line that may hold characters Inter has no glyph for (names and descriptions from the web):
+     * those runs are set in Minecraft's font where they fall. Measure it with {@link Fonts#widthAny}.
+     */
+    public float textAny(Fonts font, CharSequence text, float x, float y, float size, int color) {
+        if (Fonts.vanilla() || font.covers(text)) return text(font, text, x, y, size, color);
+        float pen = 0;
+        for (int i = 0; i < text.length(); ) {
+            int end = font.runEnd(text, i);
+            CharSequence run = text.subSequence(i, end);
+            pen += font.atlas().has(text.charAt(i)) ? text(font, run, x + pen, y, size, color) : pixelText(font, run, x + pen, y, size, color);
+            i = end;
+        }
+        return pen;
+    }
+
     public void textCentered(Fonts font, CharSequence text, float cx, float y, float size, int color) {
         text(font, text, cx - font.width(text, size) / 2, y, size, color);
     }
@@ -467,6 +488,49 @@ public final class Canvas {
         }
         submit(new Mesh(Pipelines.TEXT, dev.aller.ui.Icons.texture(chunky).setup(), g.scissorStack.peek(), bounds(minX, minY, maxX, maxY),
                 v, new int[] {c}, 0, 0, 0, 0, 0f, 0f, 0f));
+    }
+
+    // ---- pictures ------------------------------------------------------------------------------
+
+    /**
+     * A picture in a rounded box, faded with the canvas.
+     *
+     * @param cover true to fill the box and crop what does not fit; false to stretch
+     */
+    public void picture(Tex tex, float x, float y, float w, float h, float radius, boolean cover) {
+        int color = Colors.fade(Colors.WHITE, alpha);
+        if (color >>> 24 == 0 || w <= 0 || h <= 0 || tex.width == 0 || tex.height == 0) return;
+        float cropU = 1, cropV = 1;
+        if (cover) {
+            float shape = (tex.width / (float) tex.height) / (w / h);
+            if (shape > 1) cropU = 1 / shape;
+            else cropV = shape;
+        }
+        Matrix3x2fStack m = g.pose();
+        float hw = w / 2, hh = h / 2, cx = x + hw, cy = y + hh;
+        float[] v = new float[16];
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+        for (int i = 0; i < 4; i++) {
+            // One pixel beyond the box, for the anti-aliased edge.
+            float lx = i < 2 ? -hw - 1 : hw + 1, ly = i == 1 || i == 2 ? hh + 1 : -hh - 1;
+            float tx = m.m00() * (cx + lx) + m.m10() * (cy + ly) + m.m20();
+            float ty = m.m01() * (cx + lx) + m.m11() * (cy + ly) + m.m21();
+            v[i * 4] = tx;
+            v[i * 4 + 1] = ty;
+            v[i * 4 + 2] = lx;
+            v[i * 4 + 3] = ly;
+            minX = Math.min(minX, tx);
+            minY = Math.min(minY, ty);
+            maxX = Math.max(maxX, tx);
+            maxY = Math.max(maxY, ty);
+        }
+        float cell = 0;
+        if (radius >= 0.75f && pixelated()) {
+            float zoom = (float) Math.sqrt(m.m00() * m.m00() + m.m01() * m.m01());
+            cell = (Math.clamp(Math.round(16f / Math.max(zoom, 0.01f)), 1, 127) + 0.25f) / 127f;
+        }
+        submit(new Mesh(Pipelines.PICTURE, tex.setup(), g.scissorStack.peek(), bounds(minX, minY, maxX, maxY),
+                v, new int[] {color}, q4(hw), q4(hh), q4(radius), 0, cropU, cropV, cell));
     }
 
     // ---- special -------------------------------------------------------------------------------

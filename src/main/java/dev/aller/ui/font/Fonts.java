@@ -86,6 +86,45 @@ public enum Fonts {
         return w * size / SdfAtlas.EM;
     }
 
+    /** Whether every character has a glyph in this face. */
+    public boolean covers(CharSequence text) {
+        SdfAtlas a = atlas();
+        for (int i = 0; i < text.length(); i++) if (!a.has(text.charAt(i))) return false;
+        return true;
+    }
+
+    /** Where the run starting at {@code from} ends: a run is all in this face, or all outside it. */
+    public int runEnd(CharSequence text, int from) {
+        SdfAtlas a = atlas();
+        boolean mine = a.has(text.charAt(from));
+        int end = from + 1;
+        while (end < text.length() && a.has(text.charAt(end)) == mine) end++;
+        return end;
+    }
+
+    /** Width of a line drawn with {@code Canvas.textAny}: what this face lacks is measured in Minecraft's font. */
+    public float widthAny(CharSequence text, float size) {
+        if (vanilla() || text.isEmpty() || covers(text)) return width(text, size);
+        float w = 0, k = dev.aller.platform.Canvas.pixelFontScale(size);
+        SdfAtlas a = atlas();
+        for (int i = 0; i < text.length(); ) {
+            int end = runEnd(text, i);
+            CharSequence run = text.subSequence(i, end);
+            w += a.has(text.charAt(i)) ? width(run, size) : Mc.mc().font.width(Mc.styled(run, bold())) * k;
+            i = end;
+        }
+        return w;
+    }
+
+    /** {@link #truncate} for text that may leave this face. */
+    public String truncateAny(String text, float size, float maxWidth) {
+        if (widthAny(text, size) <= maxWidth) return text;
+        float budget = maxWidth - width("…", size);
+        int end = text.length();
+        while (end > 0 && widthAny(text.substring(0, end), size) > budget) end--;
+        return text.substring(0, end).stripTrailing() + "…";
+    }
+
     /** Height of the ascent-to-descent box at this size; use it to centre text vertically. */
     public float height(float size) {
         SdfAtlas a = atlas();

@@ -158,6 +158,21 @@ public final class Nav {
         }, mc.getResourcePackDirectory(), net.minecraft.network.chat.Component.translatable("resourcePack.title")));
     }
 
+    /** Hands an address to the system's browser. @return false if it is not an address */
+    public static boolean openUrl(String url) {
+        try {
+            java.net.URI uri = new java.net.URI(url);
+            //? if <26.1 {
+            /*net.minecraft.Util.getPlatform().openUri(uri);
+            *///?} else {
+            net.minecraft.util.Util.getPlatform().openUri(uri);
+            //?}
+            return true;
+        } catch (java.net.URISyntaxException e) {
+            return false;
+        }
+    }
+
     public static boolean hasShaders() {
         return FabricLoader.getInstance().isModLoaded("iris");
     }

@@ -20,6 +20,7 @@ base.archivesName = prop("mod.id")
 val compat = providers.gradleProperty("aller.compat").isPresent
 
 repositories {
+    mavenCentral()
     maven("https://maven.terraformersmc.com/")
     if (compat) {
         exclusiveContent {
@@ -38,6 +39,26 @@ dependencies {
     modImpl("net.fabricmc:fabric-loader:${prop("deps.fabric_loader")}")
     modImpl("net.fabricmc.fabric-api:fabric-api:${prop("deps.fabric_api")}")
     modImpl("com.terraformersmc:modmenu:${prop("deps.modmenu")}")
+    // What the pack store reads Modrinth's pages with: Markdown, the HTML mixed into it, and WebP
+    // pictures. Plain Java libraries, nested in the jar; `include` does not follow dependencies,
+    // so each one's own are listed.
+    for (library in listOf(
+        "org.commonmark:commonmark:0.30.0",
+        "org.commonmark:commonmark-ext-gfm-tables:0.30.0",
+        "org.commonmark:commonmark-ext-gfm-strikethrough:0.30.0",
+        "org.commonmark:commonmark-ext-autolink:0.30.0",
+        "org.nibor.autolink:autolink:0.12.0",
+        "org.jsoup:jsoup:1.23.2",
+        "com.twelvemonkeys.imageio:imageio-webp:3.15.2",
+        "com.twelvemonkeys.imageio:imageio-core:3.15.2",
+        "com.twelvemonkeys.imageio:imageio-metadata:3.15.2",
+        "com.twelvemonkeys.common:common-lang:3.15.2",
+        "com.twelvemonkeys.common:common-io:3.15.2",
+        "com.twelvemonkeys.common:common-image:3.15.2",
+    )) {
+        "implementation"(library) { isTransitive = false }
+        "include"(library) { isTransitive = false }
+    }
     if (compat) {
         val runtime = if (obfuscated) "modLocalRuntime" else "localRuntime"
         runtime("maven.modrinth:sodium:${prop("deps.sodium")}")
@@ -69,6 +90,10 @@ if (providers.gradleProperty("aller.pocket").isPresent) {
 // Runs the harness's restyled-menu script: every skinned menu, and the hand-over into them part way through.
 if (providers.gradleProperty("aller.skin").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.skin=true") }
+}
+// Runs the harness's pack store script: the button on the pack list, a search, a page, a download.
+if (providers.gradleProperty("aller.store").isPresent) {
+    loom.runs.named("client") { vmArg("-Daller.dev.store=true") }
 }
 if (providers.gradleProperty("aller.noWorld").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.noWorld=true") }

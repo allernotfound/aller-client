@@ -59,6 +59,10 @@ public final class DevHarness {
             skin();
             return;
         }
+        if (Boolean.getBoolean("aller.dev.store")) {
+            store();
+            return;
+        }
 
         until(Mc::loadingOverlay);
         shot(0.7f, "splash");
@@ -597,6 +601,75 @@ public final class DevHarness {
             AllerClient.config().save();
         });
         run(0.5f, () -> mc.stop());
+    }
+
+    /**
+     * The pack store ({@code -Paller.store}): the button on the pack list, then a search, a project's
+     * page with its gallery and versions, a download, the installed list, and the pack list again
+     * with the download pinned and marked. It needs the network; what it downloads is deleted again.
+     */
+    private static void store() {
+        var o = AllerClient.options();
+        boolean[] was = new boolean[1];
+        until(() -> Mc.current() instanceof MainMenuScreen && !Mc.loadingOverlay());
+        run(3.5f, () -> {
+            home = Mc.screen();
+            dev.aller.platform.Nav.resourcePacks(home);
+        });
+        shot(1.2f, "store-button");
+        run(0.1f, () -> dev.aller.screen.store.StoreScreen.open(Mc.screen()));
+        shot(6.0f, "store-browse");
+        run(0.1f, () -> store("rows"));
+        shot(1.5f, "store-rows");
+        run(0.1f, () -> {
+            store("grid");
+            type("fresh animations");
+        });
+        shot(5.0f, "store-search");
+        run(0.1f, () -> {
+            key(GLFW.GLFW_KEY_ESCAPE);
+            store("open");
+        });
+        shot(7.0f, "store-page");
+        run(0.1f, () -> {
+            AllerScreen s = Mc.current();
+            if (s != null) s.mouseScroll(200, 200, -9);
+        });
+        shot(2.5f, "store-page-scrolled");
+        run(0.1f, () -> store("gallery"));
+        shot(3.5f, "store-gallery");
+        run(0.1f, () -> store("picture"));
+        shot(5.0f, "store-picture");
+        run(0.1f, () -> store("versions"));
+        shot(2.0f, "store-versions");
+        run(0.1f, () -> store("download"));
+        shot(0.4f, "store-downloading");
+        until(() -> !dev.aller.feature.store.Store.busy(), 60);
+        shot(1.0f, "store-downloaded");
+        run(0.1f, () -> store("installed"));
+        shot(4.0f, "store-installed");
+        run(0.1f, () -> key(GLFW.GLFW_KEY_ESCAPE));
+        shot(1.5f, "store-pinned");
+        // The same list restyled, with the button on it.
+        run(0.1f, () -> {
+            was[0] = o.restyleMenus.get();
+            o.restyleMenus.set(true);
+            Mc.setScreen(home);
+            dev.aller.platform.Nav.resourcePacks(home);
+        });
+        shot(1.5f, "store-button-restyled");
+        run(0.1f, () -> dev.aller.screen.store.StoreScreen.open(Mc.screen()));
+        run(1.0f, () -> store("tidy"));
+        run(1.0f, () -> {
+            o.restyleMenus.set(was[0]);
+            AllerClient.config().save();
+        });
+        run(0.5f, () -> Mc.mc().stop());
+    }
+
+    private static void store(String action) {
+        if (Mc.current() instanceof dev.aller.screen.store.StoreScreen s) s.dev(action);
+        AllerClient.LOG.info("STORE {} on {}", action, Mc.current() == null ? null : Mc.current().getClass().getSimpleName());
     }
 
     /** Opens a menu over the one the script left from and captures it once it has settled. */

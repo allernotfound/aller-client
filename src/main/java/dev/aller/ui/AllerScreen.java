@@ -106,9 +106,27 @@ public abstract class AllerScreen {
         return false;
     }
 
+    /** The GUI scale Aller's menus are drawn at, whatever Minecraft's own is set to. */
+    private static final int MENU_GUI_SCALE = 3;
+
+    /**
+     * What turns Minecraft's GUI pixels into the ones Aller's menus are laid out in: they always look
+     * as they do at GUI scale 3 (less in a window too small for that), so the game's GUI scale only
+     * sizes the game's own screens and the size of these is left to the sliders in the UI settings.
+     */
+    public static float menuBase() {
+        var mc = Mc.mc();
+        return mc.getWindow().calculateScale(MENU_GUI_SCALE, mc.isEnforceUnicode()) / Canvas.scale();
+    }
+
+    /** Screen pixels to one unit of a menu at the "Menu size" setting, for fetching pictures at the size they are drawn. */
+    public static float density() {
+        return menuBase() * Canvas.scale() * dev.aller.AllerClient.options().uiScale.get();
+    }
+
     /** Size multiplier for this screen; layout happens in scaled units. */
     public float scale() {
-        return dev.aller.AllerClient.options().uiScale.get();
+        return dev.aller.AllerClient.options().uiScale.get() * menuBase();
     }
 
     /** 0 when fully closed, 1 when fully open; may overshoot slightly. */

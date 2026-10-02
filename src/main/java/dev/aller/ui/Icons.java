@@ -19,7 +19,9 @@ public enum Icons {
     STAR("star"), CLOCK("history"), SEARCH("search"), SOUND("volume-2"), MUTED("volume-x"), PRIVATE("hat-glasses"),
     CHECK("check"), CHEVRON_RIGHT("chevron-right"), CHEVRON_LEFT("chevron-left"), PIN("pin"),
     HOST("radio-tower"), INVITE("mail"), SOCIAL("users"), COSMETICS("sparkles"), PICTURES("images"), SLIDERS("sliders-horizontal"),
-    ACCOUNT("circle-user-round");
+    ACCOUNT("circle-user-round"), CART("shopping-cart"), DOWNLOAD("download"), EXTERNAL("external-link"), IMAGE("image"),
+    PACKAGE("package"), HEART("heart"), CALENDAR("calendar"), FILTER("funnel"), SORT("arrow-down-wide-narrow"), TAG("tag"),
+    ARCHIVE("file-archive"), ALERT("circle-alert"), TRASH("trash-2"), LICENCE("scale");
 
     private final String file;
 

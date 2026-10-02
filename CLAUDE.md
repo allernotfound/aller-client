@@ -48,6 +48,9 @@ minute.
   (`skin-handover-*`), walks every skinned menu (`skin-*`), repeats a few in the smooth look
   (`smooth-*`: Inter, round corners) whatever the player has chosen, and presses each Essential
   button (`essential-*`, `ESSENTIAL` lines in the log) when Essential is loaded.
+- `-Paller.store` runs the pack store script instead: the button on the pack list, a search, a
+  project's page, gallery and versions, a real download (deleted again at the end), the installed
+  list and the pack list with the download pinned (`store-*`, `STORE` lines in the log). Needs the network.
 - `-Paller.bench` measures average FPS in the test world with Aller idle, at defaults and with
   heavier module sets, and logs `BENCH` lines (`-Paller.bench=each` also times every non-HUD mod
   alone). It runs windowed: a fullscreen window that loses focus is minimised and vanilla then caps
@@ -101,6 +104,9 @@ screen/            MainMenuScreen, PaletteScreen (+ palette/* pages), LauncherSc
                    PauseMenuScreen, ChatHistoryScreen, WardrobeScreen, BrowserScreen, Screens (which vanilla screens get replaced),
                    Splash (startup overlay), LoadingSkin (paints over vanilla loading screens),
                    MenuSkin (restyles the vanilla and other mods' menus in place)
+feature/store/     Kind, Modrinth (the API), Store (pages, installed files, downloads), Images, Text
+ui/doc/            Doc (Markdown and HTML to blocks) and DocView (lays them out and draws them)
+screen/store/      StoreScreen (+ BrowsePane, DetailPane, InstalledPane), PackListExtras
 config/            client.json (options + extras) and profiles/<name>.json (modules + HUD layout)
 ```
 
@@ -179,6 +185,11 @@ To restyle another vanilla piece, add its sprite id to `MenuSkin.sprite`.
 - Colours, radii and surfaces come from `Theme`. The accent is user-changeable: use
   `Theme.accent()`, never a hard-coded violet.
 - Widgets are immediate-style: the owner sets bounds each frame, then forwards draw and input.
+- Aller's menus ignore Minecraft's GUI scale: `AllerScreen.scale()` includes `menuBase()`, which
+  cancels it out and puts GUI scale 3 in its place (less if the window is too small for 3). Only the
+  sliders in the UI settings size them. The HUD editor is the exception (it works in HUD units, and
+  the HUD follows the GUI scale), and so is anything drawn on a vanilla screen (restyled menus, the
+  pack list's store button). For device pixels per menu unit use `AllerScreen.density()`.
 - Screens lay out in scaled units: `ScreenHost` applies `AllerScreen.scale()` (the "Menu and
   palette size" option; the HUD editor uses the HUD size instead) and divides mouse coordinates,
   so screen code never multiplies by a scale itself. Use `c.width()`, not the raw GUI width.
@@ -339,6 +350,37 @@ in chat (`UtilOsMixin` on `Util.OS.openUri`, taken only while chat or its confir
   Edge's telemetry features. The feature names were checked against the runtime's `msedge.dll`
   (154); they are Edge internals, so re-check them if they seem to stop working.
 
+### Pack store
+
+"Get more packs" on the resource pack list (or "Get resource packs" in the launcher) opens
+`StoreScreen`, a full page over that list: Browse (search, Modrinth's filters down the left, grid or
+rows) and Installed (the folder's files, matched to Modrinth by SHA-1, with updates), and a project's
+page (description, gallery with a full-size view, versions with changelogs) that slides in over either.
+
+- Everything takes a `feature/store/Kind`; `RESOURCE_PACKS` is the only one. Shader packs or mods
+  are another entry (project type, loaders, folder, file endings) plus somewhere to open the screen from.
+- `Modrinth` is the v2 API, blocking, called from `Store`'s workers; results land on the client
+  thread. No account, and nothing is sent but the query and file hashes.
+- Files are only fetched from `cdn.modrinth.com`, checked against Modrinth's hash, written as
+  `<name>.part` and moved into place. Downloading never switches a pack on. A file that replaces
+  another of the same project deletes the old one (when the game lets go of it, if it is switched on).
+- `Images` fetches pictures on workers, caches the bytes in `aller-store/cache` (pruned at 256 MB),
+  scales them to about the size asked for and frees textures not shown lately. WebP goes through
+  TwelveMonkeys, made directly (ImageIO's registry does not see a mod's class loader). SVG and
+  animated WebP fail and show their alt text. A description's pictures come from wherever it points,
+  so the player's address reaches those hosts as it would in a browser; local addresses are refused.
+- `Canvas.picture` draws a texture cropped to a rounded box (the `picture` shader: the shape
+  shader's corners over a sampler, crop in `Normal.xy`). `Canvas.textAny` and `Fonts.widthAny` set
+  the runs Inter lacks in Minecraft's font; `Text.clean` drops emoji first.
+- `ui/doc`: commonmark renders Markdown to HTML, jsoup parses that with the HTML already in it, and
+  `Doc` keeps what `DocView` can draw (text styles, links, headings, lists, quotes, code, tables,
+  rules, pictures in the line). Web pixels are half a unit. It lays out again as pictures arrive.
+- The pack list itself stays vanilla. `PackListExtras` draws the button from `ScreenMixin`'s tail
+  and reads its click once a frame; `PackSelectionModelMixin` lets `platform/PackList` move fresh
+  downloads to the top of Available and put an updated pack where the old file was selected;
+  `PackEntryMixin` marks fresh rows. `PackList.is` tells resource packs from a world's data packs.
+- The libraries are nested with Loom's `include`, which is not transitive: list each one's own.
+
 ### Pocket dimension
 
 A private world on a real integrated server, entered (key O) while the connection to the multiplayer
@@ -497,6 +539,15 @@ anticheat, the eject paths (damage, respawn, server-opened screens, a dropped co
 server switch, survival mode and dying inside, the Nether from inside, a non-zero chat delay (the
 server's signed chat is then acknowledged on the wrong connection), a server with custom tags, and
 another mod displacing one of its mixins.
+
+The pack store is checked through `-Paller.store` on 26.2 only (browse, rows, search, a page with
+its pictures, gallery, full-size picture, versions and changelog, a download, the installed list,
+the pin and "New" mark on the pack list, restyled or not). Untried: 1.21.8 beyond compiling (its
+mixins have not been loaded), every click and hover (the script calls `StoreScreen.dev`), the
+filters, sorting, endless scrolling, links, updates and "Update all", switching versions, replacing
+a pack that is switched on, deleting, a failed or slow connection, a non-Latin description, tables,
+and the store opened from a world. The GUI-scale lock on Aller's menus compiles on both versions
+and has not been run at any scale.
 
 Not built yet: README, more novel features (quick wheel, notes).
 

@@ -26,6 +26,7 @@ public final class Frame {
         AllerClient.modules().pollKeys();
         Launcher.poll();
         Chat.poll();
+        dev.aller.screen.store.PackListExtras.poll();
         dev.aller.feature.Browser.frame();
         dev.aller.feature.Pocket.poll();
     }

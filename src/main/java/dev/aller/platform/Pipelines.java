@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 *///?}
 
 /**
- * The three shader pipelines behind every Aller pixel. They extend vanilla's own GUI snippets and
+ * The shader pipelines behind every Aller pixel. They extend vanilla's own GUI snippets and
  * only swap the shaders and vertex layout, so blending, depth and uniform bindings stay whatever the
  * running Minecraft version (and graphics backend) expects.
  */
@@ -29,6 +29,8 @@ public final class Pipelines {
     public static final RenderPipeline TEXT = build(RenderPipelines.GUI_TEXTURED_SNIPPET, "text");
     /** The animated ASCII noise field behind the main menu. */
     public static final RenderPipeline BACKDROP = build(RenderPipelines.GUI_SNIPPET, "backdrop");
+    /** A picture cropped to a rounded box. */
+    public static final RenderPipeline PICTURE = build(RenderPipelines.GUI_TEXTURED_SNIPPET, "picture");
 
     private static RenderPipeline build(RenderPipeline.Snippet base, String name) {
         RenderPipeline.Builder b = RenderPipeline.builder(base)
@@ -58,7 +60,7 @@ public final class Pipelines {
         try {
             GpuDevice device = RenderSystem.getDevice();
             boolean ok = true;
-            for (RenderPipeline p : new RenderPipeline[] {SHAPE, TEXT, BACKDROP}) {
+            for (RenderPipeline p : new RenderPipeline[] {SHAPE, TEXT, BACKDROP, PICTURE}) {
                 ok &= device.precompilePipeline(p, Pipelines::source).isValid();
             }
             preloaded = ok;
@@ -83,6 +85,6 @@ public final class Pipelines {
 
     /** Forces class initialisation so a broken pipeline definition fails at startup, not mid-frame. */
     public static void init() {
-        AllerClient.LOG.debug("Pipelines ready: {} {} {}", SHAPE, TEXT, BACKDROP);
+        AllerClient.LOG.debug("Pipelines ready: {} {} {} {}", SHAPE, TEXT, BACKDROP, PICTURE);
     }
 }
