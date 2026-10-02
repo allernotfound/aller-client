@@ -49,8 +49,9 @@ minute.
   (`smooth-*`: Inter, round corners) whatever the player has chosen, and presses each Essential
   button (`essential-*`, `ESSENTIAL` lines in the log) when Essential is loaded.
 - `-Paller.store` runs the pack store script instead: the button on the pack list, a search, a
-  project's page, gallery and versions, a real download (deleted again at the end), the installed
-  list and the pack list with the download pinned (`store-*`, `STORE` lines in the log). Needs the network.
+  project's page, gallery and versions, a real download (deleted again), the installed list and the
+  pack list with the download pinned, then the same in short for shader packs when Iris is loaded
+  (`store-*`, `STORE` lines in the log). Needs the network.
 - `-Paller.bench` measures average FPS in the test world with Aller idle, at defaults and with
   heavier module sets, and logs `BENCH` lines (`-Paller.bench=each` also times every non-HUD mod
   alone). It runs windowed: a fullscreen window that loses focus is minimised and vanilla then caps
@@ -357,8 +358,13 @@ in chat (`UtilOsMixin` on `Util.OS.openUri`, taken only while chat or its confir
 rows) and Installed (the folder's files, matched to Modrinth by SHA-1, with updates), and a project's
 page (description, gallery with a full-size view, versions with changelogs) that slides in over either.
 
-- Everything takes a `feature/store/Kind`; `RESOURCE_PACKS` is the only one. Shader packs or mods
-  are another entry (project type, loaders, folder, file endings) plus somewhere to open the screen from.
+- Everything takes a `feature/store/Kind`: `RESOURCE_PACKS` and `SHADER_PACKS` (Modrinth's "shader"
+  projects for the iris or optifine loaders, which a search has to name; into Iris's folder). Mods
+  would be another entry (project type, loaders, folder, file endings) plus a case in
+  `PackListExtras.kind`, which says which of the game's screens gets the button.
+- On Iris's `ShaderPackScreen` (matched by class name, it is Iris's own) the button reads "Get more
+  shaders". Iris's list is reached by reflection when the store closes: `refresh()`, then
+  `select(file)` so the download is picked out but not applied. No mixin touches Iris for this.
 - `Modrinth` is the v2 API, blocking, called from `Store`'s workers; results land on the client
   thread. No account, and nothing is sent but the query and file hashes.
 - Files are only fetched from `cdn.modrinth.com`, checked against Modrinth's hash, written as
@@ -542,7 +548,9 @@ another mod displacing one of its mixins.
 
 The pack store is checked through `-Paller.store` on 26.2 only (browse, rows, search, a page with
 its pictures, gallery, full-size picture, versions and changelog, a download, the installed list,
-the pin and "New" mark on the pack list, restyled or not). Untried: 1.21.8 beyond compiling (its
+the pin and "New" mark on the pack list, restyled or not; and for shader packs with Iris 1.11.4 the
+button, the search and a download showing selected in Iris's list). Untried for shaders: Iris 1.9.6
+on 1.21.8, applying a downloaded pack, and Iris's list with many packs. Untried: 1.21.8 beyond compiling (its
 mixins have not been loaded), every click and hover (the script calls `StoreScreen.dev`), the
 filters, sorting, endless scrolling, links, updates and "Update all", switching versions, replacing
 a pack that is switched on, deleting, a failed or slow connection, a non-Latin description, tables,

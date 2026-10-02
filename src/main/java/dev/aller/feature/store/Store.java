@@ -407,7 +407,7 @@ public final class Store {
                 }
                 changes++;
                 Toasts.info(old != null ? "Updated " + project.title : "Downloaded " + project.title,
-                        old != null ? "Now " + version.number + "." : "It is at the top of your available " + kind.noun + "s.");
+                        old != null ? "Now " + version.number + "." : kind.landed);
             });
         });
     }

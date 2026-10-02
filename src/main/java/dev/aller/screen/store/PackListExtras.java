@@ -1,5 +1,6 @@
 package dev.aller.screen.store;
 
+import dev.aller.feature.store.Kind;
 import dev.aller.feature.store.Store;
 import dev.aller.platform.Canvas;
 import dev.aller.platform.Mc;
@@ -16,19 +17,52 @@ import net.minecraft.client.gui.screens.Screen;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * What the store adds to the game's own resource pack list: the button that opens it, in the top
- * right corner, and a mark on the packs it has just downloaded. The list stays vanilla's (or the
- * restyled one); these are drawn over it and the button's click is read once a frame, the way the
+ * What the store adds to the game's own lists (resource packs, and Iris's shader packs): the button
+ * that opens it, in the top right corner, and a mark on the resource packs it has just downloaded.
+ * The lists stay as they are (or restyled); these are drawn over it and the button's click is read once a frame, the way the
  * launcher's shortcut is, so nothing is added to the screen's own widgets.
  */
 public final class PackListExtras {
     private static final float W = 104, H = 20, MARGIN = 8, TOP = 6;
-    private static final String LABEL = "Get more packs";
 
     private static final Spring hover = Spring.snappy(0), press = Spring.snappy(0);
     private static boolean wasDown, armed;
 
     private PackListExtras() {}
+
+    private static final String IRIS_LIST = "net.irisshaders.iris.gui.screen.ShaderPackScreen";
+
+    /** What the store would add to on this screen, or null if it is not one of the game's lists. */
+    public static Kind kind(Screen screen) {
+        if (screen == null) return null;
+        if (PackList.is(screen)) return Kind.RESOURCE_PACKS;
+        // Iris's own class, so its name is the same in every build.
+        return screen.getClass().getName().equals(IRIS_LIST) ? Kind.SHADER_PACKS : null;
+    }
+
+    /**
+     * The list a store was opened from reads its folder again, and shows what was just fetched:
+     * pinned and marked for resource packs, selected (not applied) in Iris's list.
+     */
+    static void refresh(Screen screen, Kind kind) {
+        if (kind == Kind.RESOURCE_PACKS) {
+            PackList.reload(screen);
+            return;
+        }
+        if (kind(screen) != Kind.SHADER_PACKS) return;
+        try {
+            java.lang.reflect.Field field = screen.getClass().getDeclaredField("shaderPackList");
+            field.setAccessible(true);
+            Object list = field.get(screen);
+            if (list == null) return;
+            list.getClass().getMethod("refresh").invoke(list);
+            java.util.List<String> fresh = Store.fresh();
+            if (!fresh.isEmpty()) list.getClass().getMethod("select", String.class).invoke(list, fresh.get(0));
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            // Another version of Iris: its list notices new files by itself a moment later.
+            dev.aller.AllerClient.LOG.debug("Could not refresh the shader pack list", e);
+        }
+    }
 
     private static float left(Screen screen) {
         return screen.width - MARGIN - W;
@@ -43,11 +77,12 @@ public final class PackListExtras {
     public static void poll() {
         boolean down = GLFW.glfwGetMouseButton(Mc.window(), 0) == GLFW.GLFW_PRESS;
         Screen screen = Mc.screen();
-        boolean live = PackList.is(screen) && !Mc.loadingOverlay() && over(screen);
+        Kind kind = kind(screen);
+        boolean live = kind != null && !Mc.loadingOverlay() && over(screen);
         if (down && !wasDown) armed = live;
         if (!down && wasDown && armed && live) {
             Sounds.click();
-            StoreScreen.open(screen);
+            StoreScreen.open(screen, kind);
         }
         if (!down) armed = false;
         wasDown = down;
@@ -55,7 +90,9 @@ public final class PackListExtras {
 
     /** Draws the button over the pack list. */
     public static void button(Canvas c, Screen screen) {
-        if (!PackList.is(screen)) return;
+        Kind kind = kind(screen);
+        if (kind == null) return;
+        String LABEL = kind.invite;
         boolean front = screen == Mc.screen();
         boolean over = front && over(screen);
         float hv = hover.target(over ? 1 : 0).update();

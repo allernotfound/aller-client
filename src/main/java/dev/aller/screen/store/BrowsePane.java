@@ -200,7 +200,7 @@ final class BrowsePane extends Pane {
         fy = filterRow(c, null, "Only for " + Store.gameVersion(), thisVersion, fy, mx, my, within);
 
         Map<String, List<Category>> groups = new LinkedHashMap<>();
-        for (String header : new String[] {"categories", "features", "resolutions"}) groups.put(header, new ArrayList<>());
+        for (String header : new String[] {"categories", "features", "resolutions", "performance impact"}) groups.put(header, new ArrayList<>());
         for (Category category : Store.categories(screen.kind)) groups.computeIfAbsent(category.header(), k -> new ArrayList<>()).add(category);
         for (Map.Entry<String, List<Category>> group : groups.entrySet()) {
             if (group.getValue().isEmpty()) continue;

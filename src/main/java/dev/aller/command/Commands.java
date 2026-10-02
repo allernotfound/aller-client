@@ -180,8 +180,14 @@ public final class Commands {
         go(c, "packs", "Resource packs", "", "texture pack", Nav::resourcePacks);
         go(c, "getpacks", "Get resource packs", "Browse and download from Modrinth", "modrinth download texture pack store shop more", parent -> {
             Nav.resourcePacks(parent);
-            dev.aller.screen.store.StoreScreen.open(Mc.screen());
+            dev.aller.screen.store.StoreScreen.open(Mc.screen(), dev.aller.feature.store.Kind.RESOURCE_PACKS);
         });
+        go(c, "getshaders", "Get shader packs", "Browse and download from Modrinth", "modrinth download iris shaders store shop more", parent -> {
+            Nav.shaderPacks(parent);
+            if (dev.aller.screen.store.PackListExtras.kind(Mc.screen()) != null) {
+                dev.aller.screen.store.StoreScreen.open(Mc.screen(), dev.aller.feature.store.Kind.SHADER_PACKS);
+            }
+        }).when(Nav::hasShaders);
         go(c, "shaders", "Shader packs", "Iris", "iris shaders", Nav::shaderPacks).when(Nav::hasShaders);
         go(c, "installed", "Installed mods", "Mod Menu's list", "modmenu mod list fabric", Nav::mods).when(Nav::hasModMenu);
         go(c, "singleplayer", "Singleplayer", "Your worlds", "worlds saves create", Nav::singleplayer).when(menus).suggest(false, true);

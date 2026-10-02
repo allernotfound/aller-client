@@ -54,6 +54,11 @@ public final class Modrinth {
 
     /** A filter from Modrinth's own list, under the heading it is shown beneath ("categories", "features", "resolutions"). */
     public record Category(String name, String header) {
+        /** Whether a project has only one of this header's values, so several chosen mean "any of these". */
+        public boolean exclusive() {
+            return header.equals("resolutions") || header.equals("performance impact");
+        }
+
         /** "vanilla-like" as "Vanilla-like", "8x-" as "8x or lower". */
         public String label() {
             if (name.endsWith("x-")) return name.substring(0, name.length() - 1) + " or lower";
@@ -122,7 +127,7 @@ public final class Modrinth {
     public record Page(List<Project> hits, int total) {}
 
     /**
-     * @param categories filters that must all hold, except resolutions, where any one of those chosen will do
+     * @param categories filters that must all hold, except the exclusive ones, where any one of those chosen will do
      * @param gameVersion only projects with a file for this version, or null for any
      */
     public record Query(Kind kind, String text, Sort sort, Set<Category> categories, String gameVersion, int offset, int limit) {}
@@ -133,12 +138,18 @@ public final class Modrinth {
         JsonArray facets = new JsonArray();
         facets.add(group("project_type:" + q.kind.type));
         if (q.gameVersion != null) facets.add(group("versions:" + q.gameVersion));
-        JsonArray resolutions = new JsonArray();
+        if (q.kind.searchLoaders) {
+            JsonArray loaders = new JsonArray();
+            for (String loader : q.kind.loaders) loaders.add("categories:" + loader);
+            facets.add(loaders);
+        }
+        // Filters that exclude one another (a pack has one resolution, one performance cost) are "any of".
+        java.util.Map<String, JsonArray> either = new java.util.HashMap<>();
         for (Category c : q.categories) {
-            if (c.header.equals("resolutions")) resolutions.add("categories:" + c.name);
+            if (c.exclusive()) either.computeIfAbsent(c.header, k -> new JsonArray()).add("categories:" + c.name);
             else facets.add(group("categories:" + c.name));
         }
-        if (!resolutions.isEmpty()) facets.add(resolutions);
+        either.values().forEach(facets::add);
         JsonObject root = get("/search?query=" + enc(q.text) + "&index=" + q.sort.index + "&offset=" + q.offset + "&limit=" + q.limit
                 + "&facets=" + enc(facets.toString())).getAsJsonObject();
         List<Project> hits = new ArrayList<>();

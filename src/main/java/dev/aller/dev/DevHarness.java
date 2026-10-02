@@ -617,7 +617,7 @@ public final class DevHarness {
             dev.aller.platform.Nav.resourcePacks(home);
         });
         shot(1.2f, "store-button");
-        run(0.1f, () -> dev.aller.screen.store.StoreScreen.open(Mc.screen()));
+        run(0.1f, () -> dev.aller.screen.store.StoreScreen.open(Mc.screen(), dev.aller.feature.store.Kind.RESOURCE_PACKS));
         shot(6.0f, "store-browse");
         run(0.1f, () -> store("rows"));
         shot(1.5f, "store-rows");
@@ -650,6 +650,9 @@ public final class DevHarness {
         shot(4.0f, "store-installed");
         run(0.1f, () -> key(GLFW.GLFW_KEY_ESCAPE));
         shot(1.5f, "store-pinned");
+        // Take the download back, from the same list: a store opened from another forgets what was new.
+        run(0.1f, () -> dev.aller.screen.store.StoreScreen.open(Mc.screen(), dev.aller.feature.store.Kind.RESOURCE_PACKS));
+        run(1.0f, () -> store("tidy"));
         // The same list restyled, with the button on it.
         run(0.1f, () -> {
             was[0] = o.restyleMenus.get();
@@ -658,8 +661,32 @@ public final class DevHarness {
             dev.aller.platform.Nav.resourcePacks(home);
         });
         shot(1.5f, "store-button-restyled");
-        run(0.1f, () -> dev.aller.screen.store.StoreScreen.open(Mc.screen()));
-        run(1.0f, () -> store("tidy"));
+        // Shader packs, from Iris's list.
+        if (dev.aller.platform.Nav.hasShaders()) {
+            run(1.0f, () -> {
+                Mc.setScreen(home);
+                dev.aller.platform.Nav.shaderPacks(home);
+            });
+            shot(1.5f, "store-shaders-button");
+            run(0.1f, () -> {
+                var kind = dev.aller.screen.store.PackListExtras.kind(Mc.screen());
+                AllerClient.LOG.info("STORE list {} is {}", Mc.screen() == null ? null : Mc.screen().getClass().getName(), kind);
+                if (kind != null) dev.aller.screen.store.StoreScreen.open(Mc.screen(), kind);
+            });
+            shot(6.0f, "store-shaders-browse");
+            run(0.1f, () -> store("open"));
+            shot(7.0f, "store-shaders-page");
+            run(0.1f, () -> store("download"));
+            until(() -> !dev.aller.feature.store.Store.busy(), 120);
+            run(0.5f, () -> key(GLFW.GLFW_KEY_ESCAPE));
+            run(0.3f, () -> key(GLFW.GLFW_KEY_ESCAPE));
+            shot(2.0f, "store-shaders-listed");
+            run(0.1f, () -> {
+                var kind = dev.aller.screen.store.PackListExtras.kind(Mc.screen());
+                if (kind != null) dev.aller.screen.store.StoreScreen.open(Mc.screen(), kind);
+            });
+            run(1.0f, () -> store("tidy"));
+        }
         run(1.0f, () -> {
             o.restyleMenus.set(was[0]);
             AllerClient.config().save();

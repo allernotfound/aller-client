@@ -7,7 +7,6 @@ import dev.aller.feature.store.Store;
 import dev.aller.platform.Canvas;
 import dev.aller.platform.Mc;
 import dev.aller.platform.Nav;
-import dev.aller.platform.PackList;
 import dev.aller.platform.ScreenHost;
 import dev.aller.ui.AllerScreen;
 import dev.aller.ui.Colors;
@@ -59,9 +58,9 @@ public final class StoreScreen extends AllerScreen {
         installed = new InstalledPane(this);
     }
 
-    /** Opens the store for resource packs over the pack list it adds to. */
-    public static void open(Screen packList) {
-        Mc.setScreen(new ScreenHost(new StoreScreen(packList, Kind.RESOURCE_PACKS)));
+    /** Opens the store over the game's list of what it adds to. */
+    public static void open(Screen list, Kind kind) {
+        Mc.setScreen(new ScreenHost(new StoreScreen(list, kind)));
     }
 
     @Override
@@ -81,7 +80,7 @@ public final class StoreScreen extends AllerScreen {
         close(() -> {
             Mc.setScreen(parent);
             // The list underneath reads its folder again at once, so what was fetched is there to see.
-            if (Store.changes() != changesAtOpen) PackList.reload(parent);
+            if (Store.changes() != changesAtOpen) PackListExtras.refresh(parent, kind);
         });
     }
 
