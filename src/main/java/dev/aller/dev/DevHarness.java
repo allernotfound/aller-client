@@ -63,6 +63,10 @@ public final class DevHarness {
             store();
             return;
         }
+        if (Boolean.getBoolean("aller.dev.gallery")) {
+            gallery();
+            return;
+        }
         if (Boolean.getBoolean("aller.dev.onboarding")) {
             onboarding();
             return;
@@ -771,6 +775,88 @@ public final class DevHarness {
             AllerClient.config().save();
         });
         run(0.5f, () -> Mc.mc().stop());
+    }
+
+    /**
+     * The screenshots ({@code -Paller.gallery}): three real screenshots in the test world (the second
+     * while the card of the first is up, which must not be in it), the card, its copy and delete with
+     * the undo, then the screen: grid, favourites, a picture full size, zoomed, renamed, deleted and
+     * brought back. What it took is deleted again at the end, through the recycle bin.
+     */
+    private static void gallery() {
+        List<dev.aller.feature.Shots.Shot> mine = new ArrayList<>();
+        Runnable take = () -> dev.aller.platform.Nav.screenshot(message -> AllerClient.LOG.info("GALLERY chat line: {}", message));
+        Runnable note = () -> {
+            var all = dev.aller.feature.Shots.all();
+            if (!all.isEmpty() && !mine.contains(all.get(0))) mine.add(all.get(0));
+            AllerClient.LOG.info("GALLERY {} screenshots known, newest {}", all.size(), all.isEmpty() ? null : all.get(0).name);
+        };
+        until(() -> Mc.current() instanceof MainMenuScreen && !Mc.loadingOverlay());
+        shot(3.5f, "gallery-menu");
+        if (canEnterWorld()) {
+            run(0.1f, DevHarness::enterWorld);
+            until(() -> Mc.mc().player != null && Mc.mc().level != null && Mc.screen() == null, 90);
+            run(3.0f, take);
+            shot(0.6f, "gallery-card");
+            run(0.1f, note);
+            // With the card on screen: this one waits a frame for it to step aside.
+            run(1.2f, take);
+            shot(0.8f, "gallery-card-second");
+            run(0.1f, () -> {
+                note.run();
+                dev.aller.ui.ShotCard.dev("copy");
+            });
+            shot(2.5f, "gallery-card-copied");
+            run(0.1f, () -> dev.aller.ui.ShotCard.dev("delete"));
+            shot(0.8f, "gallery-card-deleted");
+            run(0.1f, () -> dev.aller.ui.ShotCard.dev("undo"));
+            shot(0.8f, "gallery-card-undone");
+            run(0.1f, () -> Mc.mc().pauseGame(false));
+            shot(1.2f, "gallery-pause");
+            run(0.1f, () -> Mc.setScreen(null));
+            run(1.0f, take);
+            run(1.0f, () -> {
+                note.run();
+                dev.aller.ui.ShotCard.dev("open");
+            });
+            shot(2.5f, "gallery-opened");
+            run(0.1f, () -> gallery("zoom"));
+            shot(1.0f, "gallery-zoomed");
+            run(0.1f, () -> gallery("next"));
+            shot(1.5f, "gallery-next");
+            run(0.1f, () -> gallery("favourite"));
+            run(0.2f, () -> gallery("rename"));
+            shot(0.8f, "gallery-rename");
+            run(0.1f, () -> {
+                key(GLFW.GLFW_KEY_ESCAPE);
+                gallery("grid");
+            });
+            shot(2.0f, "gallery-grid");
+            run(0.1f, () -> gallery("favourites"));
+            shot(1.0f, "gallery-favourites");
+            run(0.1f, () -> {
+                gallery("all");
+                gallery("view");
+            });
+            run(1.0f, () -> gallery("delete"));
+            shot(1.0f, "gallery-deleted");
+            run(0.1f, () -> gallery("undo"));
+            shot(1.0f, "gallery-undone");
+            // Tidy up: everything this run took goes, and the wait lets it reach the recycle bin.
+            run(0.1f, () -> {
+                for (var s : mine) {
+                    dev.aller.feature.Shots.favourite(s, false);
+                    AllerClient.LOG.info("GALLERY deleting {}: {}", s.name, dev.aller.feature.Shots.delete(s));
+                }
+            });
+            run(dev.aller.feature.Shots.UNDO + 4f, () -> AllerClient.LOG.info("GALLERY {} screenshots left", dev.aller.feature.Shots.all().size()));
+        }
+        run(0.5f, () -> Mc.mc().stop());
+    }
+
+    private static void gallery(String action) {
+        if (Mc.current() instanceof dev.aller.screen.shots.ShotsScreen s) s.dev(action);
+        AllerClient.LOG.info("GALLERY {} on {}", action, Mc.current() == null ? null : Mc.current().getClass().getSimpleName());
     }
 
     private static void store(String action) {

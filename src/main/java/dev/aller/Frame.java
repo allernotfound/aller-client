@@ -21,6 +21,7 @@ public final class Frame {
 
     public static void begin() {
         Motion.frame();
+        dev.aller.feature.Shots.frameBegin();
         MenuSkin.frame();
         Clicks.frame();
         AllerClient.modules().pollKeys();
@@ -33,12 +34,15 @@ public final class Frame {
 
     public static void end() {
         Replay.frameEnd();
+        dev.aller.feature.Shots.frameEnd();
         DevHarness.frameEnd();
     }
 
     /** In-game HUD layer. Runs after vanilla's HUD, before any open screen. */
     public static void hud(Canvas c) {
         dev.aller.feature.Pocket.draw(c);
+        // A screenshot taken with the HUD hidden still gets its card.
+        if (Mc.mc().player != null && Mc.hudHidden() && Mc.screen() == null) dev.aller.ui.ShotCard.draw(c);
         if (Mc.mc().player == null || Mc.hudHidden()) return;
         // The HUD editor draws the elements itself so it can move them around.
         boolean editing = Mc.current() instanceof HudEditorScreen;

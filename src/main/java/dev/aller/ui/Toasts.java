@@ -61,7 +61,9 @@ public final class Toasts {
 
     public static void draw(Canvas c) {
         if (dev.aller.ui.AllerScreen.drawingUnderlay) return;
-        float slot = 8;
+        // The screenshot card has the corner and toasts queue under it. Beneath one of the game's screens that screen draws it instead.
+        boolean card = dev.aller.platform.Mc.screen() == null || dev.aller.platform.Mc.current() != null;
+        float slot = 8 + (card ? ShotCard.draw(c) : 0);
         for (Iterator<Toast> it = toasts.iterator(); it.hasNext(); ) {
             Toast t = it.next();
             t.age += Motion.realDelta();

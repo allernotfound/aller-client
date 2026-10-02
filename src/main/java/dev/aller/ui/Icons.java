@@ -21,7 +21,7 @@ public enum Icons {
     HOST("radio-tower"), INVITE("mail"), SOCIAL("users"), COSMETICS("sparkles"), PICTURES("images"), SLIDERS("sliders-horizontal"),
     ACCOUNT("circle-user-round"), CART("shopping-cart"), DOWNLOAD("download"), EXTERNAL("external-link"), IMAGE("image"),
     PACKAGE("package"), HEART("heart"), CALENDAR("calendar"), FILTER("funnel"), SORT("arrow-down-wide-narrow"), TAG("tag"),
-    ARCHIVE("file-archive"), ALERT("circle-alert"), TRASH("trash-2"), LICENCE("scale");
+    ARCHIVE("file-archive"), ALERT("circle-alert"), TRASH("trash-2"), LICENCE("scale"), CAMERA("camera"), COPY("copy");
 
     private final String file;
 

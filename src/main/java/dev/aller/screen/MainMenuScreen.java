@@ -86,6 +86,8 @@ public final class MainMenuScreen extends AllerScreen {
             icons.add(new IconButton(Icons.MODS, "Installed mods (" + Nav.countMods() + ")", () -> go(() -> Nav.mods(Mc.screen()))));
         }
 
+        icons.add(new IconButton(Icons.CAMERA, "Screenshots", () -> Mc.setScreen(new ScreenHost(new dev.aller.screen.shots.ShotsScreen(Mc.screen())))));
+
         extras.addAll(dev.aller.compat.EssentialCompat.buttons(true, this::go));
 
         cardIcons.add(new IconButton(Icons.WARDROBE, "Wardrobe", () -> Mc.setScreen(new ScreenHost(new WardrobeScreen(Mc.screen())))));

@@ -56,7 +56,10 @@ public final class EssentialCompat {
             Method open = openScreen(guiUtil);
             addScreen(out, leave, open, Icons.SOCIAL, "Social", "gg.essential.gui.friends.SocialMenu");
             addScreen(out, leave, open, Icons.COSMETICS, "Essential wardrobe", "gg.essential.gui.wardrobe.Wardrobe");
-            addScreen(out, leave, open, Icons.PICTURES, "Pictures", "gg.essential.gui.screenshot.components.ScreenshotBrowser");
+            // Aller Client's own screenshots screen stands in for Essential's while its preview does.
+            if (!AllerClient.options().shotCard.get()) {
+                addScreen(out, leave, open, Icons.PICTURES, "Pictures", "gg.essential.gui.screenshot.components.ScreenshotBrowser");
+            }
 
             Class<?> config = find("gg.essential.config.McEssentialConfig");
             if (config != null && open != null) {
@@ -206,6 +209,34 @@ public final class EssentialCompat {
             return constructor.newInstance(args);
         }
         throw new NoSuchMethodException(type.getName());
+    }
+
+    private static boolean screenshotsFailed;
+
+    /**
+     * Essential slides in its own preview after a screenshot. While Aller Client's is on, Essential's
+     * "Essential screenshots" setting is switched off (it still files the picture in its own
+     * browser), and back on once Aller Client's preview is switched off again. Called as a
+     * screenshot is taken, by which time Essential has long started.
+     */
+    public static void screenshots(boolean ours) {
+        if (screenshotsFailed || !present()) return;
+        try {
+            Class<?> config = Class.forName("gg.essential.config.EssentialConfig");
+            Object instance = config.getField("INSTANCE").get(null);
+            boolean theirs = (boolean) config.getMethod("getEssentialScreenshots").invoke(instance);
+            var saved = AllerClient.config().extra("essential_screenshots_off");
+            boolean byUs = saved != null && saved.isJsonPrimitive() && saved.getAsBoolean();
+            // Off for as long as ours is on; back on only if it was Aller Client that switched it off.
+            boolean wanted = ours ? false : byUs || theirs;
+            if (wanted == theirs) return;
+            config.getMethod("setEssentialScreenshots", boolean.class).invoke(instance, wanted);
+            AllerClient.config().setExtra("essential_screenshots_off", new com.google.gson.JsonPrimitive(ours));
+            AllerClient.LOG.info("Essential's screenshot preview switched {}", ours ? "off: Aller Client shows its own" : "back on");
+        } catch (Throwable e) {
+            screenshotsFailed = true;
+            AllerClient.LOG.warn("Essential's screenshot preview could not be switched off; both will show", e);
+        }
     }
 
     /** Whether a screen is one of Essential's: they draw themselves, and are neither restyled nor eased in piece by piece. */

@@ -153,6 +153,10 @@ public final class Commands {
                 .keywords("skins upload slim classic alex steve outfit history namemc").suggest(false, true).hidePalette().after()
                 .run(parent -> Mc.setScreen(new ScreenHost(new WardrobeScreen(parent)))));
 
+        c.add(new Command("go.screenshots", "Screenshots", Group.NAVIGATE).detail("Every screenshot, by day and by world or server")
+                .keywords("pictures photos gallery images captures f2 manager favourites").suggest(true, true).hidePalette().after()
+                .run(parent -> Mc.setScreen(new ScreenHost(new dev.aller.screen.shots.ShotsScreen(parent)))));
+
         c.add(new Command("go.browser", "Web browser", Group.NAVIGATE).detail("Tabs, bookmarks and search in a panel over the game")
                 .keywords("internet web page site tabs bookmarks wiki").when(Browser::usable).suggest(true, true).after()
                 .run(parent -> Browser.open(parent, null)));
@@ -215,7 +219,10 @@ public final class Commands {
 
         // Game and session.
         c.add(new Command("game.screenshot", "Take screenshot", Group.GAME).detail("Without the launcher in it").keywords("capture picture f2")
-                .suggest(true, false).after().run(() -> Nav.screenshot(message -> Toasts.info("Screenshot", message))));
+                .suggest(true, false).after().run(() -> Nav.screenshot(message -> {
+                    // With the preview on, the card says it.
+                    if (!AllerClient.options().shotCard.get()) Toasts.info("Screenshot", message);
+                })));
         c.add(new Command("game.fullscreen", "Fullscreen", Group.GAME).keywords("window windowed f11 toggle")
                 .state(() -> Mc.mc().getWindow().isFullscreen()).run(Nav::toggleFullscreen));
         c.add(new Command("game.hidehud", "Hide HUD", Group.GAME).detail("Hotbar, chat and every HUD element").keywords("f1 gui interface clean")

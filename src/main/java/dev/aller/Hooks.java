@@ -158,6 +158,29 @@ public final class Hooks {
         return dev.aller.feature.Browser.chatLink(uri);
     }
 
+    // Screenshots.
+
+    /** A screenshot is about to be saved: its callback is wrapped so the file it reports is noticed. */
+    public static java.util.function.Consumer<Component> screenshot(java.util.function.Consumer<Component> callback) {
+        return dev.aller.feature.Shots.report(callback);
+    }
+
+    /** @return true if the screenshot was put off for a frame, so the card showing the last one is not in it */
+    public static boolean screenshotHeld(java.io.File workDir, String name, com.mojang.blaze3d.pipeline.RenderTarget target, int factor,
+            java.util.function.Consumer<Component> callback) {
+        return dev.aller.feature.Shots.hold(workDir, name, target, factor, callback);
+    }
+
+    /** A key press on its way to the game. @return true if the screenshot card took it */
+    public static boolean key(int key, int mods) {
+        return dev.aller.ui.ShotCard.key(key, mods);
+    }
+
+    /** A left click on its way to the screen in front. @return true if it landed on the screenshot card */
+    public static boolean click() {
+        return dev.aller.ui.ShotCard.click();
+    }
+
     // The pocket dimension. Its mixins are optional, so none of these may be assumed to run.
 
     /** Puts the world a packet belongs to in place before it is handled; {@link #pocketPacketDone} follows it. */
@@ -203,6 +226,8 @@ public final class Hooks {
     /** A screen has drawn; the pack list gets its button to the store on top. */
     public static void screenExtras(Canvas c, Screen screen) {
         dev.aller.screen.store.PackListExtras.button(c, screen);
+        // Aller's own screens draw the screenshot card with their toasts; on the game's it goes on top here.
+        if (screen == Mc.screen() && !(screen instanceof dev.aller.platform.ScreenHost)) dev.aller.ui.ShotCard.draw(c);
     }
 
     public static void packEntry(Canvas c, String packId, int x, int y, int w, int h) {

@@ -99,6 +99,10 @@ if (providers.gradleProperty("aller.store").isPresent) {
 if (providers.gradleProperty("aller.onboarding").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.onboarding=true") }
 }
+// Runs the harness's screenshots script: the card after a screenshot, the grid, a picture full size, delete and undo.
+if (providers.gradleProperty("aller.gallery").isPresent) {
+    loom.runs.named("client") { vmArg("-Daller.dev.gallery=true") }
+}
 if (providers.gradleProperty("aller.noWorld").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.noWorld=true") }
 }

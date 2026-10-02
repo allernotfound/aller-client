@@ -75,6 +75,7 @@ public final class AllerClient implements ClientModInitializer {
         dev.aller.feature.Session.tick();
         dev.aller.feature.AutoProfiles.tick();
         dev.aller.feature.Pocket.tick();
+        dev.aller.feature.Shots.tick();
         MODULES.tick();
         CONFIG.tick();
 

@@ -107,6 +107,14 @@ public final class ClientOptions extends Configurable {
             .describe("Warn once per session when enabling a mod some servers restrict");
     public final Settings.Bool autoProfiles = bool("auto_profiles", "Switch profiles automatically by rule", true);
 
+    { section("Screenshots"); }
+    public final Settings.Bool shotCard = bool("shot_card", "Screenshot preview", true)
+            .describe("A card slides in at the top right after a screenshot. While it is up: Ctrl+O opens it, Ctrl+C copies it, Ctrl+Delete deletes it, Ctrl+E shows the file");
+    public final Settings.Num shotCardTime = num("shot_card_time", "Preview stays for", 5f, 2f, 15f, 1f).suffix("s")
+            .visibleWhen(() -> shotCard.get());
+    public final Settings.Bool shotQuiet = bool("shot_quiet", "Hide the chat message", true)
+            .describe("Leaves out Minecraft's \"Saved screenshot as\" line, which the preview replaces").visibleWhen(() -> shotCard.get());
+
     /** The interface settings: look, sizes, motion and which screens Aller draws. */
     public List<Setting<?>> ui() {
         return settings().subList(0, uiCount);

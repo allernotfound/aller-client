@@ -270,7 +270,7 @@ public final class Images {
     }
 
     /** Halves the picture until it is near the size wanted, then goes the rest of the way: sharper than one big step. */
-    private static BufferedImage scale(BufferedImage source, int tw, int th) {
+    public static BufferedImage scale(BufferedImage source, int tw, int th) {
         BufferedImage current = source;
         int w = source.getWidth(), h = source.getHeight();
         do {

@@ -61,6 +61,7 @@ public final class PauseMenuScreen extends AllerScreen {
         add("Options", () -> go(() -> Nav.options(Mc.screen())));
         add(dev.aller.feature.Pocket.inside() ? "Leave the pocket" : local ? "Save and quit to title" : "Disconnect", Nav::disconnect).style(Button.Style.DANGER);
 
+        icons.add(new IconButton(Icons.CAMERA, "Screenshots", () -> Mc.setScreen(new ScreenHost(new dev.aller.screen.shots.ShotsScreen(Mc.screen())))));
         icons.add(new IconButton(Icons.ADVANCEMENTS, "Advancements", () -> go(() -> Nav.advancements(Mc.screen()))));
         if (Nav.canOpenLan()) icons.add(new IconButton(Icons.LAN, "Open to LAN", () -> go(() -> Nav.lan(Mc.screen()))));
         if (!local) icons.add(new IconButton(Icons.REPORT, "Player reporting", () -> go(() -> Nav.playerReporting(Mc.screen()))));

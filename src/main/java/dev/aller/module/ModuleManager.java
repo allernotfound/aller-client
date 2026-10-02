@@ -71,7 +71,8 @@ public final class ModuleManager {
 
     /** Reads module keys once a frame, so a quick tap between two game ticks still counts. */
     public void pollKeys() {
-        boolean canUseKeys = Mc.mc().player != null && Mc.screen() == null;
+        // Ctrl with a letter belongs to the screenshot card while it is up.
+        boolean canUseKeys = Mc.mc().player != null && Mc.screen() == null && !dev.aller.ui.ShotCard.claiming();
         for (Module m : all) {
             if (m.ownKey) continue;
             boolean down = canUseKeys && Mc.isDown(m.keybind.get());

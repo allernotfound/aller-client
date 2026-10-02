@@ -136,7 +136,7 @@ public final class Pocket {
     /** Reads the mod's key once a frame; it steps in and out rather than switching the mod on and off. */
     public static void poll() {
         var module = Modules.POCKET;
-        boolean down = module.enabled() && Mc.mc().player != null && Mc.screen() == null && Mc.isDown(module.keybind.get());
+        boolean down = module.enabled() && Mc.mc().player != null && Mc.screen() == null && !dev.aller.ui.ShotCard.claiming() && Mc.isDown(module.keybind.get());
         if (down && !keyWasDown) toggle();
         keyWasDown = down;
     }
