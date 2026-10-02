@@ -330,12 +330,7 @@ final class DetailPane extends Pane {
                 float turn = hovers.computeIfAbsent("turn" + v.id, k -> Spring.snappy(0)).target(open ? 1 : 0).update();
                 c.push();
                 c.rotate(turn * (float) Math.PI / 2, vx + 10, ry + VERSION / 2);
-                // The arrow turns down while the changelog is open.
-                float turn = hovers.computeIfAbsent("turn" + v.id, k -> Spring.snappy(0)).target(open ? 1 : 0).update();
-                c.push();
-                c.rotate(turn * (float) Math.PI / 2, vx + 10, ry + VERSION / 2);
                 Icons.CHEVRON_RIGHT.draw(c, vx + 10, ry + VERSION / 2, 8, Colors.mix(Theme.TEXT_MUTED, Theme.TEXT, rhv));
-                c.pop();
                 c.pop();
                 float tx = vx + 20, tw = button.x - 10 - tx;
                 String name = Fonts.SEMIBOLD.truncateAny(v.name, 8.4f, tw * 0.6f);
