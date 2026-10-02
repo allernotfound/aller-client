@@ -237,8 +237,10 @@ HUD, MODS, FAIR, DONE. Holding Escape for a second ends it from HELLO on; the in
 skipped that way on a replay (`replay`: the flag was already set), never on the first run.
 
 - `onboarding/Intro` is 27 seconds as a function of one clock (`seek` jumps anywhere), plus a wait:
-  a point of light, a tunnel of polygon outlines, out over a perspective floor with monoliths
-  towards an eclipse on the horizon, a tilted disc of shards round the eclipse that tightens on a
+  a 3D scene through a moving camera (`camera`, `project`, `seg` clip lines at the near plane):
+  a point of light, a winding tunnel of shaded panels, out over a floor with monoliths towards a
+  black orb, the camera swinging round the orb while a disc of lit, tumbling shards (each a flat
+  polygon whose corners are projected, sorted far to near with the orb among them) tightens on a
   row of beats, the gate, the collapse of the small shards into the letters (their places are
   sampled from Inter Bold's distance field), the hit, a held shot, and the glide of the wordmark up
   into the header. The pointer bends the tunnel and tips the disc.
@@ -246,9 +248,11 @@ skipped that way on a replay (`replay`: the flag was already set), never on the 
   key press or click is `strike()`; pressure leaks (`STRIKE`, `LEAK`), and it waits for ever. What
   moves meanwhile runs on `gateT` and `whirl`. The harness mashes for itself; `intro:gate` is a
   still of it part way.
-- Its sounds are Minecraft's own: `score()` builds `CUES`, effects on the moments and a note-block
-  piece in F sharp minor on a half-second beat, which is why the moments up to the gate sit on
-  half seconds. Played by `Sounds.cue(id, pitch, volume)`.
+- Its sounds are Minecraft's own effects in `CUES`, played by `Sounds.cue(id, pitch, volume)`.
+  No music under the intro (the user's call); the short note-block jingles of the colour wave and
+  the ending stay.
+- `Canvas.quad4` draws any four-cornered face with a colour per corner; its edges are hard, so
+  outline a large face with lines.
 - It is grey until a look is chosen. `Canvas.grade(saturation, dim)` drains every colour handed to
   the canvas (a vertex at a time; pictures and items are not touched) until `Canvas.ungrade()`, and
   `c.wave(x, y, radius, soft)` keeps the colour inside a circle. The wave from the chosen card is
@@ -640,8 +644,8 @@ and the store opened from a world. The GUI-scale lock on Aller's menus compiles 
 and has not been run at any scale.
 
 Onboarding was checked through `-Paller.onboarding` on both versions (stills of the intro and every
-step, the wave part way, both looks), but that was the ten second intro. The long intro (floor,
-eclipse, the mash gate, the score), the bigger colour wave and the bigger ending compile on both
+step, the wave part way, both looks), but that was the ten second intro. The 3D intro (tunnel,
+floor, orb, the mash gate), `Canvas.quad4`, the bigger colour wave and the bigger ending compile on both
 versions and have not been run, seen or heard at all. Untried by hand: the first launch itself (the start held behind the
 loading screen, the hand-over to the main menu), how the intro and its sounds feel at speed, every
 click, the custom colour bars, the real key presses and what comes back from the palette and the

@@ -348,6 +348,40 @@ public final class Canvas {
         quad((x1 + x2) / 2, (y1 + y2) / 2, hw, hh, hh, 0, FILL, 1f, cos, sin, color, color, color, color, 0);
     }
 
+    /**
+     * Any four-cornered shape, corners in order round it, each with its own colour: a face of
+     * something in perspective. A triangle repeats its last corner.
+     */
+    public void quad4(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, int c0, int c1, int c2, int c3) {
+        if (alpha <= 0.002f) return;
+        Matrix3x2fStack m = g.pose();
+        float[] xs = {x0, x1, x2, x3}, ys = {y0, y1, y2, y3};
+        // Corners sit well inside a much larger box, so the shape shader sees the whole face as inside
+        // it. The edges come out hard: draw an outline over a large face to smooth them.
+        float big = 1000;
+        float[] lx = {-big, -big, big, big}, ly = {-big, big, big, -big};
+        float[] v = new float[16];
+        int[] colors = {Colors.fade(c0, alpha), Colors.fade(c1, alpha), Colors.fade(c2, alpha), Colors.fade(c3, alpha)};
+        if ((colors[0] | colors[1] | colors[2] | colors[3]) >>> 24 == 0) return;
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+        for (int i = 0; i < 4; i++) {
+            float tx = m.m00() * xs[i] + m.m10() * ys[i] + m.m20();
+            float ty = m.m01() * xs[i] + m.m11() * ys[i] + m.m21();
+            v[i * 4] = tx;
+            v[i * 4 + 1] = ty;
+            v[i * 4 + 2] = lx[i];
+            v[i * 4 + 3] = ly[i];
+            colors[i] = graded(colors[i], tx, ty);
+            minX = Math.min(minX, tx);
+            minY = Math.min(minY, ty);
+            maxX = Math.max(maxX, tx);
+            maxY = Math.max(maxY, ty);
+        }
+        if (maxX - minX < 0.05f || maxY - minY < 0.05f) return;
+        submit(new Mesh(Pipelines.SHAPE, TextureSetup.noTexture(), g.scissorStack.peek(), bounds(minX, minY, maxX, maxY),
+                v, colors, q4(big * 6), q4(big * 6), 0, 0, 0f, 0f, 0f));
+    }
+
     private void shape(float x, float y, float w, float h, float radius, float param, int mode, float pad,
             int tl, int bl, int br, int tr) {
         if (w <= 0 || h <= 0 || alpha <= 0.002f) return;
