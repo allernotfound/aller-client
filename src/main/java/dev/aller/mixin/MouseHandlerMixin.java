@@ -1,5 +1,6 @@
 package dev.aller.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import dev.aller.Hooks;
 import dev.aller.platform.Mc;
 import net.minecraft.client.MouseHandler;
@@ -11,9 +12,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.client.input.MouseButtonInfo;
 //?}
 
-/** Scroll-to-adjust zoom (swallows the wheel so the hotbar slot does not change), and clicks on the screenshot card. */
+/**
+ * Scroll-to-adjust zoom (swallows the wheel so the hotbar slot does not change), the zoom's smooth
+ * camera, and clicks on the screenshot card.
+ */
 @Mixin(MouseHandler.class)
 public abstract class MouseHandlerMixin {
+    @ModifyExpressionValue(method = "turnPlayer", at = @At(value = "FIELD", target = "Lnet/minecraft/client/Options;smoothCamera:Z"))
+    private boolean aller$smoothCamera(boolean original) {
+        return Hooks.smoothCamera(original);
+    }
+
     @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
     private void aller$scroll(long window, double dx, double dy, CallbackInfo ci) {
         if (dy != 0 && Mc.screen() == null && Mc.mc().player != null && Hooks.scroll(dy)) ci.cancel();

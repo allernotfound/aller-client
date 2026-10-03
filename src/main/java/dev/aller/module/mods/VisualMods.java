@@ -31,7 +31,6 @@ public final class VisualMods {
                 .describe("Scales mouse speed with the zoom so aiming stays precise");
         private final Spring level = new Spring(1f, 240f, 26f);
         private float live;
-        private boolean restoreSmooth, smoothed;
 
         public Zoom() {
             super("zoom", "Zoom", "Hold a key to zoom in, scroll to adjust", Category.VISUAL);
@@ -42,19 +41,15 @@ public final class VisualMods {
 
         @Override
         protected void onHeldChanged(boolean down) {
-            var options = Mc.mc().options;
-            if (down) {
-                if (!rememberScroll.get() || !scrollAdjust.get() || live < 1.5f) live = factor.get();
-                if (cinematic.get()) {
-                    restoreSmooth = options.smoothCamera;
-                    options.smoothCamera = true;
-                    smoothed = true;
-                }
-            } else if (smoothed) {
-                // Tracked separately so switching the setting off mid-zoom cannot leave the camera gliding.
-                options.smoothCamera = restoreSmooth;
-                smoothed = false;
-            }
+            if (down && (!rememberScroll.get() || !scrollAdjust.get() || live < 1.5f)) live = factor.get();
+        }
+
+        /**
+         * Whether the mouse should glide like the cinematic camera. Read in place of the game's own
+         * option rather than written into it, so the player's setting can never be left switched on.
+         */
+        public boolean smoothCamera() {
+            return held() && cinematic.get();
         }
 
         public float apply(float fov) {

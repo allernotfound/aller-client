@@ -103,6 +103,11 @@ public final class Hooks {
         return Modules.ZOOM.mouseScale();
     }
 
+    /** The game's cinematic camera option as the mouse handler sees it: also on while zooming with it. */
+    public static boolean smoothCamera(boolean original) {
+        return original || Modules.ZOOM.smoothCamera();
+    }
+
     public static float cameraYaw(float original) {
         return Modules.FREELOOK.active() ? Modules.FREELOOK.yaw() : original;
     }
