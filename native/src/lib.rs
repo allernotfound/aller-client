@@ -7,6 +7,8 @@
 
 #![cfg(windows)]
 
+mod media;
+
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,

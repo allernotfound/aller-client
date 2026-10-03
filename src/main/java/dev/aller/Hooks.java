@@ -22,7 +22,7 @@ public final class Hooks {
 
     /** World field of view in degrees, after vanilla's own modifiers. */
     public static float fov(float original) {
-        float fov = Modules.ZOOM.apply(original);
+        float fov = dev.aller.feature.Photo.active() ? dev.aller.feature.Photo.fov() : Modules.ZOOM.apply(original);
         View.fov = fov;
         return fov;
     }
@@ -75,6 +75,11 @@ public final class Hooks {
         return Modules.CHAT_HISTORY.enabled() ? Modules.CHAT_HISTORY.limit(original) : original;
     }
 
+    /** The server's regular time update, with the age of the world in ticks. */
+    public static void serverTime(long gameTime) {
+        dev.aller.feature.ServerClock.time(gameTime);
+    }
+
     public static void chatSent(String text, boolean command) {
         Chat.sent(text, command);
     }
@@ -109,11 +114,18 @@ public final class Hooks {
     }
 
     public static float cameraYaw(float original) {
+        if (dev.aller.feature.Photo.active()) return dev.aller.feature.Photo.yaw();
         return Modules.FREELOOK.active() ? Modules.FREELOOK.yaw() : original;
     }
 
     public static float cameraPitch(float original) {
+        if (dev.aller.feature.Photo.active()) return dev.aller.feature.Photo.pitch();
         return Modules.FREELOOK.active() ? Modules.FREELOOK.pitch() : original;
+    }
+
+    /** How far the camera is tipped sideways, in radians: photo mode's roll. */
+    public static float cameraRoll() {
+        return dev.aller.feature.Photo.active() ? (float) Math.toRadians(dev.aller.feature.Photo.roll()) : 0f;
     }
 
     /** @return true if the scroll was consumed (zoom adjustment) and must not change the hotbar slot */
@@ -176,14 +188,42 @@ public final class Hooks {
         return dev.aller.feature.Shots.hold(workDir, name, target, factor, callback);
     }
 
-    /** A key press on its way to the game. @return true if the screenshot card took it */
-    public static boolean key(int key, int mods) {
-        return dev.aller.ui.ShotCard.key(key, mods);
+    /**
+     * A key press on its way to the game. @return true if the inventory search, the item lock or the screenshot card took it
+     *
+     * @param repeat true when it is the key repeating while held
+     */
+    public static boolean key(int key, int mods, boolean repeat) {
+        if (dev.aller.feature.Containers.key(key, mods, repeat)) return true;
+        return !repeat && dev.aller.ui.ShotCard.key(key, mods);
     }
 
-    /** A left click on its way to the screen in front. @return true if it landed on the screenshot card */
+    /** A typed character on its way to the screen in front. @return true if the inventory search took it */
+    public static boolean typed(int codepoint) {
+        return dev.aller.feature.Containers.typed(codepoint);
+    }
+
+    /** A left click on its way to the screen in front. @return true if it landed on the screenshot card or the inventory search */
     public static boolean click() {
-        return dev.aller.ui.ShotCard.click();
+        return dev.aller.ui.ShotCard.click() || dev.aller.feature.Containers.click();
+    }
+
+    // Items and the screens that hold them.
+
+    /** A container screen has drawn its slots; its tooltip is still to come. */
+    public static void containerDrawn(Canvas c, net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen, int left, int top, int width,
+            net.minecraft.world.inventory.Slot hovered) {
+        dev.aller.feature.Containers.drawn(c, screen, left, top, width, hovered);
+    }
+
+    /** @return true if the slot is locked and must not be thrown out of */
+    public static boolean slotThrow(net.minecraft.world.inventory.Slot slot) {
+        return dev.aller.feature.Containers.blockThrow(slot);
+    }
+
+    /** @return true if the drop key must do nothing: the selected slot is locked */
+    public static boolean blockDrop() {
+        return dev.aller.feature.Containers.blockDrop();
     }
 
     // The pocket dimension. Its mixins are optional, so none of these may be assumed to run.
@@ -231,6 +271,7 @@ public final class Hooks {
     /** A screen has drawn; the pack list gets its button to the store on top. */
     public static void screenExtras(Canvas c, Screen screen) {
         dev.aller.screen.store.PackListExtras.button(c, screen);
+        dev.aller.feature.Containers.preview(c, screen);
         // Aller's own screens draw the screenshot card with their toasts; on the game's it goes on top here.
         if (screen == Mc.screen() && !(screen instanceof dev.aller.platform.ScreenHost)) dev.aller.ui.ShotCard.draw(c);
     }

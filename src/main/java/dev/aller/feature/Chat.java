@@ -73,6 +73,8 @@ public final class Chat {
             return null;
         }
 
+        Bubbles.feed(line, parsed);
+
         Mentions mentions = Modules.MENTIONS;
         Mentions.Hit hit = mentions.enabled() ? mentions.check(line, parsed) : new Mentions.Hit(Mentions.Kind.NONE, List.of());
         boolean pinged = hit.kind() != Mentions.Kind.NONE;

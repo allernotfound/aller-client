@@ -127,6 +127,7 @@ There is a lot. Every mod and every setting gets a command automatically; on top
 - Skin wardrobe
 - Screenshots
 - Web browser · Search the web (`web <query>`) · Private browsing · your bookmarks (Windows 11)
+- Photo mode
 - Replay onboarding
 
 **Go to: Minecraft's screens**
@@ -184,10 +185,10 @@ sends commands is what servers call a macro, and Aller Client does not do macros
 
 ## Modules
 
-Over 60 mods, all off-switchable, all configurable, all saved per profile. Mods marked
+Over 80 mods, all off-switchable, all configurable, all saved per profile. Mods marked
 **restricted** are allowed on most servers but not all; Aller Client tells you once and lets you decide.
 
-### HUD (24 elements)
+### HUD (37 elements and two warnings)
 
 Every HUD element can be dragged, resized and snapped in the **HUD editor**, and shares a set of
 look settings (background, text colour, shadow, scale).
@@ -202,7 +203,6 @@ look settings (background, text colour, shadow, scale).
 | Armour status | Your armour pieces and how worn they are |
 | Potion effects | Active effects with time remaining |
 | Compass | A heading strip with cardinal points and your waypoints |
-| Player list | A cleaner tab list with smooth text and ping bars |
 | Target info | Name and health of what you are looking at |
 | Live graph | A rolling graph of FPS, ping or CPS over the last minutes |
 | Clock | Real-world time |
@@ -218,6 +218,22 @@ look settings (background, text colour, shadow, scale).
 | Saturation | The hidden hunger buffer that drains before your food bar |
 | Combo counter | Hits landed in a row without being hit back |
 | Reach display | Distance of your last hit |
+| Looking at | The block or mob under your crosshair: its name, the tool for it, how far a crop has grown, redstone power, breaking progress |
+| Held item | What is in your hand: how worn it is and what is enchanted on it |
+| Inventory view | The three rows of your inventory, always in sight |
+| Free slots | How many inventory slots are empty, and a warning when it fills up |
+| Cooldowns | Items you cannot use again yet: ender pearls, shields, chorus fruit, wind charges |
+| Elytra flight | Speed, height, pitch, wear and rockets left while you glide |
+| Mount stats | Your horse's health, speed and jump height |
+| Experience | Your level and the points to the next one |
+| Yaw and pitch | The exact angles you are facing |
+| Server TPS | How fast the server is ticking, and when it stops answering |
+| Timers | Countdowns and a stopwatch started from the launcher (`timer 5m`, `stopwatch`) |
+| Session stats | Kills, deaths and distance since you joined |
+| Pack display | The resource pack on top of your list |
+| Now playing | The song your computer is playing (Spotify, a browser, any player), with keys to pause and skip. Windows only |
+| Durability warnings | A toast and a sound when a tool or a piece of armour is about to break |
+| Vitals warning | The edges of the screen tint when your health or hunger runs low |
 
 ### Visual
 
@@ -246,8 +262,16 @@ colour passes on top of Iris shader packs.
 | --- | --- |
 | Toggle sprint | Always sprint without holding the key |
 | Freelook | Hold Left Alt to look around in third person without turning. *Restricted* |
+| Tab list | A cleaner player list while Tab is held: faces, the server's colours, header and footer, ping in numbers, and a highlight on players near you |
 | Instant replay | Keeps the last moments in memory; F8 saves them as a video clip |
+| Photo mode | F9: HUD off, look round your character, roll, zoom, depth of field and colour, then a picture with nothing else in it |
 | Web browser | Tabs, bookmarks and search in a panel over the game (Alt+B). Windows 11 only |
+| Inventory search | Ctrl+F in any chest or inventory: type, and everything else dims. Looks inside shulker boxes too |
+| Container preview | Hover a shulker box or a map to see what is in it |
+| Item details | Durability in numbers, hunger and saturation, what a fuel smelts, anvil cost |
+| Enchantment notes | A line under each enchantment saying what it does and how high it goes |
+| Item lock | Press L over a slot to lock it: the drop key will not throw what is in it |
+| Chest memory | Remembers what was in the containers you opened; `find diamond` in the launcher points at the ones that hold it. *Restricted* |
 
 ### World
 
@@ -272,6 +296,7 @@ colour passes on top of Iris shader packs.
 | Unread marker | Scrolled up? See what arrived since and jump back down |
 | Smooth chat | New messages slide up into place |
 | Chat look | A chat background of its own and no signing indicators |
+| Chat bubbles | What players say appears over their heads, wherever you can see them |
 
 Servers send chat with no author attached, so Aller Client works out who said what. If a server's
 format confuses it, teach it on the **Chat formats** page (per server, with `{name}` and `{message}`
@@ -386,6 +411,7 @@ allow are marked **restricted**:
 | Fullbright | Not allowed on some competitive servers |
 | Waypoints | Markers count as a minimap on some servers |
 | Pocket dimension | The server sees you standing still, which some treat as AFK |
+| Chest memory | It only knows what you saw yourself, but some servers do not allow storage trackers |
 
 They are never blocked. Turning one on shows a warning once per session (you can switch the warnings
 off), and the badge stays in the palette. Fog changes are skipped wherever seeing further would help

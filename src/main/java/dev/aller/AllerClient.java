@@ -62,6 +62,12 @@ public final class AllerClient implements ClientModInitializer {
             dev.aller.feature.Browser.shutdown();
         });
         dev.aller.feature.Combat.init();
+        net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, type, lines) ->
+                dev.aller.feature.Tooltips.append(stack, type.isAdvanced(), lines));
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+            if (level.isClientSide()) dev.aller.feature.ChestMemory.used(hit.getBlockPos());
+            return net.minecraft.world.InteractionResult.PASS;
+        });
         dev.aller.feature.Pocket.init();
         DevHarness.init();
         LOG.info("{} {} ready with {} modules", NAME, VERSION, MODULES.all().size());
@@ -76,6 +82,7 @@ public final class AllerClient implements ClientModInitializer {
         dev.aller.feature.AutoProfiles.tick();
         dev.aller.feature.Pocket.tick();
         dev.aller.feature.Shots.tick();
+        dev.aller.feature.Timers.tick();
         MODULES.tick();
         CONFIG.tick();
 

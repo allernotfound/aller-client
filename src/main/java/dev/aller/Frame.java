@@ -28,6 +28,8 @@ public final class Frame {
         Launcher.poll();
         Chat.poll();
         dev.aller.screen.store.PackListExtras.poll();
+        dev.aller.feature.Containers.poll();
+        dev.aller.feature.Photo.poll();
         dev.aller.feature.Browser.frame();
         dev.aller.feature.Pocket.poll();
     }
@@ -35,6 +37,7 @@ public final class Frame {
     public static void end() {
         Replay.frameEnd();
         dev.aller.feature.Shots.frameEnd();
+        dev.aller.feature.Photo.frameEnd();
         DevHarness.frameEnd();
     }
 
@@ -47,11 +50,15 @@ public final class Frame {
         // The HUD editor draws the elements itself so it can move them around.
         boolean editing = Mc.current() instanceof HudEditorScreen;
         if (!editing) {
+            Modules.VITALS.draw(c);
             if (Modules.WAYPOINTS.enabled()) Waypoints.draw(c);
+            dev.aller.feature.ChestMemory.draw(c);
+            dev.aller.feature.Bubbles.draw(c);
             if (Modules.CROSSHAIR.enabled() && Mc.screen() == null) Modules.CROSSHAIR.draw(c);
             c.beginScale(AllerClient.options().hudScale.get());
             Hud.draw(c, false, null);
             c.endScale();
+            dev.aller.feature.TabList.draw(c);
         }
         // Aller screens draw toasts themselves so they appear above the blur.
         if (Mc.current() == null) Toasts.draw(c);

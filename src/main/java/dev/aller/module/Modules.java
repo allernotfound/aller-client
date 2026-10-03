@@ -1,13 +1,16 @@
 package dev.aller.module;
 
 import dev.aller.hud.elements.Coordinates;
+import dev.aller.hud.elements.GearHuds;
 import dev.aller.hud.elements.InfoHuds;
 import dev.aller.hud.elements.Keystrokes;
 import dev.aller.hud.elements.StatusHuds;
 import dev.aller.hud.elements.WideHuds;
+import dev.aller.module.mods.AlertMods;
 import dev.aller.module.mods.ChatMods;
 import dev.aller.module.mods.CosmeticMods;
 import dev.aller.module.mods.EffectMods;
+import dev.aller.module.mods.ItemMods;
 import dev.aller.module.mods.UtilityMods;
 import dev.aller.module.mods.VisualMods;
 import dev.aller.module.mods.WorldMods;
@@ -36,6 +39,7 @@ public final class Modules {
     public static final UtilityMods.ToggleSprint TOGGLE_SPRINT = new UtilityMods.ToggleSprint();
     public static final UtilityMods.Freelook FREELOOK = new UtilityMods.Freelook();
     public static final UtilityMods.ReplayMod REPLAY = new UtilityMods.ReplayMod();
+    public static final UtilityMods.PhotoMode PHOTO_MODE = new UtilityMods.PhotoMode();
     public static final UtilityMods.WebBrowser BROWSER = new UtilityMods.WebBrowser();
     public static final WorldMods.WaypointsMod WAYPOINTS = new WorldMods.WaypointsMod();
     public static final WorldMods.PocketDimension POCKET = new WorldMods.PocketDimension();
@@ -51,7 +55,15 @@ public final class Modules {
     public static final ChatMods.Copy CHAT_COPY = new ChatMods.Copy();
     public static final ChatMods.Search CHAT_SEARCH = new ChatMods.Search();
     public static final ChatMods.Log CHAT_LOG = new ChatMods.Log();
-    public static final WideHuds.PlayerList PLAYER_LIST = new WideHuds.PlayerList();
+    public static final ChatMods.Bubbles CHAT_BUBBLES = new ChatMods.Bubbles();
+    public static final UtilityMods.PlayerList PLAYER_LIST = new UtilityMods.PlayerList();
+    public static final ItemMods.ContainerPreview CONTAINER_PREVIEW = new ItemMods.ContainerPreview();
+    public static final ItemMods.ItemDetails ITEM_DETAILS = new ItemMods.ItemDetails();
+    public static final ItemMods.EnchantNotes ENCHANT_NOTES = new ItemMods.EnchantNotes();
+    public static final ItemMods.InventorySearch INVENTORY_SEARCH = new ItemMods.InventorySearch();
+    public static final ItemMods.ItemLock ITEM_LOCK = new ItemMods.ItemLock();
+    public static final ItemMods.ChestMemory CHEST_MEMORY = new ItemMods.ChestMemory();
+    public static final AlertMods.Vitals VITALS = new AlertMods.Vitals();
     public static final CosmeticMods.Cape CAPE = new CosmeticMods.Cape();
     public static final CosmeticMods.OwnNametag OWN_NAMETAG = new CosmeticMods.OwnNametag();
     public static final CosmeticMods.HitParticles HIT_PARTICLES = new CosmeticMods.HitParticles();
@@ -67,7 +79,6 @@ public final class Modules {
         m.register(new StatusHuds.Armor());
         m.register(new StatusHuds.Potions());
         m.register(new WideHuds.Compass());
-        m.register(PLAYER_LIST);
         m.register(new StatusHuds.Target());
         m.register(new WideHuds.LiveGraph());
         m.register(new InfoHuds.Clock());
@@ -83,6 +94,22 @@ public final class Modules {
         m.register(new InfoHuds.Saturation());
         m.register(new InfoHuds.Combo());
         m.register(new InfoHuds.Reach());
+        m.register(new GearHuds.LookingAt());
+        m.register(new GearHuds.HeldItem());
+        m.register(new GearHuds.InventoryView());
+        m.register(new InfoHuds.FreeSlots());
+        m.register(new GearHuds.Cooldowns());
+        m.register(new GearHuds.Elytra());
+        m.register(new GearHuds.Mount());
+        m.register(new InfoHuds.Experience());
+        m.register(new InfoHuds.Rotation());
+        m.register(new InfoHuds.ServerTps());
+        m.register(new InfoHuds.Timer());
+        m.register(new GearHuds.SessionStats());
+        m.register(new GearHuds.PackDisplay());
+        m.register(new GearHuds.NowPlaying());
+        m.register(new AlertMods.Durability());
+        m.register(VITALS);
 
         // Visual
         m.register(ZOOM);
@@ -101,10 +128,18 @@ public final class Modules {
         m.register(ATMOSPHERE);
 
         // Utility
+        m.register(PLAYER_LIST);
         m.register(TOGGLE_SPRINT);
         m.register(FREELOOK);
         m.register(REPLAY);
+        m.register(PHOTO_MODE);
         m.register(BROWSER);
+        m.register(INVENTORY_SEARCH);
+        m.register(CONTAINER_PREVIEW);
+        m.register(ITEM_DETAILS);
+        m.register(ENCHANT_NOTES);
+        m.register(ITEM_LOCK);
+        m.register(CHEST_MEMORY);
 
         // World
         m.register(WAYPOINTS);
@@ -123,6 +158,7 @@ public final class Modules {
         m.register(CHAT_UNREAD);
         m.register(SMOOTH_CHAT);
         m.register(CHAT_LOOK);
+        m.register(CHAT_BUBBLES);
 
         // Cosmetic
         m.register(CAPE);

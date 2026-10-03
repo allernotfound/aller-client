@@ -667,6 +667,18 @@ public final class Canvas {
         //?}
     }
 
+    /** An item with its count and durability bar, as a slot shows it. */
+    public void slotItem(ItemStack stack, float x, float y) {
+        var font = Minecraft.getInstance().font;
+        //? if <26.1 {
+        /*g.renderItem(stack, Math.round(x), Math.round(y));
+        g.renderItemDecorations(font, stack, Math.round(x), Math.round(y));
+        *///?} else {
+        g.item(stack, Math.round(x), Math.round(y));
+        g.itemDecorations(font, stack, Math.round(x), Math.round(y));
+        //?}
+    }
+
     /** Minecraft's own pixel font, for content that must match vanilla formatting. */
     public void vanillaText(net.minecraft.network.chat.Component text, float x, float y, int color) {
         var font = Minecraft.getInstance().font;

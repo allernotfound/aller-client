@@ -92,6 +92,21 @@ public final class Skins {
         c.pop();
     }
 
+    /** Another player's face, from their entry in the tab list. */
+    public static void drawFace(Canvas c, net.minecraft.client.multiplayer.PlayerInfo info, float x, float y, int size) {
+        int alpha = Math.round(c.alpha() * 255);
+        if (alpha < 4) return;
+        int tint = alpha << 24 | 0xFFFFFF;
+        c.push();
+        c.translate(x, y);
+        //? if <26.1 {
+        /*PlayerFaceRenderer.draw(c.raw(), info.getSkin(), 0, 0, size, tint);
+        *///?} else {
+        PlayerFaceExtractor.extractRenderState(c.raw(), info.getSkin(), 0, 0, size, tint);
+        //?}
+        c.pop();
+    }
+
     /**
      * The face in its accent frame. The border is drawn over the face's edge by half a unit: the
      * face lands on whole pixels and the border does not, so merely touching leaves a dark line between.

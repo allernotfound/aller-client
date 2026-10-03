@@ -349,4 +349,127 @@ public final class InfoHuds {
             return reach > 0 ? String.format("%.2f", reach) : editing ? "2.87" : null;
         }
     }
+
+    public static final class FreeSlots extends TextHud {
+        public final Settings.Bool warn = bool("warn", "Say when the inventory fills up", true);
+        private boolean wasFull;
+
+        public FreeSlots() {
+            super("free_slots", "Free slots", "How many inventory slots are still empty", AnchorH.CENTER, AnchorV.BOTTOM, 120, 46);
+            keywords("inventory", "full", "space", "empty");
+        }
+
+        private static int free() {
+            int free = 0;
+            for (ItemStack stack : Game.player().getInventory().getNonEquipmentItems()) if (stack.isEmpty()) free++;
+            return free;
+        }
+
+        @Override
+        public void tick() {
+            boolean full = free() == 0;
+            if (full && !wasFull && warn.get()) dev.aller.ui.Toasts.warn("Inventory full", "Nothing more can be picked up");
+            wasFull = full;
+        }
+
+        @Override
+        protected String label() {
+            return "SLOTS";
+        }
+
+        @Override
+        protected String value(boolean editing) {
+            int free = free();
+            return free == 0 ? "Full" : free + " free";
+        }
+    }
+
+    public static final class Experience extends TextHud {
+        public final Settings.Bool toNext = bool("to_next", "Show points to the next level", true);
+
+        public Experience() {
+            super("experience", "Experience", "Your level and how far the next one is", AnchorH.CENTER, AnchorV.BOTTOM, -120, 46);
+            keywords("xp", "level", "enchant");
+        }
+
+        @Override
+        protected String label() {
+            return "XP";
+        }
+
+        @Override
+        protected String value(boolean editing) {
+            var p = Game.player();
+            String level = "Level " + p.experienceLevel;
+            if (!toNext.get()) return level;
+            int need = p.getXpNeededForNextLevel();
+            return level + "  " + Math.max(0, Math.round(need * (1f - p.experienceProgress))) + " to next";
+        }
+    }
+
+    public static final class ServerTps extends TextHud {
+        public ServerTps() {
+            super("tps", "Server TPS", "How fast the server is ticking (20 is full speed), and when it stops answering", AnchorH.LEFT, AnchorV.TOP, 6, 192);
+            keywords("lag", "ticks", "server", "performance", "timeout");
+        }
+
+        @Override
+        protected String label() {
+            return "TPS";
+        }
+
+        @Override
+        protected String value(boolean editing) {
+            float silent = dev.aller.feature.ServerClock.silence();
+            if (silent > 0) return String.format("No answer for %.0fs", silent);
+            float tps = dev.aller.feature.ServerClock.tps();
+            return tps < 0 ? editing ? "20.0" : null : String.format("%.1f", tps);
+        }
+    }
+
+    public static final class Rotation extends TextHud {
+        public Rotation() {
+            super("rotation", "Yaw and pitch", "The exact angles you are facing, for building and elytra flight", AnchorH.LEFT, AnchorV.TOP, 6, 212);
+            keywords("angle", "facing", "degrees", "direction");
+        }
+
+        @Override
+        protected String label() {
+            return "ROT";
+        }
+
+        @Override
+        protected String value(boolean editing) {
+            var p = Game.player();
+            float yaw = ((p.getYRot() + 180f) % 360f + 360f) % 360f - 180f;
+            return String.format("%.1f / %.1f", yaw, p.getXRot());
+        }
+    }
+
+    public static final class Timer extends TextHud {
+        public Timer() {
+            super("timer", "Timers", "Countdowns and a stopwatch started from the launcher: \"timer 5m\", \"stopwatch\"", AnchorH.CENTER, AnchorV.TOP, 0, 66);
+            keywords("countdown", "stopwatch", "alarm", "reminder", "clock");
+            onByDefault();
+        }
+
+        @Override
+        protected String label() {
+            return dev.aller.feature.Timers.all().isEmpty() && dev.aller.feature.Timers.watchShown() ? "STOPWATCH" : "TIMER";
+        }
+
+        @Override
+        protected String value(boolean editing) {
+            var timers = dev.aller.feature.Timers.all();
+            if (timers.isEmpty()) {
+                if (!dev.aller.feature.Timers.watchShown()) return editing ? "5:00" : null;
+                long ms = dev.aller.feature.Timers.watch();
+                return dev.aller.feature.Timers.clock(ms - 999) + "." + ms / 100 % 10;
+            }
+            var next = timers.get(0);
+            for (var t : timers) if (t.ends < next.ends) next = t;
+            String text = dev.aller.feature.Timers.clock(next.left());
+            return timers.size() > 1 ? text + "  +" + (timers.size() - 1) : text;
+        }
+    }
 }

@@ -103,6 +103,10 @@ if (providers.gradleProperty("aller.onboarding").isPresent) {
 if (providers.gradleProperty("aller.gallery").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.gallery=true") }
 }
+// Runs the harness's script for the HUD, item, tab list, chat bubble and photo mode mods in the test world.
+if (providers.gradleProperty("aller.mods").isPresent) {
+    loom.runs.named("client") { vmArg("-Daller.dev.mods=true") }
+}
 if (providers.gradleProperty("aller.noWorld").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.noWorld=true") }
 }

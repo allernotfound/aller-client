@@ -297,6 +297,35 @@ public final class Commands {
         options(c);
 
         // Aller features.
+        c.add(new Command("timer", "Start a timer", Group.ALLER).detail("Or type: timer 5m, timer 1h30m, timer 10 furnace").alias("timer")
+                .keywords("countdown alarm remind minutes")
+                .step(new Step.Text("Timer", "5m, 90s, 1h30m, 2:30", "A bare number is minutes. Anything after the time names it.", text -> {
+                    var timer = dev.aller.feature.Timers.start(text);
+                    if (timer != null) Toasts.info("Timer started", timer.name + ", " + dev.aller.feature.Timers.clock(timer.left()));
+                    return null;
+                }).max(40).valid(text -> dev.aller.feature.Timers.parse(text) != null).inline(text -> "Start a timer for " + text.strip())));
+        c.add(new Command("timer.clear", "Stop every timer", Group.ALLER).keywords("countdown cancel clear")
+                .when(() -> !dev.aller.feature.Timers.all().isEmpty()).value(() -> dev.aller.feature.Timers.all().size() + " running")
+                .run(dev.aller.feature.Timers::clear));
+        c.add(new Command("stopwatch", "Stopwatch", Group.ALLER).detail("Starts it, or stops it where it is").keywords("timer count up lap")
+                .state(dev.aller.feature.Timers::watchRunning).run(dev.aller.feature.Timers::watchToggle));
+        c.add(new Command("stopwatch.reset", "Reset the stopwatch", Group.ALLER).keywords("timer clear zero")
+                .when(dev.aller.feature.Timers::watchShown).run(dev.aller.feature.Timers::watchReset));
+        c.add(new Command("photo", "Photo mode", Group.ALLER).detail("Frame a screenshot: look round, roll, zoom, focus and colour")
+                .keywords("screenshot camera picture cinematic pose capture").when(() -> Game.inWorld() && Modules.PHOTO_MODE.enabled())
+                .hidePalette().after().run(dev.aller.feature.Photo::open));
+        c.add(new Command("chest.find", "Find an item in your chests", Group.ALLER).detail("Or type: find diamond").alias("find")
+                .keywords("where chest container storage locate search item memory")
+                .when(() -> Game.inWorld() && Modules.CHEST_MEMORY.enabled()).value(() -> dev.aller.feature.ChestMemory.known() + " known")
+                .step(new Step.Text("Find", "Item name", "Looks through the containers you have opened in this world.", text -> {
+                    dev.aller.feature.ChestMemory.find(text);
+                    return null;
+                }).max(40).inline(text -> "Find " + quote(text.strip()) + " in your chests")));
+        c.add(new Command("chest.clear", "Stop pointing at chests", Group.ALLER).keywords("marks hide find clear")
+                .when(dev.aller.feature.ChestMemory::marking).run(dev.aller.feature.ChestMemory::clearMarks));
+        c.add(new Command("chest.forget", "Forget this world's chests", Group.ALLER).keywords("memory clear reset containers")
+                .when(() -> Game.inWorld() && dev.aller.feature.ChestMemory.known() > 0).danger("forget every container in this world")
+                .run(dev.aller.feature.ChestMemory::forgetWorld));
         c.add(new Command("wp.here", "Add waypoint here", Group.ALLER).detail("Save your current position").keywords("waypoint new mark place")
                 .when(world).suggest(true, false).hidePalette().run(() -> waypointHere("Waypoint " + (Waypoints.all().size() + 1))));
         c.add(new Command("wp.named", "Add named waypoint here", Group.ALLER).detail("Or type: waypoint Base").alias("waypoint")

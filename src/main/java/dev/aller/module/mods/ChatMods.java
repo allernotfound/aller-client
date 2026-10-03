@@ -367,6 +367,19 @@ public final class ChatMods {
         }
     }
 
+    public static final class Bubbles extends Module {
+        public final Settings.Num duration = num("duration", "Stay for", 5f, 2f, 12f, 0.5f).suffix("s")
+                .describe("Longer messages stay a little longer than this");
+        public final Settings.Num range = num("range", "Within", 24f, 8f, 64f, 4f).suffix(" blocks");
+        public final Settings.Num size = num("size", "Size", 1f, 0.6f, 1.6f, 0.05f).suffix("x");
+        public final Settings.Bool own = bool("own", "Over your own head too", true).describe("Seen in third person");
+
+        public Bubbles() {
+            super("chat_bubbles", "Chat bubbles", "What players say appears over their heads, wherever you can see them", Category.CHAT);
+            keywords("speech", "balloon", "overhead", "talk", "say", "head");
+        }
+    }
+
     public static final class Search extends Module {
         public final Settings.Key shortcut = add(new Settings.Key("shortcut", "Shortcut while chat is open",
                 Settings.Key.pack(GLFW.GLFW_KEY_F, GLFW.GLFW_MOD_CONTROL)).chord());

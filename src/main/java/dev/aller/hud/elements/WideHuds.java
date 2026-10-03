@@ -6,20 +6,14 @@ import dev.aller.hud.HudModule;
 import dev.aller.module.Modules;
 import dev.aller.platform.Canvas;
 import dev.aller.platform.Game;
-import dev.aller.platform.Mc;
 import dev.aller.setting.Settings;
 import dev.aller.ui.Colors;
 import dev.aller.ui.Graph;
 import dev.aller.ui.Theme;
-import dev.aller.ui.anim.Spring;
 import dev.aller.ui.font.Fonts;
-import net.minecraft.client.multiplayer.PlayerInfo;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
 
-/** The larger HUD elements: compass strip, live graph and player list. */
+/** The larger HUD elements: compass strip and live graph. */
 public final class WideHuds {
     private WideHuds() {}
 
@@ -128,86 +122,6 @@ public final class WideHuds {
             c.text(Fonts.MEDIUM, metric.get().name(), 7, 5, 6.5f, Theme.accent());
             c.textRight(Fonts.SEMIBOLD, now, w - 7, 4, 8.5f, Theme.TEXT);
             Graph.line(c, 7, 17, w - 14, h - 23, data, Theme.accent());
-        }
-    }
-
-    public static final class PlayerList extends HudModule {
-        public final Settings.Bool pings = bool("pings", "Show ping", true);
-        public final Settings.Num maxRows = num("max_rows", "Rows per column", 16f, 6f, 30f, 1f);
-        public final Settings.Bool always = bool("always", "Always visible (not just while holding Tab)", false);
-
-        private static final float ROW = 12f;
-        private final List<String> names = new ArrayList<>();
-        private final List<Integer> latencies = new ArrayList<>();
-        private final Spring show = Spring.snappy(0);
-        private int columns, rows;
-        private float colW;
-
-        public PlayerList() {
-            super("player_list", "Player list", "A cleaner tab list with smooth text and ping bars", AnchorH.CENTER, AnchorV.TOP, 0, 34);
-            keywords("tab", "players", "online", "tablist");
-        }
-
-        @Override
-        protected boolean measure(boolean editing) {
-            boolean wanted = editing || always.get() || Mc.mc().options.keyPlayerList.isDown();
-            float s = show.target(wanted ? 1 : 0).update();
-            if (s < 0.02f) return false;
-            names.clear();
-            latencies.clear();
-            var connection = Mc.mc().getConnection();
-            if (connection != null) {
-                List<PlayerInfo> infos = new ArrayList<>(connection.getListedOnlinePlayers());
-                infos.sort(Comparator.comparing(i -> Game.tabName(i).toLowerCase()));
-                for (PlayerInfo info : infos) {
-                    names.add(Game.tabName(info));
-                    latencies.add(info.getLatency());
-                }
-            }
-            if (names.isEmpty()) return false;
-            int perCol = maxRows.asInt();
-            columns = Math.min(4, (names.size() + perCol - 1) / perCol);
-            rows = Math.min(perCol, (names.size() + columns - 1) / columns);
-            float widest = 50;
-            int shown = Math.min(names.size(), columns * rows);
-            for (int i = 0; i < shown; i++) widest = Math.max(widest, Fonts.MEDIUM.width(names.get(i), 7.5f));
-            colW = widest + (pings.get() ? 26 : 12);
-            w = columns * colW + 8;
-            h = rows * ROW + 24;
-            return true;
-        }
-
-        @Override
-        protected void render(Canvas c, boolean editing) {
-            float s = Math.clamp(show.get(), 0f, 1f);
-            c.pushAlpha(s);
-            c.push();
-            c.translate(0, -6 * (1 - s));
-            Theme.chip(c, 0, 0, w, h, Theme.R_MD, background.get() ? 0xD9100E18 : 0x00000000);
-            String title = names.size() + (names.size() == 1 ? " player online" : " players online");
-            c.text(Fonts.SEMIBOLD, title, 8, 6, 7.5f, Theme.TEXT);
-            c.rect(6, 18, w - 12, 1, 0, Theme.BORDER);
-            int shown = Math.min(names.size(), columns * rows);
-            for (int i = 0; i < shown; i++) {
-                float x = 4 + (i / rows) * colW, y = 21 + (i % rows) * ROW;
-                c.textMiddle(Fonts.MEDIUM, names.get(i), x + 5, y, ROW, 7.5f, Theme.TEXT);
-                if (pings.get()) bars(c, x + colW - 16, y + 2.5f, latencies.get(i));
-            }
-            if (shown < names.size()) {
-                c.textRight(Fonts.REGULAR, "+" + (names.size() - shown) + " more", w - 8, 6.5f, 6.5f, Theme.TEXT_MUTED);
-            }
-            c.pop();
-            c.popAlpha();
-        }
-
-        /** Four signal bars, coloured by latency. */
-        private static void bars(Canvas c, float x, float y, int ping) {
-            int level = ping < 0 ? 0 : ping < 80 ? 4 : ping < 150 ? 3 : ping < 300 ? 2 : 1;
-            int color = level >= 3 ? Theme.SUCCESS : level == 2 ? Theme.WARN : Theme.DANGER;
-            for (int i = 0; i < 4; i++) {
-                float bh = 2 + i * 1.6f;
-                c.rect(x + i * 2.6f, y + 7 - bh, 1.7f, bh, 0.5f, i < level ? color : 0x33FFFFFF);
-            }
         }
     }
 }

@@ -90,6 +90,28 @@ public final class Game {
         //?}
     }
 
+    /** A tab list entry's name as the server styled it: team colours, ranks, a nickname. */
+    public static net.minecraft.network.chat.Component tabNameStyled(PlayerInfo info) {
+        return tabOverlay().getNameForDisplay(info);
+    }
+
+    private static net.minecraft.client.gui.components.PlayerTabOverlay tabOverlay() {
+        //? if <26.1 {
+        /*return Mc.mc().gui.getTabList();
+        *///?} else {
+        return Mc.mc().gui.hud.getTabList();
+        //?}
+    }
+
+    /** What the server wrote above the player list, or null. */
+    public static net.minecraft.network.chat.Component tabHeader() {
+        return ((dev.aller.mixin.PlayerTabOverlayAccessor) tabOverlay()).aller$header();
+    }
+
+    public static net.minecraft.network.chat.Component tabFooter() {
+        return ((dev.aller.mixin.PlayerTabOverlayAccessor) tabOverlay()).aller$footer();
+    }
+
     public static int ping() {
         var connection = Mc.mc().getConnection();
         if (connection == null || player() == null) return -1;
@@ -151,6 +173,42 @@ public final class Game {
         /*return net.minecraft.world.level.block.Blocks.BLACK_CONCRETE.defaultBlockState();
         *///?} else {
         return net.minecraft.world.level.block.Blocks.CONCRETE.pick(net.minecraft.world.item.DyeColor.BLACK).defaultBlockState();
+        //?}
+    }
+
+    /** How far the current tick has run, 0 to 1, for placing things between two ticks. */
+    public static float partialTick() {
+        return Mc.mc().getDeltaTracker().getGameTimeDeltaPartialTick(true);
+    }
+
+    /** The account name behind a tab list entry, whatever the server shows in its place. */
+    public static String profileName(PlayerInfo info) {
+        //? if <26.1 {
+        /*return info.getProfile().getName();
+        *///?} else {
+        return info.getProfile().name();
+        //?}
+    }
+
+    public static java.util.UUID profileId(PlayerInfo info) {
+        //? if <26.1 {
+        /*return info.getProfile().getId();
+        *///?} else {
+        return info.getProfile().id();
+        //?}
+    }
+
+    /** e.g. "minecraft:diamond_sword". */
+    public static String itemId(net.minecraft.world.item.ItemStack stack) {
+        return net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+    }
+
+    /** The path of a registry key: "sharpness" for minecraft:sharpness. */
+    public static String path(net.minecraft.resources.ResourceKey<?> key) {
+        //? if <26.1 {
+        /*return key.location().getPath();
+        *///?} else {
+        return key.identifier().getPath();
         //?}
     }
 

@@ -105,6 +105,39 @@ public final class UtilityMods {
         }
     }
 
+    /** The list shown while Tab is held; {@code feature/TabList} draws it and vanilla's is left out meanwhile. */
+    public static final class PlayerList extends Module {
+        public enum Ping { NUMBERS, BARS, OFF }
+
+        public final Settings.Bool heads = bool("heads", "Player heads", true);
+        public final Settings.Choice<Ping> ping = choice("ping", "Ping", Ping.NUMBERS);
+        public final Settings.Bool nearby = bool("nearby", "Highlight players near you", true)
+                .describe("Players whose character your game has loaded: within the server's view range. Invisible ones are left out");
+        public final Settings.Bool headerFooter = bool("header_footer", "Server's header and footer", true);
+        public final Settings.Bool scores = bool("scores", "List score", true)
+                .describe("The number a server puts beside each name: health, kills, points");
+        public final Settings.Num maxRows = num("max_rows", "Rows per column", 20f, 8f, 30f, 1f);
+        public final Settings.Num size = num("size", "Size", 1f, 0.6f, 1.6f, 0.05f).suffix("x");
+        public final Settings.Bool always = bool("always", "Always visible (not just while holding Tab)", false);
+
+        public PlayerList() {
+            super("player_list", "Tab list", "A cleaner player list: faces, the server's colours, ping in numbers and who is close by", Category.UTILITY);
+            keywords("tab", "players", "online", "tablist", "ping", "heads", "nearby", "better tab");
+        }
+    }
+
+    /** Photo mode. Its key opens the screen rather than switching the mod on and off; see {@code feature/Photo}. */
+    public static final class PhotoMode extends Module {
+        public PhotoMode() {
+            super("photo_mode", "Photo mode", "Frame a screenshot: HUD off, look round your character, roll, zoom, depth of field and colour", Category.UTILITY);
+            keywords("screenshot", "camera", "picture", "cinematic", "pose", "capture", "fov", "roll");
+            onByDefault();
+            ownKey = true;
+            keybind.describe("Opens photo mode from the world");
+            bind(GLFW.GLFW_KEY_F9);
+        }
+    }
+
     /** The web browser. Its key opens the window rather than switching the mod on and off; see {@code feature/Browser}. */
     public static final class WebBrowser extends Module {
         public final Settings.Choice<dev.aller.feature.Browser.Engine> engine = choice("engine", "Search engine", dev.aller.feature.Browser.Engine.GOOGLE)

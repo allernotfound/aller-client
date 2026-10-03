@@ -61,6 +61,12 @@ minute.
   favourites, a picture full size, zoomed and renamed, delete and undo (`gallery-*`, `GALLERY` lines
   in the log). What it takes ends in the recycle bin; the card only appears once the PNG is saved,
   about a second after the key.
+- `-Paller.mods` runs the script for the HUD, item, tab list, chat bubble and photo mode mods instead:
+  survival for the run, a few items given and a chest put down by server commands, then the HUD,
+  the HUD editor, the tab list, a bubble in third person, the inventory with a locked slot, a
+  hovered shulker box (`Containers.dev`) and a search, the chest and its search, a chest found again,
+  and photo mode with a picture taken (`mods-*`, `MODS` lines in the log; the picture it took is
+  copied to `mods-photo-result.png`). Tooltips cannot be hovered, so their lines are logged.
 - `-Paller.bench` measures average FPS in the test world with Aller idle, at defaults and with
   heavier module sets, and logs `BENCH` lines (`-Paller.bench=each` also times every non-HUD mod
   alone). It runs windowed: a fullscreen window that loses focus is minimised and vanilla then caps
@@ -105,8 +111,9 @@ setting/           Setting types (Bool, Num, Color, Choice, Key, Text) + Configu
 module/            Module, ModuleManager, Modules (the catalogue), mods/*
 hud/               HudModule (anchored, scalable), TextHud, elements/*
 feature/           Session, Waypoints, Replay, AutoProfiles, Combat, Clicks, View,
-                   Chat (+ ChatText, ChatFormats, ChatLog, ChatArchive), Wardrobe, Browser,
-                   Pocket (+ PocketRoom), Effects
+                   Chat (+ ChatText, ChatFormats, ChatLog, ChatArchive, Bubbles), Wardrobe, Browser,
+                   Pocket (+ PocketRoom), Effects, TabList, Containers, Tooltips, ChestMemory,
+                   Photo, Timers, ServerClock, Media
 command/           the launcher's model: Command, Step (Num/Text/Pick), Commands (the catalogue),
                    Launcher (shortcut polling), History (recent, pinned, use counts), CustomActions,
                    Calc, Search
@@ -502,6 +509,78 @@ server stays open. Experimental, restricted (the server sees the player standing
   looks), and keep the `pocket$` prefix. Every hook body is wrapped so an exception ejects rather
   than crashes.
 
+### Tab list
+
+"Tab list" (id `player_list`, a plain `Module` in Utility, no longer a HUD element) replaces
+Minecraft's list while its mod is on: `HudMixin` cancels vanilla's and `feature/TabList` draws from
+`Frame.hud`, in GUI units times its own size setting.
+
+- Rows are sorted as vanilla sorts them and capped at its 80. Names are the server's own
+  (`Game.tabNameStyled`: team colours, ranks, nicknames) drawn through `ui/StyledText`, which keeps
+  each run's colour and weight in Aller Client's font. The header and footer come through
+  `PlayerTabOverlayAccessor`. Faces are `Skins.drawFace` (vanilla's face renderer, hat layer included).
+- The number beside a name is the scoreboard's list objective, when the server has one.
+- "Highlight players near you" marks whoever `level.getPlayerByUUID` finds, which is everyone the
+  server is sending an entity for. Invisible players are left out so the list does not give them
+  away. It was asked for by the user; it is still more than vanilla shows.
+
+### Items and containers
+
+Inventory and container screens stay vanilla. `ContainerScreenMixin` reports each frame's layout
+(left, top, width, hovered slot) from the tail of `renderContents`/`extractContents` (not `render`:
+the screens with a recipe book never call it), and `feature/Containers` draws over the slots there,
+under any tooltip.
+
+- Inventory search: a button above the top right corner opens into a field (Ctrl+F, or a click).
+  While it has focus `Hooks.key` swallows every key press (so E does not close the screen) and
+  `Hooks.typed` every character; both come from `KeyboardHandlerMixin`, the click from
+  `MouseHandlerMixin`. The creative screen has its own search and is skipped.
+- Item lock: slots of the player's `Inventory` by index, in `client.json` (`item_locks`).
+  `LocalPlayerMixin` stops the drop key in the world, `slotClicked` with `THROW` in a screen.
+  Dragging an item out of the window still drops it.
+- Container preview is drawn from `Hooks.screenExtras`, after the tooltip, placed over the pointer
+  (the tooltip hangs down from beside it). Shulker contents are read with `copyInto`, the one
+  accessor both versions share; bundles are left to vanilla's own tooltip.
+- Item details and enchantment notes are lines added by Fabric's `ItemTooltipCallback`
+  (`feature/Tooltips`). The notes are a table by enchantment id; one from a data pack gets none.
+- Chest memory: `UseBlockCallback` notes the block used, and a container screen that opens within
+  three seconds is tied to it; what it held is written to `<config>/chests/<world key>.json` when it
+  shuts. "find" in the launcher marks the containers that match on the HUD like waypoints, for a
+  while. It is `restricted`.
+
+### Chat bubbles
+
+`Chat.incoming` hands each line to `feature/Bubbles`. A server never says who wrote a line, so the
+author part `ChatFormats` found is matched against the tab list: the account name, or the last word
+of the name the server shows there (nicknames). Where no format or separator fits, the start of the
+line is searched for an online player's name followed by a separator. A bubble is drawn on the HUD
+layer over that player's head only while they are loaded, in range, not invisible and in line of
+sight (`hasLineOfSight`), so it never shows where somebody is.
+
+### Photo mode
+
+`PhotoScreen` (F9, or "Photo mode" in the launcher; the mod's key is read in `Photo.poll`, `ownKey`)
+hides the HUD and shows one panel built from a `SettingsView`. `feature/Photo` holds the camera:
+`Hooks.cameraYaw/Pitch` and `Hooks.fov` answer from it while it is active, and `CameraMixin` adds
+the roll at the tail of `setRotation`. The camera only turns on the spot the player's own camera is
+in (first person, behind, in front), as freelook does: there is no free camera.
+
+- The depth of field and colour grading rows are those mods' own settings. Both mods are saved on
+  the way in and put back on the way out.
+- A picture: `Photo.shoot` makes the screen leave itself out of the next frame, and `Photo.frameEnd`
+  saves that frame, then keeps the panel hidden three more frames for a screenshot `Shots` put off.
+- "Freeze the world" is `pausesGame`, so singleplayer only.
+
+### HUD elements that need something outside the HUD
+
+- Server TPS: `ClientPacketListenerMixin` hands each time update to `feature/ServerClock` from the
+  handler's tail (the head also runs off the client thread).
+- Timers: `feature/Timers`, started by the launcher ("timer 5m", "stopwatch"); they ring whether or
+  not the HUD element is on.
+- Now playing: `native/src/media.rs` asks Windows' media transport controls; `feature/Media` calls
+  it once a second on its own thread, and only while the element is being drawn. It never runs on
+  the render thread (the calls wait on the system).
+
 ### Effect mods
 
 Motion blur, depth of field and colour grading (`module/mods/EffectMods`) work on the picture of the
@@ -571,7 +650,7 @@ integrated server, so guard with `instanceof ClientLevel` / `LocalPlayer`.
 Built, and checked with the harness on both versions (also with Sodium + Iris loaded): startup
 splash, main menu, palette (search, category dock, pages for module settings, client settings,
 profiles and auto-switch rules, waypoints, session stats), HUD editor, pause menu, restyled
-loading/connecting screens, 24 HUD elements, visual and utility mods with their mixins, cosmetics
+loading/connecting screens, 37 HUD elements, visual and utility mods with their mixins, cosmetics
 (cape, held item view, hit particles, own nametag), waypoints, session tracking, instant replay,
 auto profiles, restyled vanilla menus (also Sodium 0.7 and 0.9, Iris, Mod Menu), the Ctrl+K
 launcher (captured over the main menu, a vanilla menu and a world), the chat mods (mentions, history
@@ -659,6 +738,18 @@ recycle bin at the end, Essential's preview switched off. Untried by hand: the r
 keys, clicking the card, a vanilla toast in the same corner (it covers the card), dragging and the
 wheel in the viewer, double click, search, a rename actually committed, hundreds of screenshots,
 non-Windows systems, and Essential's own key with a signed-in account.
+
+The HUD, item, tab list, chat bubble and photo mode mods are checked through `-Paller.mods` on both
+versions (26.2 with Essential, Sodium and Iris), in singleplayer: the elements drawn, the tooltip
+lines, the tab list with one player, a bubble from a made-up "[VIP] name » text" line and none from a
+join line, the lock mark and the refused drop, the shulker preview, the search in the inventory and
+in a chest, a chest found again, photo mode's panel, roll, zoom, depth of field and grade, and the
+picture coming out without the panel. Now playing showed a real track on 26.2. Untried: everything
+on a real server (the tab list with many players, a header and footer, list scores, nearby players;
+bubbles from other players and through nicknames; TPS under lag), the elytra, mount and cooldown
+elements with real data, the map preview, typing in the search by hand, the lock key and Q, a
+double chest, dragging and the wheel in photo mode, "Freeze the world", the media keys, and the
+vitals tint.
 
 Not built yet: more novel features (quick wheel, notes).
 

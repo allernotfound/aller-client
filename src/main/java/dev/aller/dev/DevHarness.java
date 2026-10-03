@@ -67,6 +67,10 @@ public final class DevHarness {
             gallery();
             return;
         }
+        if (Boolean.getBoolean("aller.dev.mods")) {
+            mods();
+            return;
+        }
         if (Boolean.getBoolean("aller.dev.onboarding")) {
             onboarding();
             return;
@@ -851,6 +855,166 @@ public final class DevHarness {
                 }
             });
             run(dev.aller.feature.Shots.UNDO + 4f, () -> AllerClient.LOG.info("GALLERY {} screenshots left", dev.aller.feature.Shots.all().size()));
+        }
+        run(0.5f, () -> Mc.mc().stop());
+    }
+
+    /** Runs a command on the test world's server, as the server. */
+    private static void server(String command) {
+        var server = Mc.mc().getSingleplayerServer();
+        if (server == null) return;
+        server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(), command));
+    }
+
+    /**
+     * The HUD elements, item mods, tab list, chat bubbles and photo mode ({@code -Paller.mods}), in
+     * the test world with a few things given to the player and a chest put down beside them. All of
+     * it is taken away again at the end.
+     */
+    private static void mods() {
+        String[] ids = {"looking_at", "held_item", "inventory_view", "free_slots", "cooldowns", "elytra", "mount", "experience", "rotation", "tps",
+                "timer", "session_stats", "pack_display", "now_playing", "durability_warnings", "vitals_warning", "player_list", "inventory_search",
+                "container_preview", "item_details", "enchant_notes", "item_lock", "chest_memory", "chat_bubbles", "photo_mode"};
+        int[] chest = new int[3];
+        until(() -> Mc.current() instanceof MainMenuScreen && !Mc.loadingOverlay());
+        if (canEnterWorld()) {
+            run(1f, DevHarness::enterWorld);
+            until(() -> Mc.mc().player != null && Mc.mc().level != null && !Mc.loadingOverlay() && Mc.screen() == null, 90);
+            run(3f, () -> {
+                for (String id : ids) {
+                    Module m = AllerClient.modules().get(id);
+                    savedState.put(m, m.enabled());
+                    m.setEnabled(true);
+                }
+                var p = Mc.mc().player;
+                // Survival, so the inventory is the ordinary one and not the creative tabs.
+                server("gamemode survival @a");
+                server("clear @a");
+                server("give @a diamond_pickaxe[enchantments={\"minecraft:efficiency\":5,\"minecraft:unbreaking\":3,\"minecraft:mending\":1},damage=1480]");
+                server("give @a shulker_box[container=[{slot:0,item:{id:\"minecraft:diamond\",count:64}},{slot:1,item:{id:\"minecraft:golden_apple\",count:8}},{slot:13,item:{id:\"minecraft:ender_pearl\",count:16}}]]");
+                server("give @a cooked_beef 12");
+                server("give @a ender_pearl 16");
+                server("give @a firework_rocket 40");
+                server("give @a oak_log 64");
+                server("give @a coal 20");
+                chest[0] = p.blockPosition().getX() + 2;
+                chest[1] = p.blockPosition().getY();
+                chest[2] = p.blockPosition().getZ();
+                server("setblock " + chest[0] + " " + chest[1] + " " + chest[2] + " chest{Items:[{Slot:0b,id:\"minecraft:diamond\",count:12},{Slot:4b,id:\"minecraft:iron_ingot\",count:40},{Slot:9b,id:\"minecraft:diamond_sword\",count:1}]}");
+                dev.aller.feature.Timers.start("5m harness");
+                // Looking down at the ground, so there is a block under the crosshair.
+                p.setXRot(55f);
+            });
+            shot(2.5f, "mods-hud");
+            run(0.1f, () -> {
+                var p = Mc.mc().player;
+                AllerClient.LOG.info("MODS tps={} silence={} timers={}", dev.aller.feature.ServerClock.tps(), dev.aller.feature.ServerClock.silence(),
+                        dev.aller.feature.Timers.all().size());
+                for (int i = 0; i < 9; i++) {
+                    var stack = p.getInventory().getItem(i);
+                    if (stack.isEmpty()) continue;
+                    var lines = stack.getTooltipLines(net.minecraft.world.item.Item.TooltipContext.of(Mc.mc().level), p, net.minecraft.world.item.TooltipFlag.NORMAL);
+                    AllerClient.LOG.info("MODS tooltip of slot {}: {}", i, lines.stream().map(net.minecraft.network.chat.Component::getString).toList());
+                }
+                Mc.open(new HudEditorScreen(null));
+            });
+            shot(1.2f, "mods-hud-editor");
+            run(0.1f, () -> {
+                Mc.setScreen(null);
+                dev.aller.module.Modules.PLAYER_LIST.always.set(true);
+            });
+            shot(1.0f, "mods-tab");
+            run(0.1f, () -> {
+                dev.aller.module.Modules.PLAYER_LIST.always.set(false);
+                Mc.mc().options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                Mc.mc().player.setXRot(10f);
+                String me = dev.aller.platform.Nav.playerName();
+                dev.aller.platform.ChatView.add(net.minecraft.network.chat.Component.literal("[VIP] " + me + " » the bubble should sit over my head, wrapped on to a second line"));
+                dev.aller.platform.ChatView.add(net.minecraft.network.chat.Component.literal(me + " joined the game"));
+            });
+            shot(0.8f, "mods-bubble");
+            run(0.1f, () -> {
+                Mc.mc().options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                dev.aller.feature.Containers.dev("lock", 0);
+                Mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(Mc.mc().player));
+            });
+            // The shulker box is in the second hotbar slot, which is slot 37 of the inventory screen.
+            run(0.5f, () -> dev.aller.feature.Containers.dev("hover", 37));
+            shot(0.8f, "mods-inventory-preview");
+            run(0.1f, () -> {
+                dev.aller.feature.Containers.dev("hover", -1);
+                dev.aller.feature.Containers.dev("search:pick", 0);
+            });
+            shot(0.8f, "mods-inventory-search");
+            run(0.1f, () -> {
+                AllerClient.LOG.info("MODS drop from a locked slot refused: {}", dev.aller.feature.Containers.blockDrop());
+                dev.aller.feature.Containers.dev("search:", 0);
+                dev.aller.feature.Containers.dev("lock", 0);
+                Mc.setScreen(null);
+            });
+            run(0.3f, () -> {
+                var pos = new net.minecraft.core.BlockPos(chest[0], chest[1], chest[2]);
+                var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(pos), net.minecraft.core.Direction.UP, pos, false);
+                var result = Mc.mc().gameMode.useItemOn(Mc.mc().player, net.minecraft.world.InteractionHand.MAIN_HAND, hit);
+                AllerClient.LOG.info("MODS used the chest: {}", result);
+            });
+            until(() -> Mc.screen() instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>, 5);
+            run(0.5f, () -> dev.aller.feature.Containers.dev("search:dia", 0));
+            shot(0.8f, "mods-chest");
+            run(0.1f, () -> {
+                dev.aller.feature.Containers.dev("search:", 0);
+                Mc.mc().player.closeContainer();
+            });
+            run(0.5f, () -> {
+                AllerClient.LOG.info("MODS chests known: {}", dev.aller.feature.ChestMemory.known());
+                Mc.mc().player.setYRot(-90f);
+                Mc.mc().player.setXRot(20f);
+                dev.aller.feature.ChestMemory.find("diamond");
+            });
+            shot(1.0f, "mods-chest-find");
+            run(0.1f, () -> {
+                dev.aller.feature.ChestMemory.clearMarks();
+                dev.aller.feature.Photo.open();
+            });
+            shot(1.2f, "mods-photo");
+            run(0.1f, () -> {
+                if (Mc.current() instanceof dev.aller.screen.PhotoScreen s) s.dev();
+            });
+            shot(1.5f, "mods-photo-set");
+            run(0.1f, dev.aller.feature.Photo::shoot);
+            run(1.5f, () -> {
+                // The picture it took, with the panel left out: copied beside the captures, then deleted.
+                var all = dev.aller.feature.Shots.all();
+                AllerClient.LOG.info("MODS photo taken: {}", all.isEmpty() ? null : all.get(0).name);
+                if (!all.isEmpty()) {
+                    try {
+                        java.nio.file.Files.copy(dev.aller.feature.Shots.dir().resolve(all.get(0).name), dir.resolve("mods-photo-result.png"),
+                                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    } catch (java.io.IOException e) {
+                        AllerClient.LOG.warn("MODS could not copy the photo", e);
+                    }
+                    dev.aller.feature.Shots.delete(all.get(0));
+                }
+            });
+            shot(0.5f, "mods-photo-after");
+            run(0.1f, () -> {
+                AllerScreen s = Mc.current();
+                if (s != null) s.close();
+            });
+            until(() -> Mc.screen() == null, 5);
+            shot(0.8f, "mods-after-photo");
+            run(0.1f, () -> {
+                AllerClient.LOG.info("MODS photo mode left: active={} hud hidden={} camera={}", dev.aller.feature.Photo.active(), Mc.hudHidden(),
+                        Mc.mc().options.getCameraType());
+                server("clear @a");
+                server("gamemode creative @a");
+                server("setblock " + chest[0] + " " + chest[1] + " " + chest[2] + " air");
+                dev.aller.feature.ChestMemory.forgetWorld();
+                dev.aller.feature.Timers.clear();
+                savedState.forEach(Module::setEnabled);
+                AllerClient.config().save();
+            });
+            run(dev.aller.feature.Shots.UNDO + 4f, () -> {});
         }
         run(0.5f, () -> Mc.mc().stop());
     }

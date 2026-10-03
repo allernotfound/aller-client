@@ -74,6 +74,8 @@ public final class EffectMods {
                 .describe("Off keeps everything between you and what you look at sharp");
         public final Settings.Choice<Quality> quality = choice("quality", "Quality", Quality.MEDIUM).describe(PACK_NOTE);
         private float target = 16f;
+        /** A focus distance set by hand in photo mode, in blocks; 0 to follow the crosshair. */
+        public float manual;
 
         public DepthOfField() {
             super("depth_of_field", "Depth of field", "Focus on what you look at and soften the rest", Category.VISUAL);
@@ -82,7 +84,7 @@ public final class EffectMods {
 
         @Override
         public void tick() {
-            target = Game.lookDistance(96f);
+            target = dev.aller.feature.Photo.active() ? dev.aller.feature.Photo.focus(manual) : Game.lookDistance(96f);
         }
 
         /** Distance to whatever is under the crosshair, refreshed every tick. */

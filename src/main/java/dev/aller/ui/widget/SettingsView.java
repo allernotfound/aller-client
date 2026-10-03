@@ -52,6 +52,12 @@ public final class SettingsView {
         return this;
     }
 
+    /** Adds a setting without the heading of the group it starts, for an owner that places headings itself. */
+    public SettingsView row(Setting<?> s) {
+        rows.add(make(s));
+        return this;
+    }
+
     public SettingsView header(String title) {
         rows.add(new HeaderRow(title));
         return this;

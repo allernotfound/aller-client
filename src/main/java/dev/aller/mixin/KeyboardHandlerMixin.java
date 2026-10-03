@@ -7,21 +7,32 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 //? if >=26.1 {
+import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 //?}
 
-/** Lets the screenshot card take its keys before the game or a screen acts on them. */
+/** Lets the screenshot card and the inventory search take their keys before the game or a screen acts on them. */
 @Mixin(KeyboardHandler.class)
 public abstract class KeyboardHandlerMixin {
     //? if <26.1 {
     /*@Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     private void aller$key(long window, int key, int scancode, int action, int mods, CallbackInfo ci) {
-        if (action == 1 && Hooks.key(key, mods)) ci.cancel();
+        if (action != 0 && Hooks.key(key, mods, action == 2)) ci.cancel();
+    }
+
+    @Inject(method = "charTyped", at = @At("HEAD"), cancellable = true)
+    private void aller$typed(long window, int codepoint, int mods, CallbackInfo ci) {
+        if (Hooks.typed(codepoint)) ci.cancel();
     }
     *///?} else {
     @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     private void aller$key(long window, int action, KeyEvent event, CallbackInfo ci) {
-        if (action == 1 && Hooks.key(event.key(), event.modifiers())) ci.cancel();
+        if (action != 0 && Hooks.key(event.key(), event.modifiers(), action == 2)) ci.cancel();
+    }
+
+    @Inject(method = "charTyped", at = @At("HEAD"), cancellable = true)
+    private void aller$typed(long window, CharacterEvent event, CallbackInfo ci) {
+        if (Hooks.typed(event.codepoint())) ci.cancel();
     }
     //?}
 }
