@@ -47,6 +47,11 @@ and Essential (whose buttons Aller Client keeps on its own menus).
 
 That is the whole install. To remove it, delete the jar.
 
+Aller Client keeps itself up to date from the Releases page. When there is a newer version, a
+popup on the main menu or the pause menu shows its release notes and asks first; nothing is
+downloaded until you choose "Update now", and the new version takes over the next time you start
+the game. "Check for updates" in the client settings switches it off.
+
 Optional but recommended: [Sodium](https://modrinth.com/mod/sodium) for performance,
 [Iris](https://modrinth.com/mod/iris) for shaders, [Mod Menu](https://modrinth.com/mod/modmenu).
 

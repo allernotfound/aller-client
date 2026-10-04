@@ -107,6 +107,10 @@ public final class ClientOptions extends Configurable {
             .describe("Warn once per session when enabling a mod some servers restrict");
     public final Settings.Bool autoProfiles = bool("auto_profiles", "Switch profiles automatically by rule", true);
 
+    { section("Updates"); }
+    public final Settings.Bool checkUpdates = bool("check_updates", "Check for updates", true)
+            .describe("Looks at Aller Client's GitHub releases every ten minutes, and asks before downloading anything");
+
     { section("Screenshots"); }
     public final Settings.Bool shotCard = bool("shot_card", "Screenshot preview", true)
             .describe("A card slides in at the top right after a screenshot. While it is up: Ctrl+O opens it, Ctrl+C copies it, Ctrl+Delete deletes it, Ctrl+E shows the file");

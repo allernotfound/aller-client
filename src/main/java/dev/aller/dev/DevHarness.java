@@ -63,6 +63,10 @@ public final class DevHarness {
             store();
             return;
         }
+        if (Boolean.getBoolean("aller.dev.update")) {
+            update();
+            return;
+        }
         if (Boolean.getBoolean("aller.dev.gallery")) {
             gallery();
             return;
@@ -795,6 +799,68 @@ public final class DevHarness {
             o.restyleMenus.set(was[0]);
             AllerClient.config().save();
         });
+        run(0.5f, () -> Mc.mc().stop());
+    }
+
+    /**
+     * The updater ({@code -Paller.update}), with a made-up release since a development run has no jar
+     * to replace and never asks GitHub: the popup over the main menu as offered, part way through a
+     * download, done, failed, and the notes shown after an update; then the offer over the pause menu.
+     */
+    private static void update() {
+        Runnable show = dev.aller.screen.UpdateScreen::show;
+        until(() -> Mc.current() instanceof MainMenuScreen && !Mc.loadingOverlay());
+        run(3.5f, () -> {
+            AllerClient.LOG.info("UPDATE running {} for Minecraft {}", AllerClient.VERSION, dev.aller.feature.Updater.target());
+            AllerClient.LOG.info("UPDATE 1.0.10 against 1.0.9: {}, 1.0 against 1.0.0: {}", dev.aller.feature.Updater.compare("1.0.10", "1.0.9"),
+                    dev.aller.feature.Updater.compare("1.0", "1.0.0"));
+            dev.aller.feature.Updater.dev("available");
+            show.run();
+        });
+        shot(1.5f, "update-available");
+        run(0.1f, () -> dev.aller.feature.Updater.dev("downloading"));
+        shot(1.0f, "update-downloading");
+        run(0.1f, () -> dev.aller.feature.Updater.dev("ready"));
+        shot(0.8f, "update-ready");
+        run(0.1f, () -> dev.aller.feature.Updater.dev("failed"));
+        shot(0.8f, "update-failed");
+        run(0.1f, () -> {
+            dev.aller.feature.Updater.dev("news");
+            show.run();
+        });
+        shot(1.5f, "update-news");
+        run(0.1f, () -> {
+            key(GLFW.GLFW_KEY_ESCAPE);
+            dev.aller.feature.Updater.dev("none");
+        });
+        if (canEnterWorld()) {
+            run(1.0f, DevHarness::enterWorld);
+            until(() -> Mc.mc().player != null && Mc.mc().level != null && Mc.screen() == null, 90);
+            run(3.0f, () -> Mc.mc().pauseGame(false));
+            run(1.0f, () -> {
+                dev.aller.feature.Updater.dev("available");
+                show.run();
+            });
+            shot(1.5f, "update-pause");
+            run(0.1f, () -> {
+                key(GLFW.GLFW_KEY_ESCAPE);
+                AllerClient.LOG.info("UPDATE after Later the popup is wanted: {}", dev.aller.feature.Updater.wanted());
+                dev.aller.feature.Updater.dev("none");
+                Mc.setScreen(null);
+            });
+        }
+        // The real thing: GitHub's release list, the popup it leads to, the download, and the old jar going as the game closes.
+        run(1.0f, () -> dev.aller.feature.Updater.dev("real:" + dir.resolve("mods")));
+        until(() -> Mc.current() instanceof dev.aller.screen.UpdateScreen, 30);
+        shot(1.5f, "update-real");
+        run(0.1f, () -> {
+            var u = dev.aller.feature.Updater.update();
+            AllerClient.LOG.info("UPDATE found {} as {} ({} bytes, sha256 {}), {} notes", u.version(), u.file(), u.size(), u.sha256(), u.notes().size());
+            dev.aller.feature.Updater.download();
+        });
+        until(() -> dev.aller.feature.Updater.state() != dev.aller.feature.Updater.State.DOWNLOADING, 120);
+        shot(1.0f, "update-real-done");
+        run(0.1f, () -> AllerClient.LOG.info("UPDATE download ended {} {}", dev.aller.feature.Updater.state(), dev.aller.feature.Updater.problem()));
         run(0.5f, () -> Mc.mc().stop());
     }
 

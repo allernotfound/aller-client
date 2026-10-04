@@ -19,6 +19,9 @@
     "java": ">=${java}",
     "fabric-api": "*"
   },
+  "custom": {
+    "aller:minecraft": "${mc}"
+  },
   "suggests": {
     "modmenu": "*",
     "sodium": "*"

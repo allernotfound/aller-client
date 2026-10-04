@@ -21,7 +21,9 @@ import java.util.Queue;
 public final class AllerClient implements ClientModInitializer {
     public static final String ID = "aller";
     public static final String NAME = "Aller Client";
-    public static final String VERSION = "0.1.0";
+    /** As in the jar's name, without the Minecraft version after the plus ("1.0.1"). */
+    public static final String VERSION = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer(ID)
+            .map(m -> m.getMetadata().getVersion().getFriendlyString().split("[+]")[0]).orElse("dev");
     public static final Logger LOG = LoggerFactory.getLogger(NAME);
 
     private static final ClientOptions OPTIONS = new ClientOptions();
@@ -59,6 +61,7 @@ public final class AllerClient implements ClientModInitializer {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             dev.aller.feature.Pocket.close(true);
             CONFIG.save();
+            dev.aller.feature.Updater.stopping();
             dev.aller.feature.Browser.shutdown();
         });
         dev.aller.feature.Combat.init();
@@ -69,6 +72,7 @@ public final class AllerClient implements ClientModInitializer {
             return net.minecraft.world.InteractionResult.PASS;
         });
         dev.aller.feature.Pocket.init();
+        dev.aller.feature.Updater.init();
         DevHarness.init();
         LOG.info("{} {} ready with {} modules", NAME, VERSION, MODULES.all().size());
     }
@@ -83,6 +87,7 @@ public final class AllerClient implements ClientModInitializer {
         dev.aller.feature.Pocket.tick();
         dev.aller.feature.Shots.tick();
         dev.aller.feature.Timers.tick();
+        dev.aller.feature.Updater.tick();
         MODULES.tick();
         CONFIG.tick();
 

@@ -52,6 +52,25 @@ public final class Os {
         }
     }
 
+    /**
+     * Deletes a file once this game has gone, for one the game holds open for as long as it runs (its
+     * own jar). Starts a program that outlives the game and waits for it; nothing is waited for here.
+     */
+    public static void deleteAfterExit(Path file) {
+        long pid = ProcessHandle.current().pid();
+        ProcessBuilder builder = WINDOWS
+                ? new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command",
+                        "Wait-Process -Id " + pid + " -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500; Remove-Item -LiteralPath $env:" + FILE + " -Force")
+                : new ProcessBuilder("sh", "-c", "while kill -0 " + pid + " 2>/dev/null; do sleep 1; done; rm -f \"$" + FILE + "\"");
+        builder.environment().put(FILE, file.toAbsolutePath().toString());
+        builder.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD);
+        try {
+            builder.start().getOutputStream().close();
+        } catch (IOException e) {
+            dev.aller.AllerClient.LOG.warn("Could not arrange for {} to be deleted", file.getFileName(), e);
+        }
+    }
+
     private static boolean powershell(Path file, String script) {
         return run(file, "powershell.exe", "-NoProfile", "-NonInteractive", "-STA", "-Command", "$ErrorActionPreference='Stop'; " + script);
     }

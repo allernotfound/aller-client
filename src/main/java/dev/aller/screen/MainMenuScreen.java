@@ -239,7 +239,9 @@ public final class MainMenuScreen extends AllerScreen {
 
         float ft = footerIn.update() * present;
         c.pushAlpha(ft);
-        c.text(Fonts.REGULAR, "Minecraft " + Nav.minecraftVersion() + "  •  Aller Client " + AllerClient.VERSION, leftX, vh - 16, 7f, Theme.TEXT_MUTED);
+        var newer = dev.aller.feature.Updater.update();
+        c.text(Fonts.REGULAR, "Minecraft " + Nav.minecraftVersion() + "  •  Aller Client " + AllerClient.VERSION
+                + (newer != null ? "  •  " + newer.version() + " available" : ""), leftX, vh - 16, 7f, Theme.TEXT_MUTED);
         String legal = "Not an official Minecraft product. Not affiliated with Mojang or Microsoft.";
         if (vw > leftX * 2 + 170 + Fonts.REGULAR.width(legal, 7f)) {
             c.textRight(Fonts.REGULAR, legal, vw - leftX, vh - 16, 7f, Theme.TEXT_MUTED);

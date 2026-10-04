@@ -99,6 +99,10 @@ if (providers.gradleProperty("aller.store").isPresent) {
 if (providers.gradleProperty("aller.onboarding").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.onboarding=true") }
 }
+// Runs the harness's updater script: the update popup in each of its states, with a made-up release.
+if (providers.gradleProperty("aller.update").isPresent) {
+    loom.runs.named("client") { vmArg("-Daller.dev.update=true") }
+}
 // Runs the harness's screenshots script: the card after a screenshot, the grid, a picture full size, delete and undo.
 if (providers.gradleProperty("aller.gallery").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.gallery=true") }
@@ -156,6 +160,7 @@ tasks.processResources {
         "id" to prop("mod.id"),
         "name" to prop("mod.name"),
         "version" to prop("mod.version"),
+        "mc" to mc,
         "mc_dep" to prop("mod.mc_dep"),
         "java" to prop("mod.java"),
         "loader" to prop("deps.fabric_loader"),

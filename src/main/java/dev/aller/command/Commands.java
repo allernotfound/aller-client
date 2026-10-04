@@ -149,6 +149,10 @@ public final class Commands {
         c.add(new Command("go.onboarding", "Replay onboarding", Group.NAVIGATE).detail("The intro and the first-run setup, from the start")
                 .keywords("welcome tutorial intro setup first run tour guide animation").after()
                 .run(parent -> Mc.setScreen(new ScreenHost(new OnboardingScreen(parent)))));
+        c.add(new Command("go.update", "Check for updates", Group.ALLER).detail("Looks for a newer " + AllerClient.NAME + " on GitHub now")
+                .keywords("updater upgrade new version release download latest changelog github").after()
+                .value(() -> dev.aller.feature.Updater.update() != null ? dev.aller.feature.Updater.update().version() + " available" : AllerClient.VERSION)
+                .run(dev.aller.feature.Updater::checkNow));
         c.add(new Command("go.wardrobe", "Skin wardrobe", Group.NAVIGATE).detail("Change skin, arm width, and see the skins you wore before")
                 .keywords("skins upload slim classic alex steve outfit history namemc").suggest(false, true).hidePalette().after()
                 .run(parent -> Mc.setScreen(new ScreenHost(new WardrobeScreen(parent)))));

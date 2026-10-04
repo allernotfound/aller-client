@@ -62,6 +62,10 @@ minute.
   favourites, a picture full size, zoomed and renamed, delete and undo (`gallery-*`, `GALLERY` lines
   in the log). What it takes ends in the recycle bin; the card only appears once the PNG is saved,
   about a second after the key.
+- `-Paller.update` runs the updater script instead: the popup in each state with a made-up release
+  (`Updater.dev`), over the main menu and the pause menu, then the real thing against GitHub as a
+  pretend version 0.0.1 with a stand-in "running jar" in `<dir>/mods` (`update-*`, `UPDATE` lines in
+  the log). Afterwards `<dir>/mods` should hold only the downloaded jar. Needs the network.
 - `-Paller.mods` runs the script for the HUD, item, tab list, chat bubble and photo mode mods instead:
   survival for the run, a few items given and a chest put down by server commands, then the HUD,
   the HUD editor, the tab list, a bubble in third person, the inventory with a locked slot, a
@@ -125,6 +129,7 @@ screen/            MainMenuScreen, PaletteScreen (+ palette/* pages), LauncherSc
                    OnboardingScreen (+ onboarding/Intro), the first run
 feature/Shots      the screenshots folder: index, thumbnails, delete with undo; ui/ShotCard is the
                    slide-in, screen/shots/ShotsScreen the full page
+feature/Updater    the GitHub release check, the download, and swapping jars; screen/UpdateScreen is its popup
 feature/store/     Kind, Modrinth (the API), Store (pages, installed files, downloads), Images, Text
 ui/doc/            Doc (Markdown and HTML to blocks) and DocView (lays them out and draws them)
 screen/store/      StoreScreen (+ BrowsePane, DetailPane, InstalledPane), PackListExtras
@@ -480,6 +485,35 @@ command, Essential's own key handling), and `feature/Shots` takes it from there.
   when the preview is turned off), and its Pictures button is left off the strip meanwhile.
   Essential still files the picture in its own browser and plays its own sound.
 
+### Updater
+
+`feature/Updater` (not a mod: "Check for updates" in the client settings, on by default) reads
+`api.github.com/repos/allernotfound/aller-client/releases` every ten minutes from `tick`, with the
+list's ETag so an unchanged one costs none of GitHub's allowance. Drafts and pre-releases are skipped.
+
+- A release counts when its tag (`v1.0.2`) is newer than `AllerClient.VERSION` and it has an asset
+  named `aller-<version>+<mc>.jar` for this build's Minecraft version. That version is not in the
+  mod's own version: the build writes it to `custom."aller:minecraft"` in `fabric.mod.json`
+  (`Updater.target()`); jars from before the updater only say it in their file name.
+- Nothing is downloaded until "Update now". `UpdateScreen.offer` brings the popup up by itself only
+  on the main menu or the pause menu (Aller Client's or vanilla's); in a world there is one toast.
+  "Later" (or Escape) is quiet until the next launch (the user's call: no "skip this version", no
+  silent mode); "Check for updates" in the launcher brings it back, and the main menu's footer says so.
+- The running jar is never touched: the game reads classes from it and Windows locks it. The new
+  jar is fetched from `github.com/.../releases/download/` only, as `<name>.part`, checked against the
+  asset's size and SHA-256 and against its own `fabric.mod.json` (id, version, Minecraft version),
+  then moved beside the old one. Then the popup has one button, "Close the game" (no relaunch: a
+  launcher would not know about the process), and as the game stops `Os.deleteAfterExit` starts a
+  small system program that waits for the game's process and deletes the old jar. If that did not
+  happen, Fabric loads the newer of the two and `Updater.init` (`tidy`) deletes the older at startup.
+- The release notes are the releases' descriptions (Markdown, through `ui/doc`), every release
+  between the running version and the new one. After an update the same panel shows them once as
+  "What's new": `extras.updater.seen` is the version last run, and the notes come from the same list.
+- It does nothing in a development run (there is no jar) or a harness run.
+
+To release: tag `v<mod.version>`, attach both `versions/*/build/libs/aller-<version>+<mc>.jar`, and
+write the changelog as the release's description.
+
 ### Pocket dimension
 
 A private world on a real integrated server, entered (key O) while the connection to the multiplayer
@@ -762,6 +796,13 @@ bubbles from other players and through nicknames; TPS under lag), the elytra, mo
 elements with real data, the map preview, typing in the search by hand, the lock key and Q, a
 double chest, dragging and the wheel in photo mode, "Freeze the world", the media keys, and the
 vitals tint.
+
+The updater is checked through `-Paller.update` on both versions: the popup's states, and for real
+the release list, the notes, the download of 1.0.0's jar with its size and hash checked, and the
+stand-in old jar deleted once the game had gone (Windows). Untried: an installed jar in a real
+launcher (so: the ten-minute timer, the popup arriving by itself, Fabric starting with both jars if
+the old one was not deleted, a launcher that kills child processes, "What's new" after a real
+update), every click, a release with several notes or pictures, GitHub's rate limit, and non-Windows.
 
 Not built yet: more novel features (quick wheel, notes).
 
