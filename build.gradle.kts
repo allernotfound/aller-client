@@ -111,6 +111,10 @@ if (providers.gradleProperty("aller.gallery").isPresent) {
 if (providers.gradleProperty("aller.mods").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.mods=true") }
 }
+// Runs the harness's script for other mods' menu buttons: stand-in buttons, the drawer, pin, hide, press.
+if (providers.gradleProperty("aller.buttons").isPresent) {
+    loom.runs.named("client") { vmArg("-Daller.dev.buttons=true") }
+}
 if (providers.gradleProperty("aller.noWorld").isPresent) {
     loom.runs.named("client") { vmArg("-Daller.dev.noWorld=true") }
 }

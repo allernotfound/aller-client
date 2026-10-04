@@ -149,6 +149,15 @@ public final class Commands {
         c.add(new Command("go.onboarding", "Replay onboarding", Group.NAVIGATE).detail("The intro and the first-run setup, from the start")
                 .keywords("welcome tutorial intro setup first run tour guide animation").after()
                 .run(parent -> Mc.setScreen(new ScreenHost(new OnboardingScreen(parent)))));
+        c.add(new Command("go.vanillamenu", "Minecraft's own menu", Group.NAVIGATE).detail("The title or pause screen as Minecraft and other mods draw it, this once")
+                .keywords("vanilla original default title pause other mods buttons missing flashback").after()
+                .run(dev.aller.platform.Nav::vanillaMenu));
+        c.add(new Command("aller.modbuttons", "Show hidden mod buttons", Group.ALLER).detail("Brings back the other mods' menu buttons you hid from the drawer")
+                .keywords("unhide restore reset drawer other mods menu").when(dev.aller.compat.ModButtons::anyHidden)
+                .run(() -> {
+                    dev.aller.compat.ModButtons.showAll();
+                    dev.aller.ui.Toasts.info("Mod buttons shown again", "They are back in the drawer the next time a menu opens.");
+                }));
         c.add(new Command("go.update", "Check for updates", Group.ALLER).detail("Looks for a newer " + AllerClient.NAME + " on GitHub now")
                 .keywords("updater upgrade new version release download latest changelog github").after()
                 .value(() -> dev.aller.feature.Updater.update() != null ? dev.aller.feature.Updater.update().version() + " available" : AllerClient.VERSION)

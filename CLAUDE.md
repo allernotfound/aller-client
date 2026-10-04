@@ -72,6 +72,11 @@ minute.
   hovered shulker box (`Containers.dev`) and a search, the chest and its search, a chest found again,
   and photo mode with a picture taken (`mods-*`, `MODS` lines in the log; the picture it took is
   copied to `mods-photo-result.png`). Tooltips cannot be hovered, so their lines are logged.
+- `-Paller.buttons` runs the script for other mods' menu buttons instead: stand-in buttons are added to
+  Minecraft's title and pause screens through Fabric's screen event (`VanillaMenus.devButtons`), then the
+  drawer is opened, a row pinned, a row hidden, the hidden ones shown and a row pressed, on the main menu
+  and in short on the pause menu (`buttons-*`, `BUTTONS` lines in the log). What it pinned and hid is put
+  back. Keep the pointer off the window: a real click opens and shuts the drawer too.
 - `-Paller.bench` measures average FPS in the test world with Aller idle, at defaults and with
   heavier module sets, and logs `BENCH` lines (`-Paller.bench=each` also times every non-HUD mod
   alone). It runs windowed: a fullscreen window that loses focus is minimised and vanilla then caps
@@ -295,6 +300,34 @@ are opened through its `GuiUtil.openScreen`, which is what asks for its terms to
 Essential's screens are never restyled (`MenuKind`). Its loader jar does not start in a 26.2 dev
 run (it looks for mapping files); the mod jar nested inside it does, and that is what sits in
 `versions/26.2/run/mods`.
+
+### Other mods' menu buttons
+
+Mods such as Flashback add buttons to Minecraft's title and pause screens, which Aller Client replaces.
+Essential's are offered by name (above); everybody else's are collected:
+
+- `platform/VanillaMenus.widgets` builds a `TitleScreen` or `PauseScreen` and lays it out without
+  showing it, which fires Fabric's screen events and every mod's own mixins. It is done each time one
+  of Aller Client's two menus is built, and again after a button is pressed (its text may have changed).
+- `compat/ModButtons` keeps what is not vanilla's. Nothing says whose a button is, so the owner is
+  worked out: the widget's class, then the class of what a plain `Button` runs (`ButtonAccessor`; a
+  lambda's class is named after the class it was written in), then a mod id among the first parts of
+  the text's translation key. A class is matched to a mod with `ModContainer.findPath`. A vanilla
+  class with a vanilla-looking key (`menu.`, `gui.`, `options.`...) is Minecraft's own and skipped; a
+  button nobody can be found for (a mixin's lambda with plain text) is listed without a name. Mod
+  Menu and Essential are left out (`COVERED`), since the menus already have buttons for them.
+- `screen/ModDrawer` draws them at the foot of the strip right of the column, under Essential's: one
+  wider button (the mods' icons overlapped, a count, a chevron) that pops a list out beside it, a row
+  per button with the mod's icon and name. Pressing a row clicks the real widget (`VanillaMenus.press`,
+  through the menu's `Handover`), so a screen it opens comes back to the hidden vanilla screen, which
+  `Screens` swaps for Aller Client's menu again.
+- A row can be pinned (its own icon button in the strip; right-click unpins) or hidden (the list's
+  footer shows them again, as does "Show hidden mod buttons" in the launcher). Both are kept in
+  `client.json` (`mod_buttons`), by an id of menu, mod and translation key. "Other mods' menu buttons"
+  in the UI settings switches the whole thing off.
+- Things that are not widgets (a mod drawing on the menu, a notice) are not collected: "Minecraft's
+  own menu" in the launcher shows the untouched title or pause screen once (`Nav.vanillaMenu`).
+- If laying the hidden screen out throws, the buttons are left out for the session.
 
 ### Launcher (Ctrl+K)
 
@@ -803,6 +836,15 @@ stand-in old jar deleted once the game had gone (Windows). Untried: an installed
 launcher (so: the ten-minute timer, the popup arriving by itself, Fabric starting with both jars if
 the old one was not deleted, a launcher that kills child processes, "What's new" after a real
 update), every click, a release with several notes or pictures, GitHub's rate limit, and non-Windows.
+
+Other mods' menu buttons are checked through `-Paller.buttons` on both versions (26.2 with Essential,
+Sodium, Iris and Mod Menu loaded, whose own widgets were correctly left out): the stand-in buttons found
+through Fabric's event, the drawer, a pin, a hide, the hidden list, a press, on both menus. Untried:
+any real mod (Flashback was the reason for it and has not been installed), so also a mod's own widget
+class, a mixin-added button, several mods' icons overlapped, a button that opens a screen and the way
+back from it, a button that changes its text, an installed jar (owner lookup takes a different path in
+a development run), the narrator (the hidden screen may be read out), right-click to unpin, the wheel
+with more than seven rows, and a window too narrow for the list.
 
 Not built yet: more novel features (quick wheel, notes).
 

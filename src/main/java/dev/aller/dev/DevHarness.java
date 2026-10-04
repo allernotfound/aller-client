@@ -75,6 +75,10 @@ public final class DevHarness {
             mods();
             return;
         }
+        if (Boolean.getBoolean("aller.dev.buttons")) {
+            buttons();
+            return;
+        }
         if (Boolean.getBoolean("aller.dev.onboarding")) {
             onboarding();
             return;
@@ -939,6 +943,52 @@ public final class DevHarness {
             run(dev.aller.feature.Shots.UNDO + 4f, () -> AllerClient.LOG.info("GALLERY {} screenshots left", dev.aller.feature.Shots.all().size()));
         }
         run(0.5f, () -> Mc.mc().stop());
+    }
+
+    /**
+     * Other mods' menu buttons ({@code -Paller.buttons}): stand-in buttons are added to Minecraft's
+     * title and pause screens through Fabric's screen event, as another mod would, and the drawer is
+     * then opened, a row pinned, a row hidden, the hidden ones shown and a row pressed, on the main
+     * menu and again in short on the pause menu. What it pinned and hid is put back.
+     */
+    private static void buttons() {
+        dev.aller.compat.ModButtons.dev = true;
+        dev.aller.platform.VanillaMenus.devButtons(() -> AllerClient.LOG.info("BUTTONS a stand-in button was pressed, screen {}",
+                Mc.screen() == null ? null : Mc.screen().getClass().getSimpleName()));
+        var saved = AllerClient.config().extra("mod_buttons");
+        until(() -> Mc.current() instanceof MainMenuScreen && !Mc.loadingOverlay());
+        run(0.1f, () -> AllerClient.LOG.info("BUTTONS title: {}", dev.aller.compat.ModButtons.collect(true).stream()
+                .map(e -> e.id() + " \"" + e.label() + "\" by " + e.mod() + (e.icon() == null ? " (no icon)" : "")).toList()));
+        shot(3.5f, "buttons-menu");
+        run(0.1f, () -> buttons("open"));
+        shot(0.8f, "buttons-open");
+        run(0.1f, () -> buttons("pin"));
+        shot(0.8f, "buttons-pinned");
+        run(0.1f, () -> buttons("hide"));
+        shot(0.8f, "buttons-hidden");
+        run(0.1f, () -> buttons("hidden"));
+        shot(0.8f, "buttons-hidden-shown");
+        run(0.1f, () -> buttons("press"));
+        shot(1.0f, "buttons-pressed");
+        if (canEnterWorld()) {
+            run(0.1f, DevHarness::enterWorld);
+            until(() -> Mc.mc().player != null && Mc.mc().level != null && Mc.screen() == null, 90);
+            run(2.0f, () -> Mc.mc().pauseGame(false));
+            run(0.3f, () -> AllerClient.LOG.info("BUTTONS pause: {}", dev.aller.compat.ModButtons.collect(false).stream().map(e -> e.id()).toList()));
+            shot(1.0f, "buttons-pause");
+            run(0.1f, () -> buttons("open"));
+            shot(0.8f, "buttons-pause-open");
+            run(0.1f, () -> buttons("press"));
+            shot(1.0f, "buttons-pause-pressed");
+        }
+        run(0.3f, () -> AllerClient.config().setExtra("mod_buttons", saved != null ? saved : new com.google.gson.JsonObject()));
+        run(0.5f, () -> Mc.mc().stop());
+    }
+
+    private static void buttons(String action) {
+        if (Mc.current() instanceof MainMenuScreen s) s.dev(action);
+        else if (Mc.current() instanceof dev.aller.screen.PauseMenuScreen s) s.dev(action);
+        else AllerClient.LOG.info("BUTTONS no menu for {}", action);
     }
 
     /** Runs a command on the test world's server, as the server. */

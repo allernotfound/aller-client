@@ -56,6 +56,8 @@ public final class ClientOptions extends Configurable {
     { section("Screens"); }
     public final Settings.Bool customMainMenu = bool("custom_main_menu", "Aller Client main menu", true);
     public final Settings.Bool customPauseMenu = bool("custom_pause_menu", "Aller Client pause menu", true);
+    public final Settings.Bool modButtons = bool("mod_buttons", "Other mods' menu buttons", true)
+            .describe("What other mods add to Minecraft's title and pause screens, in a drawer beside Aller Client's own buttons");
     public final Settings.Bool customLoading = bool("custom_loading", "Aller Client loading screens", true)
             .describe("The startup splash and the connecting and world loading screens");
     public final Settings.Bool gridView = bool("grid_view", "Show mods as a grid", false);

@@ -42,11 +42,13 @@ public final class PauseMenuScreen extends AllerScreen {
     private final List<IconButton> icons = new ArrayList<>();
     /** Another mod's destinations (Essential's), in a strip on the other side of the column. */
     private final List<IconButton> extras = new ArrayList<>();
+    /** What other mods put on Minecraft's pause menu, below those. */
+    private final ModDrawer drawer;
     /** In the corner of the card, as on the main menu. */
     private final IconButton wardrobe = new IconButton(Icons.WARDROBE, "Wardrobe", () -> Mc.setScreen(new ScreenHost(new WardrobeScreen(Mc.screen()))));
     private final List<Tween> buttonIn = new ArrayList<>();
     private final Tween cardIn = new Tween(0.45f, Easing.OUT_EXPO);
-    private float leftX, topY, colW, k = 1;
+    private float leftX, topY, colW, k = 1, vw, vh;
 
     public PauseMenuScreen() {
         boolean local = Mc.mc().isLocalServer();
@@ -70,6 +72,7 @@ public final class PauseMenuScreen extends AllerScreen {
         icons.add(new IconButton(Icons.BUG, "Report a bug", () -> go(() -> Nav.reportBug(Mc.screen()))));
 
         extras.addAll(dev.aller.compat.EssentialCompat.buttons(false, this::go));
+        drawer = new ModDrawer(this, false, this::go);
 
         for (int i = 0; i < rows.size(); i++) {
             buttonIn.add(new Tween(0.4f, Easing.OUT_EXPO).delay(0.05f + i * 0.035f));
@@ -116,8 +119,9 @@ public final class PauseMenuScreen extends AllerScreen {
     protected void layout() {
         float columnH = 30 + CARD_H + 10 + rows.size() * ROW;
         k = Math.clamp(Math.min(height / (columnH + 30), width / 360f), 0.5f, 1f);
-        float vw = width / k, vh = height / k;
-        colW = Math.min(COLUMN, vw - 40 - STRIP - (extras.isEmpty() ? 0 : STRIP));
+        vw = width / k;
+        vh = height / k;
+        colW = Math.min(COLUMN, vw - 40 - STRIP - (extras.size() + drawer.slots() == 0 ? 0 : STRIP + drawer.overhang()));
         leftX = Math.max(20 + STRIP, Math.min(vw * 0.085f + STRIP, (vw - colW) / 2));
         topY = Math.max(10, (vh - columnH) / 2);
     }
@@ -192,6 +196,7 @@ public final class PauseMenuScreen extends AllerScreen {
         for (IconButton b : icons) b.drawTip(c, true);
         wardrobe.drawTip(c, true);
         for (IconButton b : extras) b.drawTip(c, true);
+        drawer.drawOver(c, mx, my, vw, vh);
         c.pop();
         c.popAlpha();
         c.pop();
@@ -200,16 +205,23 @@ public final class PauseMenuScreen extends AllerScreen {
 
     /** The strip to the right of the column, centred against the button stack like the one on its left. */
     private void drawExtras(Canvas c, float buttonsTop, float mx, float my) {
-        float stripH = extras.size() * ICON + (extras.size() - 1) * ICON_GAP;
+        int count = extras.size() + drawer.slots();
+        float stripH = count * ICON + (count - 1) * ICON_GAP;
         float iy = buttonsTop + (rows.size() * ROW - (ROW - BUTTON_H) - stripH) / 2;
+        // The pointer belongs to the drawer's list while it is out.
+        float bmx = drawer.open() ? -1000 : mx;
         for (int i = 0; i < extras.size(); i++) {
             float t = buttonIn.get(Math.min(i, buttonIn.size() - 1)).get();
             IconButton b = extras.get(i);
             b.bounds(leftX + colW + STRIP - ICON + (1 - t) * 14, iy + i * (ICON + ICON_GAP), ICON, ICON);
             c.pushAlpha(t);
-            b.draw(c, mx, my);
+            b.draw(c, bmx, my);
             c.popAlpha();
         }
+        float t = buttonIn.get(Math.min(extras.size(), buttonIn.size() - 1)).get();
+        c.pushAlpha(t);
+        drawer.draw(c, leftX + colW + STRIP - ICON + (1 - t) * 14, iy + extras.size() * (ICON + ICON_GAP), mx, my);
+        c.popAlpha();
     }
 
     private void drawCard(Canvas c, float x, float y, float mx, float my) {
@@ -246,6 +258,7 @@ public final class PauseMenuScreen extends AllerScreen {
     @Override
     public boolean mouseDown(float x, float y, int button) {
         if (isClosing() || handover.leaving()) return false;
+        if (drawer.mouseDown(x / k, y / k, button)) return true;
         for (Button b : buttons) if (b.mouseDown(x / k, y / k, button)) return true;
         for (IconButton b : icons) if (b.mouseDown(x / k, y / k, button)) return true;
         if (wardrobe.mouseDown(x / k, y / k, button)) return true;
@@ -260,6 +273,22 @@ public final class PauseMenuScreen extends AllerScreen {
         for (IconButton b : icons) used |= b.mouseUp(x / k, y / k, button);
         used |= wardrobe.mouseUp(x / k, y / k, button);
         for (IconButton b : extras) used |= b.mouseUp(x / k, y / k, button);
+        used |= drawer.mouseUp(x / k, y / k, button);
         return used;
+    }
+
+    @Override
+    public boolean mouseScroll(float x, float y, float amount) {
+        return drawer.mouseScroll(x / k, y / k, amount);
+    }
+
+    @Override
+    public boolean keyDown(int key, int mods) {
+        return drawer.keyDown(key) || super.keyDown(key, mods);
+    }
+
+    /** For the harness: the drawer of other mods' buttons. */
+    public void dev(String action) {
+        drawer.dev(action);
     }
 }

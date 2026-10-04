@@ -90,6 +90,20 @@ public final class Nav {
         }
     }
 
+    /** Minecraft's own title or pause screen, for once: with whatever other mods draw on it. */
+    public static void vanillaMenu() {
+        if (Mc.mc().level != null) {
+            vanillaPause();
+            return;
+        }
+        Screens.passThrough = true;
+        try {
+            Mc.setScreen(new net.minecraft.client.gui.screens.TitleScreen());
+        } finally {
+            Screens.passThrough = false;
+        }
+    }
+
     /** Leaves the current world or server, exactly as the vanilla pause menu button does. */
     public static void disconnect() {
         if (dev.aller.feature.Pocket.quit()) return;

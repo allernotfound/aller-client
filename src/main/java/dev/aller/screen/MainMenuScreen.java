@@ -46,6 +46,8 @@ public final class MainMenuScreen extends AllerScreen {
     private final List<IconButton> cardIcons = new ArrayList<>();
     /** Another mod's destinations (Essential's), in a strip on the other side of the column. */
     private final List<IconButton> extras = new ArrayList<>();
+    /** What other mods put on Minecraft's title screen, below those. */
+    private final ModDrawer drawer;
     private final List<Tween> buttonIn = new ArrayList<>();
     private final boolean intro;
     private final Tween backdropIn;
@@ -89,6 +91,7 @@ public final class MainMenuScreen extends AllerScreen {
         icons.add(new IconButton(Icons.CAMERA, "Screenshots", () -> Mc.setScreen(new ScreenHost(new dev.aller.screen.shots.ShotsScreen(Mc.screen())))));
 
         extras.addAll(dev.aller.compat.EssentialCompat.buttons(true, this::go));
+        drawer = new ModDrawer(this, true, this::go);
 
         cardIcons.add(new IconButton(Icons.WARDROBE, "Wardrobe", () -> Mc.setScreen(new ScreenHost(new WardrobeScreen(Mc.screen())))));
 
@@ -149,7 +152,7 @@ public final class MainMenuScreen extends AllerScreen {
         k = Math.clamp(Math.min(height / (columnH + 56), width / 360f), 0.5f, 1f);
         vw = width / k;
         vh = height / k;
-        colW = Math.min(COLUMN, vw - 40 - STRIP - (extras.isEmpty() ? 0 : STRIP));
+        colW = Math.min(COLUMN, vw - 40 - STRIP - (extras.size() + drawer.slots() == 0 ? 0 : STRIP + drawer.overhang()));
         leftX = Math.max(20 + STRIP, Math.min(vw * 0.085f + STRIP, (vw - colW) / 2));
         topY = Math.max(14, (vh - columnH) / 2 - 10);
     }
@@ -247,6 +250,10 @@ public final class MainMenuScreen extends AllerScreen {
             c.textRight(Fonts.REGULAR, legal, vw - leftX, vh - 16, 7f, Theme.TEXT_MUTED);
         }
         c.popAlpha();
+        // Last, so its list lies over the footer too.
+        c.pushAlpha(present);
+        drawer.drawOver(c, mx, my, vw, vh);
+        c.popAlpha();
         c.pop();
 
         // Intro curtain: the whole scene emerges from black on first launch.
@@ -257,16 +264,23 @@ public final class MainMenuScreen extends AllerScreen {
 
     /** The strip to the right of the column, centred against the button stack like the one on its left. */
     private void drawExtras(Canvas c, float buttonsTop, float mx, float my) {
-        float stripH = extras.size() * ICON + (extras.size() - 1) * ICON_GAP;
+        int count = extras.size() + drawer.slots();
+        float stripH = count * ICON + (count - 1) * ICON_GAP;
         float iy = buttonsTop + (rows.size() * ROW - (ROW - BUTTON_H) - stripH) / 2;
+        // The pointer belongs to the drawer's list while it is out.
+        float bmx = drawer.open() ? -1000 : mx;
         for (int i = 0; i < extras.size(); i++) {
             float t = buttonIn.get(Math.min(i, buttonIn.size() - 1)).get();
             IconButton b = extras.get(i);
             b.bounds(leftX + colW + STRIP - ICON + (1 - t) * 14, iy + i * (ICON + ICON_GAP), ICON, ICON);
             c.pushAlpha(t);
-            b.draw(c, mx, my);
+            b.draw(c, bmx, my);
             c.popAlpha();
         }
+        float t = buttonIn.get(Math.min(extras.size(), buttonIn.size() - 1)).get();
+        c.pushAlpha(t);
+        drawer.draw(c, leftX + colW + STRIP - ICON + (1 - t) * 14, iy + extras.size() * (ICON + ICON_GAP), mx, my);
+        c.popAlpha();
     }
 
     /** "Aller Client" with each letter rising into place slightly after the previous one, then a version tag. */
@@ -345,6 +359,7 @@ public final class MainMenuScreen extends AllerScreen {
         if (handover.leaving()) return false;
         x /= k;
         y /= k;
+        if (drawer.mouseDown(x, y, button)) return true;
         for (Button b : buttons) if (b.mouseDown(x, y, button)) return true;
         for (IconButton b : icons) if (b.mouseDown(x, y, button)) return true;
         for (IconButton b : cardIcons) if (b.mouseDown(x, y, button)) return true;
@@ -370,6 +385,22 @@ public final class MainMenuScreen extends AllerScreen {
         for (IconButton b : icons) used |= b.mouseUp(x / k, y / k, button);
         for (IconButton b : cardIcons) used |= b.mouseUp(x / k, y / k, button);
         for (IconButton b : extras) used |= b.mouseUp(x / k, y / k, button);
+        used |= drawer.mouseUp(x / k, y / k, button);
         return used;
+    }
+
+    @Override
+    public boolean mouseScroll(float x, float y, float amount) {
+        return drawer.mouseScroll(x / k, y / k, amount);
+    }
+
+    @Override
+    public boolean keyDown(int key, int mods) {
+        return drawer.keyDown(key) || super.keyDown(key, mods);
+    }
+
+    /** For the harness: the drawer of other mods' buttons. */
+    public void dev(String action) {
+        drawer.dev(action);
     }
 }
