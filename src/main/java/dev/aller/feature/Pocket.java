@@ -18,6 +18,7 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.KeyboardInput;
 import net.minecraft.client.player.LocalPlayer;
@@ -53,6 +54,11 @@ import java.util.Set;
  * fed its packets, so walking back out needs no rejoin. Nothing crosses between the two worlds
  * except chat, which always belongs to the real server.
  *
+ * <p>It can also be hosted ({@link #host}): the server is left, the same save is opened as an
+ * ordinary singleplayer world that friends can be invited into, and {@link #back} rejoins the
+ * server. That is the only way to share it: with the server's connection open beside it the game
+ * is in two places at once, which nothing that publishes a world expects.
+ *
  * <p>Whatever goes wrong (a mixin another mod displaced, an exception, the pocket's server
  * failing) ends with the player back on the server and the mod switched off, never with a crash.
  */
@@ -87,6 +93,12 @@ public final class Pocket {
     /** Read by the pocket's server thread. */
     private static volatile GameType mode = GameType.CREATIVE;
     private static volatile boolean arriving;
+    /** Hosting was asked for and waits for the last visit's save; then where to go back to afterwards. */
+    private static boolean wantHost;
+    private static int hostTicks;
+    private static ServerData origin;
+    /** Who the hosted pocket has put at the entrance already. */
+    private static final Set<java.util.UUID> greeted = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /** True while the pocket is the world on screen. */
     public static boolean inside() {
@@ -103,19 +115,23 @@ public final class Pocket {
     }
 
     public static boolean bright() {
-        return inside() && Modules.POCKET.bright.get();
+        return (inside() || hosting()) && Modules.POCKET.bright.get();
     }
 
     public static void init() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (server != PocketServer.server()) return;
+            if (!PocketServer.is(server)) return;
             ServerLevel room = server.overworld();
+            if (PocketServer.hosts(server)) {
+                hosted(server, room);
+                return;
+            }
             if (arriving && !server.getPlayerList().getPlayers().isEmpty()) {
                 arriving = false;
                 PocketRoom.repair(room);
                 // Always at the entrance: the last place they stood may be the doorway they left by.
                 ServerPlayer player = server.getPlayerList().getPlayers().get(0);
-                player.teleportTo(room, PocketRoom.ENTRY_X, PocketRoom.ENTRY_Y, PocketRoom.ENTRY_Z, Set.of(), 0f, 0f, false);
+                place(player, room);
                 player.setGameMode(mode);
             } else if (server.getTickCount() % 20 == 0) {
                 PocketRoom.repair(room);
@@ -125,12 +141,36 @@ public final class Pocket {
                 !(level instanceof ServerLevel s && isRoom(s.getServer(), s) && PocketRoom.fixed(pos)));
         // The same answer on the client, so a wall does not flicker out and back.
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) ->
-                level.isClientSide() && inside() && level.dimension() == Level.OVERWORLD && PocketRoom.fixed(pos)
+                level.isClientSide() && (inside() || hosting()) && level.dimension() == Level.OVERWORLD && PocketRoom.fixed(pos)
                         ? InteractionResult.FAIL : InteractionResult.PASS);
     }
 
     private static boolean isRoom(MinecraftServer server, ServerLevel level) {
-        return server == PocketServer.server() && level.dimension() == Level.OVERWORLD;
+        return PocketServer.is(server) && level.dimension() == Level.OVERWORLD;
+    }
+
+    private static void place(ServerPlayer player, ServerLevel room) {
+        player.teleportTo(room, PocketRoom.ENTRY_X, PocketRoom.ENTRY_Y, PocketRoom.ENTRY_Z, Set.of(), 0f, 0f, false);
+        player.resetFallDistance();
+    }
+
+    /**
+     * A tick of the hosted pocket. Everybody starts at the entrance: the world's own spawn point is
+     * out in the void, which is also where a death or a fall out of the room would leave them.
+     */
+    private static void hosted(MinecraftServer server, ServerLevel room) {
+        boolean repaired = server.getTickCount() % 20 == 0;
+        if (repaired) PocketRoom.repair(room);
+        for (ServerPlayer player : List.copyOf(server.getPlayerList().getPlayers())) {
+            if (greeted.add(player.getUUID())) {
+                if (!repaired) PocketRoom.repair(room);
+                repaired = true;
+                place(player, room);
+                player.setGameMode(mode);
+            } else if (player.level() == room && player.isAlive() && player.getY() < PocketRoom.FLOOR - 32) {
+                place(player, room);
+            }
+        }
     }
 
     /** Reads the mod's key once a frame; it steps in and out rather than switching the mod on and off. */
@@ -158,6 +198,11 @@ public final class Pocket {
         Minecraft mc = Mc.mc();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null || mc.gameMode == null || mc.getConnection() == null) return;
+        if (hosting()) {
+            Toasts.info(NAME, "You are hosting it. \"Back to the server\" in the launcher closes it");
+            return;
+        }
+        if (wantHost) return;
         if (mc.isLocalServer() && !DEV) {
             Toasts.info(NAME, "It opens from a multiplayer server, not from a singleplayer world");
             return;
@@ -204,6 +249,7 @@ public final class Pocket {
     }
 
     public static void tick() {
+        if (wantHost) opening();
         if (phase == Phase.IDLE) {
             dark = 0;
             return;
@@ -402,6 +448,77 @@ public final class Pocket {
             finish();
         }
         if (wait) PocketServer.stopAndWait();
+    }
+
+    // ---- hosting ---------------------------------------------------------------------------------------
+
+    public static boolean hosting() {
+        return PocketServer.hosting();
+    }
+
+    /** Hosting, with a server to go back to. */
+    public static boolean returns() {
+        return origin != null && hosting();
+    }
+
+    public static String originName() {
+        return origin == null ? "" : origin.name;
+    }
+
+    /** The multiplayer server the player is on (also from inside the pocket), if it can be joined again by its address. */
+    private static ServerData here() {
+        ClientPacketListener listener = phase != Phase.IDLE && remote != null && remote.getPacketListener() instanceof ClientPacketListener l
+                ? l : Mc.mc().getConnection();
+        ServerData server = listener == null ? null : listener.getServerData();
+        return server == null || server.isRealm() ? null : server;
+    }
+
+    public static boolean canHost() {
+        Minecraft mc = Mc.mc();
+        return Modules.POCKET.enabled() && mc.level != null && !wantHost && !hosting()
+                && (here() != null || DEV && mc.isLocalServer());
+    }
+
+    /**
+     * Leaves the server and opens the pocket as a singleplayer world of its own. A visit under way
+     * is ended first, and its server has to finish saving before the world can be opened again.
+     */
+    public static void host() {
+        if (!canHost()) return;
+        if (Mc.mc().getReportingContext().hasDraftReport()) {
+            Toasts.info(NAME, "Send or discard your chat report first");
+            return;
+        }
+        origin = here();
+        close(false);
+        mode = Modules.POCKET.mode.get() == dev.aller.module.mods.WorldMods.PocketDimension.Mode.SURVIVAL ? GameType.SURVIVAL : GameType.CREATIVE;
+        wantHost = true;
+        hostTicks = 0;
+    }
+
+    private static void opening() {
+        if (Mc.mc().level == null) {
+            wantHost = false;
+        } else if (PocketServer.idle()) {
+            wantHost = false;
+            greeted.clear();
+            ServerData server = origin;
+            PocketServer.host(mode, left -> {
+                Toasts.warn(NAME, "It could not be opened. The log has the reason");
+                if (left && server != null) dev.aller.platform.Nav.leaveFor(server);
+            });
+        } else if (++hostTicks > 20 * 30) {
+            wantHost = false;
+            Toasts.info(NAME, "Still saving from last time. Try again in a moment");
+        }
+    }
+
+    /** Saves and closes the hosted pocket, and rejoins the server it was opened from. */
+    public static void back() {
+        if (!hosting()) return;
+        ServerData server = origin;
+        origin = null;
+        dev.aller.platform.Nav.leaveFor(server);
     }
 
     // ---- called from the mixins, through Hooks ----------------------------------------------------

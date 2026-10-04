@@ -59,7 +59,7 @@ public final class PauseMenuScreen extends AllerScreen {
         add("Waypoints", () -> Mc.setScreen(new ScreenHost(new PaletteScreen(Mc.screen(), new WaypointsPage()))));
         add("Statistics", () -> go(() -> Nav.statistics(Mc.screen())));
         add("Options", () -> go(() -> Nav.options(Mc.screen())));
-        add(dev.aller.feature.Pocket.inside() ? "Leave the pocket" : local ? "Save and quit to title" : "Disconnect", Nav::disconnect).style(Button.Style.DANGER);
+        add(dev.aller.feature.Pocket.inside() ? "Leave the pocket" : dev.aller.feature.Pocket.returns() ? "Back to the server" : local ? "Save and quit to title" : "Disconnect", Nav::disconnect).style(Button.Style.DANGER);
 
         icons.add(new IconButton(Icons.CAMERA, "Screenshots", () -> Mc.setScreen(new ScreenHost(new dev.aller.screen.shots.ShotsScreen(Mc.screen())))));
         icons.add(new IconButton(Icons.ADVANCEMENTS, "Advancements", () -> go(() -> Nav.advancements(Mc.screen()))));

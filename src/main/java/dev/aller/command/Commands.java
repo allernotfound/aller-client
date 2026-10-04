@@ -284,7 +284,7 @@ public final class Commands {
         c.add(new Command("game.world", "Open world", Group.GAME).detail("Pick one of your singleplayer worlds").keywords("load play singleplayer save")
                 .when(menus).step(new Step.Pick("Open", "No worlds yet. Create one from Singleplayer.", Commands::worldOptions)));
         c.add(new Command("game.leave", "Save and quit to title", Group.GAME).keywords("exit leave world main menu disconnect")
-                .when(() -> Game.inWorld() && Mc.mc().isLocalServer() && !dev.aller.feature.Pocket.inside()).danger("leave this world").after().run(Nav::disconnect));
+                .when(() -> Game.inWorld() && Mc.mc().isLocalServer() && !dev.aller.feature.Pocket.inside() && !dev.aller.feature.Pocket.returns()).danger("leave this world").after().run(Nav::disconnect));
         c.add(new Command("game.disconnect", "Disconnect", Group.GAME).keywords("leave server exit main menu")
                 .when(() -> Game.inWorld() && !Mc.mc().isLocalServer()).danger("disconnect").after().run(Nav::disconnect));
         c.add(new Command("pocket.enter", "Enter the pocket", Group.GAME).detail("Your private room, beside the server").keywords("pocket dimension room base")
@@ -292,6 +292,13 @@ public final class Commands {
                 .run(dev.aller.feature.Pocket::toggle));
         c.add(new Command("pocket.leave", "Leave the pocket", Group.GAME).detail("Back to where you stand on the server").keywords("pocket dimension exit return")
                 .when(dev.aller.feature.Pocket::inside).run(dev.aller.feature.Pocket::toggle));
+        c.add(new Command("pocket.host", "Host the pocket", Group.GAME).detail("Leave the server and open your room as a world friends can join")
+                .keywords("pocket dimension invite friends share lan essential e4mc multiplayer singleplayer")
+                .when(dev.aller.feature.Pocket::canHost).danger("leave the server").run(dev.aller.feature.Pocket::host));
+        c.add(new Command("pocket.back", "Back to the server", Group.GAME).detail("Saves and closes the pocket, then rejoins")
+                .keywords("pocket dimension return rejoin reconnect leave")
+                .when(dev.aller.feature.Pocket::returns).value(dev.aller.feature.Pocket::originName)
+                .danger("close the pocket").after().run(dev.aller.feature.Pocket::back));
         c.add(new Command("game.quit", "Quit game", Group.GAME).keywords("exit close minecraft").danger("quit Minecraft").after().run(Nav::quit));
 
         options(c);

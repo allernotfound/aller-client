@@ -93,6 +93,10 @@ public final class Nav {
     /** Leaves the current world or server, exactly as the vanilla pause menu button does. */
     public static void disconnect() {
         if (dev.aller.feature.Pocket.quit()) return;
+        if (dev.aller.feature.Pocket.returns()) {
+            dev.aller.feature.Pocket.back();
+            return;
+        }
         if (Mc.mc().getReportingContext().hasDraftReport()) {
             // Vanilla asks what to do with an unsent chat report; let it.
             vanillaPause();
@@ -117,12 +121,18 @@ public final class Nav {
     public static void rejoin() {
         var mc = Mc.mc();
         var server = mc.getCurrentServer();
-        if (server == null) return;
+        if (server != null) leaveFor(server);
+    }
+
+    /** Leaves the current world or server (a singleplayer world is saved first) and joins a server; null just leaves. */
+    public static void leaveFor(net.minecraft.client.multiplayer.ServerData server) {
+        var mc = Mc.mc();
         //? if <26.1 {
         /*PauseScreen.disconnectFromWorld(mc, ClientLevel.DEFAULT_QUIT_MESSAGE);
         *///?} else {
         mc.disconnectFromWorld(ClientLevel.DEFAULT_QUIT_MESSAGE);
         //?}
+        if (server == null) return;
         net.minecraft.client.gui.screens.ConnectScreen.startConnecting(new JoinMultiplayerScreen(new net.minecraft.client.gui.screens.TitleScreen()),
                 mc, net.minecraft.client.multiplayer.resolver.ServerAddress.parseString(server.ip), server, false, null);
     }

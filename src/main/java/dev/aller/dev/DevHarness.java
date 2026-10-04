@@ -458,6 +458,7 @@ public final class DevHarness {
     /**
      * The pocket dimension ({@code -Paller.pocket}): from the test world, step in, send chat and a
      * pocket command, leave through the door, come back to check the build was kept, leave by key.
+ * Then the same save hosted as a world of its own, and closed again.
      * The test world stands in for a server, so two integrated servers run side by side.
      */
     private static void pocket() {
@@ -497,8 +498,23 @@ public final class DevHarness {
         });
         until(() -> !dev.aller.feature.Pocket.active(), 30);
         shot(1.0f, "pocket-out");
-        run(0.1f, () -> {
+        // Hosted: the test world is left and the same save opens as the game's own world. There is
+        // no server to go back to here, so the way back ends at the main menu.
+        until(dev.aller.platform.PocketServer::idle, 60);
+        run(0.5f, () -> {
             pocketLog("out");
+            dev.aller.feature.Pocket.host();
+        });
+        until(() -> dev.aller.feature.Pocket.hosting() && Mc.mc().player != null && Mc.mc().level != null && Mc.screen() == null, 90);
+        shot(3.0f, "pocket-hosted");
+        run(0.1f, () -> {
+            pocketLog("hosted");
+            dev.aller.feature.Pocket.back();
+        });
+        until(() -> Mc.current() instanceof MainMenuScreen && !Mc.loadingOverlay(), 60);
+        shot(1.0f, "pocket-closed");
+        run(0.1f, () -> {
+            pocketLog("closed");
             savedState.forEach(Module::setEnabled);
             AllerClient.config().save();
         });

@@ -52,6 +52,9 @@ import java.util.concurrent.CompletableFuture;
  * its way out of whatever the client was connected to, so the same steps are taken here by hand:
  * the save lives in {@code <game dir>/aller-pocket}, outside the singleplayer list, and nothing
  * here touches the connection the player already has.
+ *
+ * <p>{@link #host} is the other way to open the same save: as Minecraft's own singleplayer world,
+ * with the server left behind, so that it can be shared the way any world can.
  */
 public final class PocketServer {
     private PocketServer() {}
@@ -63,6 +66,10 @@ public final class PocketServer {
     private static volatile Throwable failure;
     private static boolean stopping;
     private static java.util.List<Registry.PendingTags<?>> serverTags;
+    /** The save is being read for {@link #host}. */
+    private static boolean opening;
+    /** Minecraft's own singleplayer server, while it runs the pocket. Read by that server's thread too. */
+    private static volatile MinecraftServer hosted;
 
     public static Path dir() {
         return Mc.mc().gameDirectory.toPath().resolve("aller-pocket");
@@ -71,7 +78,76 @@ public final class PocketServer {
     /** Nothing running and nothing still being saved. */
     public static boolean idle() {
         settle();
-        return server == null && starting == null;
+        return server == null && starting == null && !opening;
+    }
+
+    /** Whether a server is running the pocket, beside a connection or hosted. */
+    public static boolean is(MinecraftServer candidate) {
+        return candidate != null && (candidate == server || candidate == hosted);
+    }
+
+    public static boolean hosts(MinecraftServer candidate) {
+        return candidate != null && candidate == hosted;
+    }
+
+    /** True while the pocket is the singleplayer world the game is in. */
+    public static boolean hosting() {
+        return hosts(Mc.mc().getSingleplayerServer());
+    }
+
+    /**
+     * Opens the pocket as an ordinary singleplayer world: Minecraft leaves whatever it is connected
+     * to and starts the server itself, so "Open to LAN" and other mods' invitations see a world like
+     * any other. Must be {@link #idle()}. {@code failed} is told whether the server had been left by then.
+     */
+    public static void host(GameType mode, java.util.function.Consumer<Boolean> failed) {
+        Minecraft mc = Mc.mc();
+        failure = null;
+        hosted = null;
+        try {
+            Files.createDirectories(dir());
+            LevelStorageSource source = LevelStorageSource.createDefault(dir());
+            boolean fresh = !source.levelExists(LEVEL);
+            LevelStorageSource.LevelStorageAccess access = source.validateAndCreateAccess(LEVEL);
+            try {
+                PackRepository packs = ServerPacksSource.createPackRepository(access);
+                CompletableFuture<WorldStem> stem = fresh ? create(packs, mode) : load(access, packs);
+                opening = true;
+                stem.whenCompleteAsync((s, error) -> {
+                    opening = false;
+                    if (error != null) {
+                        AllerClient.LOG.warn("Pocket: the world could not be read", error);
+                        access.safeClose();
+                        failed.accept(false);
+                        return;
+                    }
+                    try {
+                        // Vanilla only loads a world from a menu. Say goodbye as its pause menu does first:
+                        // 1.21.8 otherwise waits for ever for a singleplayer world nobody told to stop.
+                        if (mc.level != null) mc.level.disconnect(net.minecraft.client.multiplayer.ClientLevel.DEFAULT_QUIT_MESSAGE);
+                        //? if <26.1 {
+                        /*mc.doWorldLoad(access, packs, s, fresh);
+                        *///?} else {
+                        mc.doWorldLoad(access, packs, s, Optional.empty(), fresh);
+                        //?}
+                        hosted = mc.getSingleplayerServer();
+                    } catch (Throwable t) {
+                        // The server is already left behind by now: end at the title screen, not on a frozen one.
+                        AllerClient.LOG.error("Pocket: the world could not be started", t);
+                        if (mc.getSingleplayerServer() == null) access.safeClose();
+                        Mc.setScreen(new net.minecraft.client.gui.screens.TitleScreen());
+                        failed.accept(true);
+                    }
+                }, mc);
+            } catch (Throwable t) {
+                access.safeClose();
+                throw t;
+            }
+        } catch (Throwable t) {
+            opening = false;
+            AllerClient.LOG.warn("Pocket: the world could not be opened", t);
+            failed.accept(false);
+        }
     }
 
     /** Moves a finished start or stop along; both happen off the game thread. */

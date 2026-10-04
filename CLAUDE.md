@@ -41,8 +41,9 @@ minute.
   `aller-dev` themselves: the world is then locked and the harness gives up after the menus.
 - `-Paller.noWorld` skips the world entirely.
 - `-Paller.pocket` runs the pocket dimension script instead (in, chat and a pocket command, out by
-  the door, in again, out by key; `POCKET` lines in the log). It also lets the pocket open from the
-  singleplayer test world, which then stands in for a server.
+  the door, in again, out by key, then hosted and closed; `POCKET` lines in the log). It also lets
+  the pocket open from the singleplayer test world, which then stands in for a server (so hosting
+  has no server to go back to there, and ends at the main menu).
 - `-Paller.skin` runs the restyled-menu script instead: it switches the restyling on for the run, leaves
   the main menu and the pause menu for the options with captures part way through the hand-over
   (`skin-handover-*`), walks every skinned menu (`skin-*`), repeats a few in the smooth look
@@ -502,6 +503,14 @@ server stays open. Experimental, restricted (the server sees the player standing
   second and refuses to break it. Walking through the door or pressing the key leaves.
 - Chat and `/commands` typed inside go to the real server; a line starting with the prefix setting
   (`\`) is a command for the pocket. "Disconnect" inside leaves the pocket, not the server.
+- Hosting ("Host the pocket" in the launcher, from the server or from inside the pocket): the visit
+  is ended, the server is left, and `PocketServer.host` hands the same save to vanilla's
+  `Minecraft.doWorldLoad`, so it is the game's own singleplayer server and Open to LAN, Essential and
+  e4mc treat it like any world. It still is not in the world list. `Pocket.origin` is the server
+  left; "Back to the server" (launcher, and the pause menu's last button) saves, closes and rejoins
+  it. The beside-the-server pocket cannot be shared: the account is then in two places at once.
+  Hosted, everybody is put at the entrance on first joining and again after falling out of the room
+  (the world's spawn is in the void); the door does nothing. It uses none of the pocket mixins.
 - Its mixins are in `mixin/pocket/` with their own config, `aller.pocket.mixins.json`: not required,
   every injector `require = 0`. `PocketPlugin` records which mixins applied and which handlers (named
   `pocket$...`) are actually called; `Pocket.enter` refuses and switches the mod off if anything is
@@ -709,7 +718,10 @@ for the server (26.2 with Sodium and Iris loaded). Untried: a real multiplayer s
 anticheat, the eject paths (damage, respawn, server-opened screens, a dropped connection), a proxy
 server switch, survival mode and dying inside, the Nether from inside, a non-zero chat delay (the
 server's signed chat is then acknowledged on the wrong connection), a server with custom tags, and
-another mod displacing one of its mixins.
+another mod displacing one of its mixins. Hosting is checked the same way on both versions (the
+save opening as the game's own world, the room and builds kept, closing it). Untried: hosting from a
+real server and the rejoin afterwards, from a Realm (refused), a friend actually joining through
+Essential, e4mc or LAN, where a guest lands, and survival, death and the void for guests.
 
 The pack store is checked through `-Paller.store` on 26.2 only (browse, rows, search, a page with
 its pictures, gallery, full-size picture, versions and changelog, a download, the installed list,
